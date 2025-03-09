@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Hook para redirigir
 import SnackLogin from "../../snacks/ui/SnackLogin";
-import { AuthenticateUser } from "../../store/coban365_warehouse";
+import { AuthenticateUser } from "../../store/AuthenticateUser";
 import { ThemeProvider } from "../../glamour/ThemeContext"; // Importa el ThemeProvider
 import { Alert, Snackbar } from "@mui/material"; // Importa alertas de Material UI
 
@@ -8,23 +9,32 @@ import { Alert, Snackbar } from "@mui/material"; // Importa alertas de Material 
  * Componente HomeScreen
  *
  * Renderiza el formulario de inicio de sesión y maneja la autenticación del usuario.
- * Muestra alertas para errores de credenciales incorrectas y cuentas inactivas.
+ * Si el usuario ya está autenticado, lo redirige automáticamente a `ProfileScreen.tsx`.
  *
  * @returns {JSX.Element} Elemento JSX que representa la pantalla de inicio.
  */
 
 const HomeScreen: React.FC = () => {
-  // Estado para almacenar mensajes de alerta
+  const navigate = useNavigate(); // Hook de navegación
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error" | "warning">(
     "error"
   );
 
+  // Verifica si el usuario ya está autenticado y lo redirige a /profile
+  useEffect(() => {
+    const storedUser = localStorage.getItem("userSession");
+    if (storedUser) {
+      console.log("✅ Usuario ya autenticado. Redirigiendo a perfil...");
+      navigate("/profile");
+    }
+  }, [navigate]);
+
   /**
-   * Maneja la autenticación del usuario
+   * Maneja la autenticación del usuario y guarda su sesión en localStorage.
    *
-   * @param {string} email - Correo del usuario
-   * @param {string} password - Contraseña del usuario
+   * @param {string} email - Correo del usuario.
+   * @param {string} password - Contraseña del usuario.
    */
   const handleLogin = async (email: string, password: string) => {
     console.log("🔄 Iniciando proceso de autenticación...");
@@ -44,7 +54,15 @@ const HomeScreen: React.FC = () => {
           console.log("🎉 Inicio de sesión exitoso.");
           setAlertMessage("Inicio de sesión exitoso.");
           setAlertType("success");
-          console.log("👤 Datos del usuario:", response.user);
+
+          // Guardar usuario en localStorage para mantener la sesión
+          localStorage.setItem("userSession", JSON.stringify(response.user));
+          console.log("💾 Sesión guardada en localStorage:", response.user);
+
+          // Redirigir a la pantalla de perfil
+          setTimeout(() => {
+            navigate("/profile");
+          }, 1000);
         }
       } else {
         console.error("❌ Error de autenticación:", response.message);
