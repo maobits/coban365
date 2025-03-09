@@ -9,6 +9,8 @@ const App: React.FC = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<HomeScreen />} />
+      {/* Rutas de la autenticación */}
+      <Route path="/login" element={<HomeScreen />} />
       {/* Rutas del perfil */}
       <Route path="/profile" element={<ProfileScreen />} />
       {/* Rutas asociadas a permisos especiales */}

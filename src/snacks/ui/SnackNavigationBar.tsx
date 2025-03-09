@@ -5,7 +5,14 @@ import {
   Paper,
   IconButton,
 } from "@mui/material";
-import { Home, Calculate, Note, Menu, Close } from "@mui/icons-material";
+import {
+  Home,
+  Calculate,
+  Note,
+  Menu,
+  Close,
+  ExitToApp,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../glamour/ThemeContext";
 
@@ -17,6 +24,7 @@ import { useTheme } from "../../glamour/ThemeContext";
  *  - Inicio ("/")
  *  - Calculadora ("/calculator")
  *  - Notas ("/notes")
+ *  - Cerrar Sesión (Elimina la sesión y redirige a "/login")
  *
  * Usa Material UI y el tema de la app para mantener la coherencia visual.
  *
@@ -28,6 +36,16 @@ const SnackNavigationBar: React.FC = () => {
   const navigate = useNavigate(); // Hook para la navegación
   const [value, setValue] = useState(0); // Estado para manejar la selección de pestañas
   const [open, setOpen] = useState(true); // Estado para mostrar/ocultar la barra
+
+  /**
+   * Maneja el cierre de sesión eliminando la sesión del usuario en localStorage
+   * y redirigiendo a la pantalla de login.
+   */
+  const handleLogout = () => {
+    console.log("🚪 Cerrando sesión...");
+    localStorage.removeItem("userSession"); // Elimina la sesión
+    navigate("/login"); // Redirige a la pantalla de inicio de sesión
+  };
 
   return (
     <>
@@ -114,6 +132,20 @@ const SnackNavigationBar: React.FC = () => {
               "&.Mui-selected": { color: colors.secondary },
               minWidth: "auto",
               padding: "10px 0",
+            }}
+          />
+
+          {/* Botón de Cerrar Sesión */}
+          <BottomNavigationAction
+            label="Cerrar Sesión"
+            icon={<ExitToApp />}
+            onClick={handleLogout}
+            sx={{
+              color: colors.text_white,
+              "&.Mui-selected": { color: colors.secondary },
+              minWidth: "auto",
+              padding: "10px 0",
+              marginTop: "auto", // Se ubica en la parte inferior de la barra
             }}
           />
         </BottomNavigation>
