@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomeScreen from "./showcase/home/HomeScreen";
 import ProfileScreen from "./showcase/profile/ProfileScreen";
+import SnackNavigationBar from "./snacks/ui/SnackNavigationBar";
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -15,6 +16,7 @@ const App: React.FC = () => (
       <Route path="/manageAdministrators" element={<HomeScreen />} />
       <Route path="/manageReports" element={<HomeScreen />} />
     </Routes>
+    <SnackNavigationBar /> {/* Barra de navegación siempre visible */}
   </BrowserRouter>
 );
 
