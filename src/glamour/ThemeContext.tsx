@@ -27,10 +27,10 @@ interface PartialTheme {
 // 3. Valor por defecto (defaultTheme)
 const defaultTheme: Theme = {
   colors: {
-    primary: "#580666",
-    secondary: "#f43e05",
+    primary: "#0A1E41",
+    secondary: "#8CBF3F",
     background: "#ffffff",
-    background_grey: "#F5F5F5",
+    background_grey: "#24456E",
     text: "#333333",
     text_white: "#ffffff",
   },

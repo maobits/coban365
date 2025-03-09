@@ -1,33 +1,49 @@
 import baseUrl from "./config/server"; // Importa la configuración del servidor
 
 /**
- * Servicio para obtener la lista de negocios VIP.
- * Utiliza la ruta base del servidor y el endpoint correspondiente.
+ * Servicio para autenticar un usuario en el sistema.
+ * Envía las credenciales al servidor y maneja la respuesta.
  *
- * @returns {Promise<any>} Una promesa que resuelve con la colección en formato JSON.
+ * @param {string} email - Correo electrónico del usuario.
+ * @param {string} password - Contraseña del usuario.
+ * @returns {Promise<any>} Una promesa que resuelve con la respuesta del servidor.
  */
-export const getVipBusinesses = async (): Promise<any> => {
+export const AuthenticateUser = async (
+  email: string,
+  password: string
+): Promise<any> => {
   try {
-    // Construye la URL completa concatenando la baseUrl con el endpoint
-    const url = `${baseUrl}/vendors/backend/api/vip_business_list.php`;
+    // Construye la URL completa del endpoint de autenticación
+    const url = `${baseUrl}/api/login.php`;
 
-    // Muestra en consola la URL que se está solicitando
-    console.log("URL de la solicitud:", url);
+    // Muestra en consola la URL de la solicitud (para depuración)
+    console.log("URL de autenticación:", url);
 
-    // Realiza la solicitud HTTP al endpoint
-    const response = await fetch(url);
+    // Configura el cuerpo de la solicitud con los datos del usuario
+    const body = JSON.stringify({ email, password });
+
+    // Realiza la solicitud HTTP al endpoint con el método POST
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // Indica que el contenido es JSON
+      },
+      body, // Envía los datos en formato JSON
+    });
 
     // Verifica que la respuesta sea exitosa
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
     }
 
-    // Devuelve la respuesta parseada a JSON
+    // Convierte la respuesta en formato JSON
     const data = await response.json();
+
+    // Retorna la respuesta del servidor
     return data;
   } catch (error) {
-    // Manejo de errores: se imprime el error en la consola y se relanza
-    console.error("Error al obtener negocios VIP:", error);
+    // Manejo de errores: se imprime en la consola y se relanza
+    console.error("Error en la autenticación:", error);
     throw error;
   }
 };
