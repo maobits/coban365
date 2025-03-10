@@ -28,6 +28,7 @@ import {
   getTypesCorrespondent,
   createCorrespondent,
   getCorrespondents, // 🔹 Importamos la función para obtener la lista de corresponsales
+  updateCorrespondent,
   deleteCorrespondent,
 } from "../../store/CrudCorrespondent";
 import { getProfiles } from "../../store/Profile";
@@ -51,6 +52,9 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
+
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedCorrespondent, setSelectedCorrespondent] = useState<any>(null);
 
   useEffect(() => {
     if (!permissions.includes("manageCorrespondents")) {
@@ -149,6 +153,42 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
     }
   };
 
+  const handleEditCorrespondent = (correspondent: any) => {
+    setSelectedCorrespondent({
+      ...correspondent,
+      location: correspondent.location
+        ? JSON.parse(correspondent.location)
+        : { departamento: "", ciudad: "" },
+    });
+    setOpenEditDialog(true);
+  };
+
+  const handleUpdateCorrespondent = async () => {
+    if (!selectedCorrespondent) return;
+
+    try {
+      const response = await updateCorrespondent(selectedCorrespondent);
+
+      if (response.success) {
+        setAlertMessage("Corresponsal actualizado correctamente.");
+        setAlertType("success");
+
+        const updatedList = await getCorrespondents();
+        if (updatedList.success) {
+          setCorrespondents(updatedList.data);
+        }
+
+        setOpenEditDialog(false);
+      } else {
+        setAlertMessage(response.message);
+        setAlertType("error");
+      }
+    } catch (error) {
+      setAlertMessage("Error en la actualización.");
+      setAlertType("error");
+    }
+  };
+
   const handleDeleteCorrespondent = async (correspondentId: number) => {
     if (
       !window.confirm("¿Estás seguro de que deseas eliminar este corresponsal?")
@@ -221,7 +261,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
             <TableBody>
               {correspondents.map((correspondent) => {
                 const location = correspondent.location
-                  ? JSON.parse(correspondent.location) // 🔹 Convertir la cadena JSON a objeto
+                  ? JSON.parse(correspondent.location)
                   : {
                       departamento: "No especificado",
                       ciudad: "No especificado",
@@ -239,14 +279,17 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                     </TableCell>
                     <TableCell>{`${location.departamento}, ${location.ciudad}`}</TableCell>
                     <TableCell>
-                      <IconButton color="primary">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleEditCorrespondent(correspondent)}
+                      >
                         <Edit />
                       </IconButton>
                       <IconButton
                         color="error"
                         onClick={() =>
                           handleDeleteCorrespondent(correspondent.id)
-                        } // 🔹 Agregamos la función de eliminar
+                        }
                       >
                         <Delete />
                       </IconButton>
@@ -259,13 +302,29 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         </TableContainer>
       )}
 
-      {/* Modal */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>Nuevo Corresponsal</DialogTitle>
-        <DialogContent>
+      {/* Modal para crear corresponsal */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            backgroundColor: colors.background,
+            color: colors.text_white,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: fonts.heading, color: colors.primary }}>
+          Nuevo Corresponsal
+        </DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
           <TextField
             fullWidth
             label="Código"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) =>
               setNewCorrespondent({ ...newCorrespondent, code: e.target.value })
             }
@@ -273,12 +332,12 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           <TextField
             fullWidth
             label="Nombre"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) =>
               setNewCorrespondent({ ...newCorrespondent, name: e.target.value })
             }
           />
-
-          {/* Tipo de Corresponsal */}
           <Autocomplete
             options={types}
             getOptionLabel={(option) => option.name || ""}
@@ -290,11 +349,19 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
               }))
             }
             renderInput={(params) => (
-              <TextField {...params} label="Tipo de Corresponsal" fullWidth />
+              <TextField
+                {...params}
+                label="Tipo de Corresponsal"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
             )}
           />
-
-          {/* Operador */}
           <Autocomplete
             options={profiles}
             getOptionLabel={(option) => option.fullname}
@@ -306,13 +373,24 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
               }))
             }
             renderInput={(params) => (
-              <TextField {...params} label="Operador" fullWidth />
+              <TextField
+                {...params}
+                label="Operador"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
             )}
           />
-
           <TextField
             fullWidth
             label="Departamento"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) =>
               setNewCorrespondent({
                 ...newCorrespondent,
@@ -326,6 +404,8 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           <TextField
             fullWidth
             label="Ciudad"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) =>
               setNewCorrespondent({
                 ...newCorrespondent,
@@ -337,11 +417,165 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
             }
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} color="secondary">
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDialog} sx={{ color: colors.text_white }}>
             Cancelar
           </Button>
-          <Button onClick={handleCreateCorrespondent} color="primary">
+          <Button
+            onClick={handleCreateCorrespondent}
+            variant="contained"
+            sx={{ backgroundColor: colors.secondary }}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para editar corresponsal */}
+      <Dialog
+        open={openEditDialog}
+        onClose={() => setOpenEditDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            backgroundColor: colors.background,
+            color: colors.text_white,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: fonts.heading, color: colors.primary }}>
+          Editar Corresponsal
+        </DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
+          <TextField
+            fullWidth
+            label="Código"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
+            value={selectedCorrespondent?.code || ""}
+            onChange={(e) =>
+              setSelectedCorrespondent({
+                ...selectedCorrespondent,
+                code: e.target.value,
+              })
+            }
+          />
+          <TextField
+            fullWidth
+            label="Nombre"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
+            value={selectedCorrespondent?.name || ""}
+            onChange={(e) =>
+              setSelectedCorrespondent({
+                ...selectedCorrespondent,
+                name: e.target.value,
+              })
+            }
+          />
+          <Autocomplete
+            options={types}
+            getOptionLabel={(option) => option.name || ""}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            value={
+              types.find((t) => t.id === selectedCorrespondent?.type_id) || null
+            }
+            onChange={(_, newValue) =>
+              setSelectedCorrespondent((prev) => ({
+                ...prev,
+                type_id: newValue?.id || null,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tipo de Corresponsal"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
+            )}
+          />
+          <Autocomplete
+            options={profiles}
+            getOptionLabel={(option) => option.fullname}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            value={
+              profiles.find(
+                (p) => p.id === selectedCorrespondent?.operator_id
+              ) || null
+            }
+            onChange={(_, newValue) =>
+              setSelectedCorrespondent((prev) => ({
+                ...prev,
+                operator_id: newValue?.id || null,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Operador"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
+            )}
+          />
+          <TextField
+            fullWidth
+            label="Departamento"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
+            value={selectedCorrespondent?.location.departamento || ""}
+            onChange={(e) =>
+              setSelectedCorrespondent((prev) => ({
+                ...prev,
+                location: {
+                  ...prev.location,
+                  departamento: e.target.value,
+                },
+              }))
+            }
+          />
+          <TextField
+            fullWidth
+            label="Ciudad"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
+            value={selectedCorrespondent?.location.ciudad || ""}
+            onChange={(e) =>
+              setSelectedCorrespondent((prev) => ({
+                ...prev,
+                location: {
+                  ...prev.location,
+                  ciudad: e.target.value,
+                },
+              }))
+            }
+          />
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setOpenEditDialog(false)}
+            sx={{ color: colors.text_white }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleUpdateCorrespondent}
+            variant="contained"
+            sx={{ backgroundColor: colors.secondary }}
+          >
             Guardar
           </Button>
         </DialogActions>
