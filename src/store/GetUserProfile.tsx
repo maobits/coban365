@@ -39,3 +39,52 @@ export const GetUserProfile = async (userId: number): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Servicio para actualizar un corresponsal en el sistema.
+ * Realiza una solicitud al servidor para modificar los datos de un corresponsal existente.
+ *
+ * @param {Object} correspondentData - Datos del corresponsal a actualizar.
+ * @returns {Promise<any>} Una promesa que resuelve con la respuesta del servidor.
+ */
+export const updateCorrespondent = async (correspondentData: {
+  id: number;
+  type_id: number;
+  code: string;
+  operator_id: number;
+  name: string;
+  location: { departamento: string; ciudad: string };
+}): Promise<any> => {
+  try {
+    // Construye la URL del endpoint
+    const url = `${baseUrl}/api/update_correspondent.php`;
+
+    // Muestra en consola la URL y los datos enviados (para depuración)
+    console.log("URL de actualización:", url);
+    console.log("Datos enviados:", correspondentData);
+
+    // Realiza la solicitud HTTP al endpoint con el método POST
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // Indica que el contenido es JSON
+      },
+      body: JSON.stringify(correspondentData),
+    });
+
+    // Verifica que la respuesta sea exitosa
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    // Convierte la respuesta en formato JSON
+    const data = await response.json();
+
+    // Retorna la respuesta del servidor
+    return data;
+  } catch (error) {
+    // Manejo de errores: se imprime en la consola y se relanza
+    console.error("Error al actualizar el corresponsal:", error);
+    throw error;
+  }
+};

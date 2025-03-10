@@ -169,7 +169,17 @@ const SnackProfile: React.FC = () => {
                         },
                       }}
                     >
-                      <CardActionArea onClick={() => navigate(`/${permKey}`)}>
+                      <CardActionArea
+                        onClick={() => {
+                          if (permKey === "manageCorrespondents") {
+                            navigate("/correspondents", {
+                              state: { permission: permKey },
+                            });
+                          } else {
+                            navigate(`/${permKey}`);
+                          }
+                        }}
+                      >
                         <CardContent
                           sx={{
                             display: "flex",

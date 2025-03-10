@@ -1,0 +1,353 @@
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Autocomplete,
+  IconButton,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  Snackbar,
+  Alert,
+} from "@mui/material";
+import { Add, Edit, Delete } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { useTheme } from "../../glamour/ThemeContext";
+import {
+  getTypesCorrespondent,
+  createCorrespondent,
+  getCorrespondents, // 🔹 Importamos la función para obtener la lista de corresponsales
+  deleteCorrespondent,
+} from "../../store/CrudCorrespondent";
+import { getProfiles } from "../../store/Profile";
+
+const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
+  permissions,
+}) => {
+  const { colors, fonts } = useTheme();
+  const navigate = useNavigate();
+  const [correspondents, setCorrespondents] = useState<any[]>([]);
+  const [types, setTypes] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [newCorrespondent, setNewCorrespondent] = useState({
+    type_id: null,
+    code: "",
+    operator_id: null,
+    name: "",
+    location: { departamento: "", ciudad: "" },
+  });
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"success" | "error">("success");
+
+  useEffect(() => {
+    if (!permissions.includes("manageCorrespondents")) {
+      navigate("/profile");
+    }
+  }, [permissions, navigate]);
+
+  // Cargar lista de corresponsales, tipos y operadores
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [typesData, profilesData, correspondentsData] = await Promise.all(
+          [getTypesCorrespondent(), getProfiles(), getCorrespondents()]
+        );
+
+        if (typesData.success && Array.isArray(typesData.data)) {
+          setTypes(typesData.data);
+        }
+
+        if (profilesData.success && Array.isArray(profilesData.users)) {
+          setProfiles(profilesData.users);
+        }
+
+        if (
+          correspondentsData.success &&
+          Array.isArray(correspondentsData.data)
+        ) {
+          setCorrespondents(correspondentsData.data);
+        }
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setNewCorrespondent({
+      type_id: null,
+      code: "",
+      operator_id: null,
+      name: "",
+      location: { departamento: "", ciudad: "" },
+    });
+  };
+
+  const handleCreateCorrespondent = async () => {
+    try {
+      if (
+        newCorrespondent.type_id === null ||
+        newCorrespondent.operator_id === null ||
+        newCorrespondent.code.trim() === "" ||
+        newCorrespondent.name.trim() === "" ||
+        newCorrespondent.location.departamento.trim() === "" ||
+        newCorrespondent.location.ciudad.trim() === ""
+      ) {
+        setAlertMessage("Todos los campos son obligatorios.");
+        setAlertType("error");
+        return;
+      }
+
+      const response = await createCorrespondent({
+        type_id: newCorrespondent.type_id as number,
+        code: newCorrespondent.code,
+        operator_id: newCorrespondent.operator_id as number,
+        name: newCorrespondent.name,
+        location: newCorrespondent.location,
+      });
+
+      if (response.success) {
+        setAlertMessage("Corresponsal creado exitosamente.");
+        setAlertType("success");
+        handleCloseDialog();
+
+        // 🔹 Actualizar la lista de corresponsales después de crear uno nuevo
+        const updatedList = await getCorrespondents();
+        if (updatedList.success) {
+          setCorrespondents(updatedList.data);
+        }
+      } else {
+        setAlertMessage(response.message);
+        setAlertType("error");
+      }
+    } catch (error) {
+      console.error("Error al crear corresponsal:", error);
+      setAlertMessage("Error en el servidor.");
+      setAlertType("error");
+    }
+  };
+
+  const handleDeleteCorrespondent = async (correspondentId: number) => {
+    if (
+      !window.confirm("¿Estás seguro de que deseas eliminar este corresponsal?")
+    )
+      return;
+
+    try {
+      const response = await deleteCorrespondent(correspondentId);
+
+      if (response.success) {
+        console.log("Corresponsal eliminado:", response.message);
+        alert("Corresponsal eliminado correctamente");
+
+        // 🔹 Actualizar la lista de corresponsales después de eliminar uno
+        const updatedList = await getCorrespondents();
+        if (updatedList.success) {
+          setCorrespondents(updatedList.data);
+        }
+      } else {
+        alert("Error al eliminar: " + response.message);
+      }
+    } catch (error) {
+      alert("Error en la eliminación");
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        padding: 3,
+        backgroundColor: colors.background,
+        minHeight: "100vh",
+      }}
+    >
+      <Typography
+        variant="h4"
+        fontFamily={fonts.heading}
+        color={colors.primary}
+        gutterBottom
+      >
+        Gestión de Corresponsales
+      </Typography>
+
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<Add />}
+        onClick={handleOpenDialog}
+      >
+        Nuevo Corresponsal
+      </Button>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ marginTop: 3 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Código</TableCell>
+                <TableCell>Nombre</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Operador</TableCell>
+                <TableCell>Ubicación</TableCell>
+                <TableCell>Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {correspondents.map((correspondent) => {
+                const location = correspondent.location
+                  ? JSON.parse(correspondent.location) // 🔹 Convertir la cadena JSON a objeto
+                  : {
+                      departamento: "No especificado",
+                      ciudad: "No especificado",
+                    };
+
+                return (
+                  <TableRow key={correspondent.id}>
+                    <TableCell>{correspondent.code}</TableCell>
+                    <TableCell>{correspondent.name}</TableCell>
+                    <TableCell>
+                      {correspondent.type_name || "Desconocido"}
+                    </TableCell>
+                    <TableCell>
+                      {correspondent.operator_name || "Desconocido"}
+                    </TableCell>
+                    <TableCell>{`${location.departamento}, ${location.ciudad}`}</TableCell>
+                    <TableCell>
+                      <IconButton color="primary">
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() =>
+                          handleDeleteCorrespondent(correspondent.id)
+                        } // 🔹 Agregamos la función de eliminar
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Modal */}
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Nuevo Corresponsal</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Código"
+            onChange={(e) =>
+              setNewCorrespondent({ ...newCorrespondent, code: e.target.value })
+            }
+          />
+          <TextField
+            fullWidth
+            label="Nombre"
+            onChange={(e) =>
+              setNewCorrespondent({ ...newCorrespondent, name: e.target.value })
+            }
+          />
+
+          {/* Tipo de Corresponsal */}
+          <Autocomplete
+            options={types}
+            getOptionLabel={(option) => option.name || ""}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            onChange={(_, newValue) =>
+              setNewCorrespondent((prev) => ({
+                ...prev,
+                type_id: newValue?.id || null,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Tipo de Corresponsal" fullWidth />
+            )}
+          />
+
+          {/* Operador */}
+          <Autocomplete
+            options={profiles}
+            getOptionLabel={(option) => option.fullname}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            onChange={(_, newValue) =>
+              setNewCorrespondent((prev) => ({
+                ...prev,
+                operator_id: newValue?.id || null,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Operador" fullWidth />
+            )}
+          />
+
+          <TextField
+            fullWidth
+            label="Departamento"
+            onChange={(e) =>
+              setNewCorrespondent({
+                ...newCorrespondent,
+                location: {
+                  ...newCorrespondent.location,
+                  departamento: e.target.value,
+                },
+              })
+            }
+          />
+          <TextField
+            fullWidth
+            label="Ciudad"
+            onChange={(e) =>
+              setNewCorrespondent({
+                ...newCorrespondent,
+                location: {
+                  ...newCorrespondent.location,
+                  ciudad: e.target.value,
+                },
+              })
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="secondary">
+            Cancelar
+          </Button>
+          <Button onClick={handleCreateCorrespondent} color="primary">
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default SnackCrudCorrespondent;
