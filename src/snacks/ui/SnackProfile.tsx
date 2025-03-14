@@ -175,6 +175,10 @@ const SnackProfile: React.FC = () => {
                             navigate("/correspondents", {
                               state: { permission: permKey },
                             });
+                          } else if (permKey === "manageAdministrators") {
+                            navigate("/manageAdministrators", {
+                              state: { permission: permKey },
+                            });
                           } else {
                             navigate(`/${permKey}`);
                           }
