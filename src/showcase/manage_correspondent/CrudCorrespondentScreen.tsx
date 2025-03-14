@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SnackCrudCorrespondent from "../../snacks/ui/SnackCrudCorrespondent";
-import { GetUserProfile } from "../../store/GetUserProfile";
+import { GetUserProfile } from "../../store/profile/GetUserProfile";
 import { useTheme } from "../../glamour/ThemeContext";
 
 /**

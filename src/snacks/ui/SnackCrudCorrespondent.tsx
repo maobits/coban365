@@ -30,8 +30,8 @@ import {
   getCorrespondents, // 🔹 Importamos la función para obtener la lista de corresponsales
   updateCorrespondent,
   deleteCorrespondent,
-} from "../../store/CrudCorrespondent";
-import { getProfiles } from "../../store/Profile";
+} from "../../store/correspondent/CrudCorrespondent";
+import { getProfiles } from "../../store/profile/Profile";
 
 const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   permissions,

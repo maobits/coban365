@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // Hook para redirigir
 import SnackLogin from "../../snacks/ui/SnackLogin";
-import { AuthenticateUser } from "../../store/AuthenticateUser";
+import { AuthenticateUser } from "../../store/auth/AuthenticateUser";
 import { ThemeProvider } from "../../glamour/ThemeContext"; // Importa el ThemeProvider
 import { Alert, Snackbar } from "@mui/material"; // Importa alertas de Material UI
 

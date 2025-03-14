@@ -1,4 +1,4 @@
-import baseUrl from "./config/server"; // Importa la configuración del servidor
+import baseUrl from "../config/server"; // Importa la configuración del servidor
 
 /**
  * Servicio para obtener los tipos de corresponsales.
@@ -9,7 +9,7 @@ import baseUrl from "./config/server"; // Importa la configuración del servidor
 export const getTypesCorrespondent = async (): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/types_correspondent.php`;
+    const url = `${baseUrl}/api/correspondent/types_correspondent.php`;
 
     // Realiza la solicitud GET
     const response = await fetch(url);
@@ -44,7 +44,7 @@ export const createCorrespondent = async (correspondentData: {
 }): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/create_correspondent.php`;
+    const url = `${baseUrl}/api/correspondent/create_correspondent.php`;
 
     // Configura la solicitud POST con el cuerpo en formato JSON
     const response = await fetch(url, {
@@ -78,7 +78,7 @@ export const createCorrespondent = async (correspondentData: {
 export const getCorrespondents = async (): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/list_correspondent.php`;
+    const url = `${baseUrl}/api/correspondent/list_correspondent.php`;
 
     // Realiza la solicitud GET
     const response = await fetch(url);
@@ -109,7 +109,7 @@ export const deleteCorrespondent = async (
 ): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/delete_correspondent.php`;
+    const url = `${baseUrl}/api/correspondent/delete_correspondent.php`;
 
     // Muestra en consola la URL y los datos enviados (para depuración)
     console.log("URL de eliminación:", url);
@@ -158,7 +158,7 @@ export const updateCorrespondent = async (correspondentData: {
 }): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/update_correspondent.php`;
+    const url = `${baseUrl}/api/correspondent/update_correspondent.php`;
 
     // Muestra en consola la URL y los datos enviados (para depuración)
     console.log("URL de actualización:", url);

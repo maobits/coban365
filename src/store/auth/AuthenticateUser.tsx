@@ -1,4 +1,4 @@
-import baseUrl from "./config/server"; // Importa la configuración del servidor
+import baseUrl from "../config/server"; // Importa la configuración del servidor
 
 /**
  * Servicio para autenticar un usuario en el sistema.
@@ -14,7 +14,7 @@ export const AuthenticateUser = async (
 ): Promise<any> => {
   try {
     // Construye la URL completa del endpoint de autenticación
-    const url = `${baseUrl}/api/login.php`;
+    const url = `${baseUrl}/api/auth/login.php`;
 
     // Muestra en consola la URL de la solicitud (para depuración)
     console.log("URL de autenticación:", url);

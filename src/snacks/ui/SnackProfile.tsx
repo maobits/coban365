@@ -10,7 +10,7 @@ import {
   Avatar,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { GetUserProfile } from "../../store/GetUserProfile";
+import { GetUserProfile } from "../../store/profile/GetUserProfile";
 import { useTheme } from "../../glamour/ThemeContext";
 
 // Importa los iconos de los permisos

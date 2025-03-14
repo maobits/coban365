@@ -1,4 +1,4 @@
-import baseUrl from "./config/server"; // Importa la configuración del servidor
+import baseUrl from "../config/server"; // Importa la configuración del servidor
 
 /**
  * Servicio para obtener la lista de perfiles de usuarios.
@@ -9,7 +9,7 @@ import baseUrl from "./config/server"; // Importa la configuración del servidor
 export const getProfiles = async (): Promise<any> => {
   try {
     // Construye la URL del endpoint
-    const url = `${baseUrl}/api/profiles.php`;
+    const url = `${baseUrl}/api/profile/profiles.php`;
 
     // Realiza la solicitud GET
     const response = await fetch(url);
