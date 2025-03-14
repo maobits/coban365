@@ -197,7 +197,18 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
     if (!selectedUser) return;
 
     try {
-      const response = await updateUser(selectedUser);
+      // 🔹 Asegurar que los permisos enviados sean exactamente los seleccionados
+      const updatedUser = {
+        ...selectedUser,
+        permissions: selectedUser.permissions, // 🔹 Enviamos la lista exacta de permisos seleccionados
+      };
+
+      console.log(
+        "Enviando datos de actualización:",
+        JSON.stringify(updatedUser)
+      );
+
+      const response = await updateUser(updatedUser);
 
       if (response.success) {
         setAlertMessage("Usuario actualizado correctamente.");
@@ -448,16 +459,17 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
           />
 
           {/* Selección de Permisos */}
+          {/* Selección de Permisos */}
           <Autocomplete
             multiple
-            options={permissionsList}
-            value={selectedUser?.permissions || []}
-            onChange={(_, newPermissions) =>
+            options={permissionsList} // 🔹 Muestra todas las opciones
+            value={selectedUser?.permissions || []} // 🔹 Solo muestra los permisos seleccionados del usuario
+            onChange={(_, newPermissions) => {
               setSelectedUser({
                 ...selectedUser,
-                permissions: newPermissions,
-              })
-            }
+                permissions: newPermissions, // 🔹 Guarda solo los permisos seleccionados
+              });
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}
