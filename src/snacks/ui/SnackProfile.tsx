@@ -17,6 +17,7 @@ import { useTheme } from "../../glamour/ThemeContext";
 import manageCorrespondentsIcon from "../../ingredients/icons/profile/manageCorrespondents.png";
 import manageAdministratorsIcon from "../../ingredients/icons/profile/manageAdministrators.png";
 import manageReportsIcon from "../../ingredients/icons/profile/manageReports.png";
+import manageTransactionIcon from "../../ingredients/icons/profile/manageTransactions.png";
 
 // Importa los avatares según el rol del usuario
 import adminAvatar from "../../ingredients/icons/roles/admin.png";
@@ -58,31 +59,67 @@ const SnackProfile: React.FC = () => {
       icon: manageAdministratorsIcon,
     },
     manageReports: { name: "Gestionar Reportes", icon: manageReportsIcon },
+    manageTransactions: {
+      name: "Gestionar Transacciones",
+      icon: manageTransactionIcon,
+    },
   };
 
   // Obtiene el ID del usuario desde localStorage
   useEffect(() => {
+    console.log("🔹 Buscando usuario en localStorage...");
     const storedUser = localStorage.getItem("userSession");
+
     if (storedUser) {
       const userData = JSON.parse(storedUser);
+      console.log("✅ Usuario encontrado:", userData);
       fetchUserProfile(userData.id);
+    } else {
+      console.warn("⚠️ No se encontró usuario en localStorage.");
     }
   }, []);
 
   // Obtiene el perfil del usuario desde el servidor
   const fetchUserProfile = async (userId: number) => {
     try {
+      console.log(`🔹 Solicitando perfil de usuario con ID: ${userId}`);
       const response = await GetUserProfile(userId);
+      console.log("✅ Respuesta del servidor:", response);
+
       if (response.success) {
         setUser(response.user);
+        console.log("✅ Perfil de usuario cargado:", response.user);
 
-        // Parsea la cadena JSON de permisos
-        const parsedPermissions =
-          JSON.parse(response.user.permissions || "{}").permissions || [];
+        // Parsea la cadena JSON de permisos y asegura que sea un array válido
+        let parsedPermissions = [];
+        try {
+          console.log(
+            "🔹 Intentando parsear permisos:",
+            response.user.permissions
+          );
+          if (typeof response.user.permissions === "string") {
+            const firstParse = JSON.parse(response.user.permissions);
+            parsedPermissions =
+              typeof firstParse === "string"
+                ? JSON.parse(firstParse)
+                : firstParse;
+
+            if (!Array.isArray(parsedPermissions)) {
+              console.warn(
+                "⚠️ Los permisos no son un array. Se establece como vacío."
+              );
+              parsedPermissions = [];
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error al parsear permisos:", error);
+        }
+
         setPermissions(parsedPermissions);
+        console.log("✅ Permisos procesados:", parsedPermissions);
       }
     } catch (error) {
-      console.error("Error al obtener el perfil del usuario:", error);
+      console.error("❌ Error al obtener el perfil del usuario:", error);
     }
   };
 

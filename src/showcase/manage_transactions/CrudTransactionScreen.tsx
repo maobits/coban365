@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SnackCrudCorrespondent from "../../snacks/ui/SnackCrudCorrespondent";
+import SnackCrudTransactionTypes from "../../snacks/ui/SnackCrudTransaction";
 import { GetUserProfile } from "../../store/profile/GetUserProfile";
 import { useTheme } from "../../glamour/ThemeContext";
 
 /**
- * Componente CrudCorrespondentScreen
+ * Componente CrudTransactionScreen
  *
- * Permite la gestión de corresponsales bancarios con CRUD.
+ * Permite la gestión de tipos de transacciones con CRUD.
  * Si el usuario no tiene permisos, lo redirige automáticamente a `/profile`.
  *
- * @returns {JSX.Element} Pantalla del CRUD de corresponsales.
+ * @returns {JSX.Element} Pantalla del CRUD de tipos de transacciones.
  */
 
-const CrudCorrespondentScreen: React.FC = () => {
+const CrudTransactionScreen: React.FC = () => {
   const { colors } = useTheme(); // Tema global
   const navigate = useNavigate(); // Hook para navegación
   const [userPermission, setUserPermission] = useState<boolean>(false);
@@ -70,7 +70,7 @@ const CrudCorrespondentScreen: React.FC = () => {
         }
 
         // Verifica si el usuario tiene permisos
-        if (parsedPermissions.includes("manageCorrespondents")) {
+        if (parsedPermissions.includes("manageTransactions")) {
           setUserPermission(true);
         } else {
           navigate("/profile"); // Si no tiene permisos, redirigir
@@ -99,10 +99,10 @@ const CrudCorrespondentScreen: React.FC = () => {
 
       {/* Renderiza el CRUD solo si el usuario tiene permisos */}
       {!loading && userPermission && (
-        <SnackCrudCorrespondent permissions={["manageCorrespondents"]} />
+        <SnackCrudTransactionTypes permissions={["manageTransactions"]} />
       )}
     </div>
   );
 };
 
-export default CrudCorrespondentScreen;
+export default CrudTransactionScreen;

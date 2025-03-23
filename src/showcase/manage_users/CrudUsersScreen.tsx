@@ -53,26 +53,35 @@ const CrudUsersScreen: React.FC = () => {
         console.log("✅ Perfil obtenido con éxito:", response.user);
 
         // Asegurar que siempre sea un array válido
-        let parsedPermissions: any = [];
+        let parsedPermissions: string[] = [];
 
         try {
-          parsedPermissions = JSON.parse(response.user.permissions);
           console.log(
-            "🔍 Permisos parseados correctamente:",
-            parsedPermissions
+            "🔍 Intentando parsear permisos:",
+            response.user.permissions
           );
+          if (typeof response.user.permissions === "string") {
+            const firstParse = JSON.parse(response.user.permissions);
+            parsedPermissions =
+              typeof firstParse === "string"
+                ? JSON.parse(firstParse)
+                : firstParse;
+
+            if (!Array.isArray(parsedPermissions)) {
+              console.warn(
+                "⚠️ Los permisos no son un array. Se establece como vacío."
+              );
+              parsedPermissions = [];
+            }
+          }
         } catch (error) {
           console.error("⚠️ Error al parsear permisos:", error);
         }
 
-        const userPermissions = Array.isArray(parsedPermissions.permissions)
-          ? parsedPermissions.permissions
-          : [];
-
-        console.log("🔍 Permisos del usuario:", userPermissions);
+        console.log("🔍 Permisos del usuario:", parsedPermissions);
 
         // Verifica si el usuario tiene permisos
-        if (userPermissions.includes("manageAdministrators")) {
+        if (parsedPermissions.includes("manageAdministrators")) {
           console.log(
             "✅ El usuario tiene permisos para gestionar administradores."
           );

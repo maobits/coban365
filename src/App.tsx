@@ -6,6 +6,7 @@ import ProfileScreen from "./showcase/profile/ProfileScreen";
 import SnackNavigationBar from "./snacks/ui/SnackNavigationBar";
 import CrudCorrespondentScreen from "./showcase/manage_correspondent/CrudCorrespondentScreen";
 import CrudUsersScreen from "./showcase/manage_users/CrudUsersScreen";
+import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactionScreen";
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -18,6 +19,7 @@ const App: React.FC = () => (
       {/* Rutas asociadas a permisos especiales */}
       <Route path="/correspondents" element={<CrudCorrespondentScreen />} />
       <Route path="/manageAdministrators" element={<CrudUsersScreen />} />
+      <Route path="/manageTransactions" element={<CrudTransactionScreen />} />
       <Route path="/manageReports" element={<HomeScreen />} />
     </Routes>
     <SnackNavigationBar /> {/* Barra de navegación siempre visible */}
