@@ -35,18 +35,24 @@ export const getTypesCorrespondent = async (): Promise<any> => {
  * @param {Object} correspondentData - Datos del corresponsal a registrar.
  * @returns {Promise<any>} Una promesa que resuelve con la respuesta del servidor.
  */
+/**
+ * Servicio para crear un nuevo corresponsal.
+ * Envía los datos al endpoint `create_correspondent.php` mediante una solicitud POST.
+ *
+ * @param {Object} correspondentData - Datos del corresponsal a registrar.
+ * @returns {Promise<any>} Una promesa que resuelve con la respuesta del servidor.
+ */
 export const createCorrespondent = async (correspondentData: {
   type_id: number;
   code: string;
   operator_id: number;
   name: string;
   location: { departamento: string; ciudad: string };
+  transactions: { id: number; name: string }[]; // ⬅️ Nuevo campo
 }): Promise<any> => {
   try {
-    // Construye la URL del endpoint
     const url = `${baseUrl}/api/correspondent/create_correspondent.php`;
 
-    // Configura la solicitud POST con el cuerpo en formato JSON
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -55,12 +61,10 @@ export const createCorrespondent = async (correspondentData: {
       body: JSON.stringify(correspondentData),
     });
 
-    // Verifica que la respuesta sea exitosa
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
     }
 
-    // Convierte la respuesta en JSON y la devuelve
     const data = await response.json();
     return data;
   } catch (error) {

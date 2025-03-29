@@ -32,6 +32,7 @@ import {
   deleteCorrespondent,
 } from "../../store/correspondent/CrudCorrespondent";
 import { getProfiles } from "../../store/profile/Profile";
+import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 
 const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   permissions,
@@ -49,12 +50,17 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
     operator_id: null,
     name: "",
     location: { departamento: "", ciudad: "" },
+    transactions: [] as { id: number; name: string }[],
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedCorrespondent, setSelectedCorrespondent] = useState<any>(null);
+
+  // Lista de transacciones.
+  const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
+  const [selectedTransactions, setSelectedTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     if (!permissions.includes("manageCorrespondents")) {
@@ -66,9 +72,17 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [typesData, profilesData, correspondentsData] = await Promise.all(
-          [getTypesCorrespondent(), getProfiles(), getCorrespondents()]
-        );
+        const [typesData, profilesData, correspondentsData, transactionsData] =
+          await Promise.all([
+            getTypesCorrespondent(),
+            getProfiles(),
+            getCorrespondents(),
+            getTransactionTypes(),
+          ]);
+
+        if (transactionsData.success && Array.isArray(transactionsData.data)) {
+          setTransactionTypes(transactionsData.data);
+        }
 
         if (typesData.success && Array.isArray(typesData.data)) {
           setTypes(typesData.data);
@@ -130,6 +144,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         operator_id: newCorrespondent.operator_id as number,
         name: newCorrespondent.name,
         location: newCorrespondent.location,
+        transactions: newCorrespondent.transactions,
       });
 
       if (response.success) {
@@ -159,7 +174,15 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
       location: correspondent.location
         ? JSON.parse(correspondent.location)
         : { departamento: "", ciudad: "" },
+      transactions: correspondent.transactions
+        ? JSON.parse(correspondent.transactions)
+        : [],
     });
+
+    setSelectedTransactions(
+      correspondent.transactions ? JSON.parse(correspondent.transactions) : []
+    );
+
     setOpenEditDialog(true);
   };
 
@@ -255,6 +278,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 <TableCell>Tipo</TableCell>
                 <TableCell>Operador</TableCell>
                 <TableCell>Ubicación</TableCell>
+                <TableCell>Transacciones</TableCell> {/* ⬅️ Nueva columna */}
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -267,6 +291,10 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                       ciudad: "No especificado",
                     };
 
+                const transactions = correspondent.transactions
+                  ? JSON.parse(correspondent.transactions)
+                  : [];
+
                 return (
                   <TableRow key={correspondent.id}>
                     <TableCell>{correspondent.code}</TableCell>
@@ -278,6 +306,11 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                       {correspondent.operator_name || "Desconocido"}
                     </TableCell>
                     <TableCell>{`${location.departamento}, ${location.ciudad}`}</TableCell>
+                    <TableCell>
+                      {transactions.length > 0
+                        ? transactions.map((t: any) => t.name).join(", ")
+                        : "Ninguna"}
+                    </TableCell>
                     <TableCell>
                       <IconButton
                         color="primary"
@@ -415,6 +448,31 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 },
               })
             }
+          />
+
+          <Autocomplete
+            multiple
+            options={transactionTypes}
+            getOptionLabel={(option) => option.name}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            onChange={(_, selected) =>
+              setNewCorrespondent((prev) => ({
+                ...prev,
+                transactions: selected.map((t) => ({ id: t.id, name: t.name })),
+              }))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tipos de Transacciones"
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
+            )}
           />
         </DialogContent>
         <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
@@ -562,6 +620,36 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 },
               }))
             }
+          />
+          <Autocomplete
+            multiple
+            options={transactionTypes.filter(
+              (t) =>
+                !selectedCorrespondent?.transactions?.some(
+                  (sel: any) => sel.id === t.id
+                )
+            )}
+            getOptionLabel={(option) => option.name}
+            value={selectedTransactions}
+            onChange={(_, selected) => {
+              setSelectedTransactions(selected);
+              setSelectedCorrespondent((prev) => ({
+                ...prev,
+                transactions: selected.map((t) => ({ id: t.id, name: t.name })),
+              }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tipos de Transacciones"
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
+            )}
           />
         </DialogContent>
         <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
