@@ -15,7 +15,10 @@ import { useTheme } from "../../glamour/ThemeContext";
 
 // Importa los iconos de los permisos
 import manageCorrespondentsIcon from "../../ingredients/icons/profile/manageCorrespondents.png";
+import manageCorrespondentIcon from "../../ingredients/icons/profile/manageCorrespondents.png";
+
 import manageAdministratorsIcon from "../../ingredients/icons/profile/manageAdministrators.png";
+
 import manageReportsIcon from "../../ingredients/icons/profile/manageReports.png";
 import manageTransactionIcon from "../../ingredients/icons/profile/manageTransactions.png";
 
@@ -53,6 +56,10 @@ const SnackProfile: React.FC = () => {
     manageCorrespondents: {
       name: "Gestionar Corresponsales",
       icon: manageCorrespondentsIcon,
+    },
+    manageCorrespondent: {
+      name: "Gestionar mis corresponsales",
+      icon: manageCorrespondentIcon,
     },
     manageAdministrators: {
       name: "Gestionar Administradores",
@@ -210,6 +217,10 @@ const SnackProfile: React.FC = () => {
                         onClick={() => {
                           if (permKey === "manageCorrespondents") {
                             navigate("/correspondents", {
+                              state: { permission: permKey },
+                            });
+                          } else if (permKey === "manageCorrespondent") {
+                            navigate("/my-correspondents", {
                               state: { permission: permKey },
                             });
                           } else if (permKey === "manageAdministrators") {

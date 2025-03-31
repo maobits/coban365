@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SnackCrudCorrespondent from "../../snacks/ui/SnackCrudCorrespondent";
+import SnackCrudMyCorrespondent from "../../snacks/ui/SnackCrudMyCorrespondent";
 import { GetUserProfile } from "../../store/profile/GetUserProfile";
 import { useTheme } from "../../glamour/ThemeContext";
 
@@ -13,12 +13,12 @@ import { useTheme } from "../../glamour/ThemeContext";
  * @returns {JSX.Element} Pantalla del CRUD de corresponsales.
  */
 
-const CrudCorrespondentScreen: React.FC = () => {
+const CrudMyCorrespondentScreen: React.FC = () => {
   const { colors } = useTheme(); // Tema global
   const navigate = useNavigate(); // Hook para navegación
   const [userPermission, setUserPermission] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true); // Indicador de carga
-  const [userId, setUserId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | null>(null); // ✅ Nuevo estado para el ID del usuario
 
   useEffect(() => {
     // Verificar la sesión del usuario
@@ -30,7 +30,7 @@ const CrudCorrespondentScreen: React.FC = () => {
     }
 
     const userData = JSON.parse(storedUser);
-    setUserId(userData.id); // ✅ Guarda el ID
+    setUserId(userData.id); // ✅ Guardar el ID
     fetchUserProfile(userData.id);
   }, []);
 
@@ -98,13 +98,15 @@ const CrudCorrespondentScreen: React.FC = () => {
       {loading && (
         <p style={{ textAlign: "center", color: colors.text }}>Cargando...</p>
       )}
-
       {/* Renderiza el CRUD solo si el usuario tiene permisos */}
-      {!loading && userPermission && (
-        <SnackCrudCorrespondent permissions={["manageCorrespondents"]} />
+      {!loading && userPermission && userId !== null && (
+        <SnackCrudMyCorrespondent
+          permissions={["manageCorrespondents"]}
+          userId={userId} // ✅ Pasamos el ID correctamente
+        />
       )}
     </div>
   );
 };
 
-export default CrudCorrespondentScreen;
+export default CrudMyCorrespondentScreen;

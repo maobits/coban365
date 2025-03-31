@@ -21,13 +21,13 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { Add, Edit, Delete } from "@mui/icons-material";
+import { PointOfSale, Add, Edit, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../glamour/ThemeContext";
 import {
   getTypesCorrespondent,
   createCorrespondent,
-  getCorrespondents, // 🔹 Importamos la función para obtener la lista de corresponsales
+  getMyCorrespondent, // 🔹 Importamos la función para obtener la lista de corresponsales
   updateCorrespondent,
   deleteCorrespondent,
   updateCorrespondentState,
@@ -36,9 +36,10 @@ import { getProfiles } from "../../store/profile/Profile";
 import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 import { Switch } from "@mui/material";
 
-const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
-  permissions,
-}) => {
+const SnackCrudMyCorrespondent: React.FC<{
+  permissions: string[];
+  userId: number;
+}> = ({ permissions, userId }) => {
   const { colors, fonts } = useTheme();
   const navigate = useNavigate();
   const [correspondents, setCorrespondents] = useState<any[]>([]);
@@ -77,7 +78,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           await Promise.all([
             getTypesCorrespondent(),
             getProfiles(),
-            getCorrespondents(),
+            getMyCorrespondent(userId),
             getTransactionTypes(),
           ]);
 
@@ -160,7 +161,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         handleCloseDialog();
 
         // 🔹 Actualizar la lista de corresponsales después de crear uno nuevo
-        const updatedList = await getCorrespondents();
+        const updatedList = await getMyCorrespondent(userId);
         if (updatedList.success) {
           setCorrespondents(updatedList.data);
         }
@@ -203,7 +204,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         setAlertMessage("Corresponsal actualizado correctamente.");
         setAlertType("success");
 
-        const updatedList = await getCorrespondents();
+        const updatedList = await getMyCorrespondent(userId);
         if (updatedList.success) {
           setCorrespondents(updatedList.data);
         }
@@ -233,7 +234,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         alert("Corresponsal eliminado correctamente");
 
         // 🔹 Actualizar la lista de corresponsales después de eliminar uno
-        const updatedList = await getCorrespondents();
+        const updatedList = await getMyCorrespondent(userId);
         if (updatedList.success) {
           setCorrespondents(updatedList.data);
         }
@@ -259,16 +260,16 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         color={colors.primary}
         gutterBottom
       >
-        Gestión de Corresponsales
+        Gestión de mis corresponsales
       </Typography>
 
       <Button
         variant="contained"
         color="primary"
-        startIcon={<Add />}
+        startIcon={<PointOfSale />}
         onClick={handleOpenDialog}
       >
-        Nuevo Corresponsal
+        Gestionar la caja
       </Button>
 
       {loading ? (
@@ -338,7 +339,9 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                               );
                               setAlertType("success");
 
-                              const updatedList = await getCorrespondents();
+                              const updatedList = await getMyCorrespondent(
+                                userId
+                              );
                               if (updatedList.success) {
                                 setCorrespondents(updatedList.data);
                               }
@@ -731,4 +734,4 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   );
 };
 
-export default SnackCrudCorrespondent;
+export default SnackCrudMyCorrespondent;

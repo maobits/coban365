@@ -5,6 +5,7 @@ import HomeScreen from "./showcase/home/HomeScreen";
 import ProfileScreen from "./showcase/profile/ProfileScreen";
 import SnackNavigationBar from "./snacks/ui/SnackNavigationBar";
 import CrudCorrespondentScreen from "./showcase/manage_correspondent/CrudCorrespondentScreen";
+import CrudMyCorrespondentScreen from "./showcase/manage_correspondent/CrudMyCorrespondentScreen";
 import CrudUsersScreen from "./showcase/manage_users/CrudUsersScreen";
 import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactionScreen";
 
@@ -18,6 +19,10 @@ const App: React.FC = () => (
       <Route path="/profile" element={<ProfileScreen />} />
       {/* Rutas asociadas a permisos especiales */}
       <Route path="/correspondents" element={<CrudCorrespondentScreen />} />
+      <Route
+        path="/my-correspondents"
+        element={<CrudMyCorrespondentScreen />}
+      />
       <Route path="/manageAdministrators" element={<CrudUsersScreen />} />
       <Route path="/manageTransactions" element={<CrudTransactionScreen />} />
       <Route path="/manageReports" element={<HomeScreen />} />

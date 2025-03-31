@@ -224,3 +224,31 @@ export const updateCorrespondentState = async (
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener los corresponsales asignados a un operador (usuario).
+ * Llama al endpoint `list_my_correspondent.php` y devuelve los datos.
+ *
+ * @param {number} id - ID del operador (usuario) para filtrar corresponsales.
+ * @returns {Promise<any>} Una promesa que resuelve con los datos filtrados.
+ */
+export const getMyCorrespondent = async (id: number): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/correspondent/list_my_correspondent.php?id=${id}`;
+
+    // Realiza la solicitud GET
+    const response = await fetch(url);
+
+    // Verifica que la respuesta sea exitosa
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    // Convierte la respuesta en JSON y la devuelve
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error al obtener la lista de corresponsales:", error);
+    throw error;
+  }
+};
