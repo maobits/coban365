@@ -159,37 +159,68 @@ export const updateCorrespondent = async (correspondentData: {
   operator_id: number;
   name: string;
   location: { departamento: string; ciudad: string };
+  transactions: { id: number; name: string }[]; // ⬅️ Nuevo campo
+  state: number; // ⬅️ Nuevo campo para activar o desactivar (1 o 0)
 }): Promise<any> => {
   try {
-    // Construye la URL del endpoint
     const url = `${baseUrl}/api/correspondent/update_correspondent.php`;
 
-    // Muestra en consola la URL y los datos enviados (para depuración)
     console.log("URL de actualización:", url);
     console.log("Datos enviados:", correspondentData);
 
-    // Realiza la solicitud HTTP al endpoint con el método POST
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Indica que el contenido es JSON
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(correspondentData),
     });
 
-    // Verifica que la respuesta sea exitosa
     if (!response.ok) {
       throw new Error(`Error en la solicitud: ${response.statusText}`);
     }
 
-    // Convierte la respuesta en formato JSON
     const data = await response.json();
-
-    // Retorna la respuesta del servidor
     return data;
   } catch (error) {
-    // Manejo de errores: se imprime en la consola y se relanza
     console.error("Error al actualizar el corresponsal:", error);
+    throw error;
+  }
+};
+
+/**
+ * Servicio para actualizar el estado (activo/inactivo) de un corresponsal.
+ * Envía una solicitud al endpoint `update_state.php` con el ID y el nuevo estado.
+ *
+ * @param {number} id - ID del corresponsal.
+ * @param {number} state - Estado lógico (1 para activo, 0 para inactivo).
+ * @returns {Promise<any>} Una promesa que resuelve con la respuesta del servidor.
+ */
+export const updateCorrespondentState = async (
+  id: number,
+  state: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/correspondent/update_state.php`;
+
+    console.log("📤 Enviando cambio de estado:", { id, state });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, state }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al actualizar estado:", error);
     throw error;
   }
 };

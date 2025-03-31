@@ -30,9 +30,11 @@ import {
   getCorrespondents, // 🔹 Importamos la función para obtener la lista de corresponsales
   updateCorrespondent,
   deleteCorrespondent,
+  updateCorrespondentState,
 } from "../../store/correspondent/CrudCorrespondent";
 import { getProfiles } from "../../store/profile/Profile";
 import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
+import { Switch } from "@mui/material";
 
 const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   permissions,
@@ -278,10 +280,12 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 <TableCell>Tipo</TableCell>
                 <TableCell>Operador</TableCell>
                 <TableCell>Ubicación</TableCell>
-                <TableCell>Transacciones</TableCell> {/* ⬅️ Nueva columna */}
+                <TableCell>Transacciones</TableCell>
+                <TableCell>Estado</TableCell> {/* ✅ Nueva columna */}
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {correspondents.map((correspondent) => {
                 const location = correspondent.location
@@ -310,6 +314,42 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                       {transactions.length > 0
                         ? transactions.map((t: any) => t.name).join(", ")
                         : "Ninguna"}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={correspondent.state === 1}
+                        onChange={async (e) => {
+                          const newState = e.target.checked ? 1 : 0;
+                          try {
+                            const result = await updateCorrespondentState(
+                              correspondent.id,
+                              newState
+                            );
+                            if (result.success) {
+                              setAlertMessage(
+                                newState === 1
+                                  ? "Corresponsal activado correctamente."
+                                  : "Corresponsal desactivado correctamente."
+                              );
+                              setAlertType("success");
+
+                              const updatedList = await getCorrespondents();
+                              if (updatedList.success) {
+                                setCorrespondents(updatedList.data);
+                              }
+                            } else {
+                              setAlertMessage("Error al actualizar el estado.");
+                              setAlertType("error");
+                            }
+                          } catch (error) {
+                            setAlertMessage(
+                              "Error al conectar con el servidor."
+                            );
+                            setAlertType("error");
+                          }
+                        }}
+                        color="primary"
+                      />
                     </TableCell>
                     <TableCell>
                       <IconButton
@@ -668,6 +708,20 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={!!alertMessage}
+        autoHideDuration={3000}
+        onClose={() => setAlertMessage(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setAlertMessage(null)}
+          severity={alertType}
+          sx={{ width: "100%" }}
+        >
+          {alertMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

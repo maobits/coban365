@@ -59,6 +59,7 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
   // Lista de permisos disponibles
   const permissionsList = [
     "manageCorrespondents",
+    "manageCorrespondent",
     "manageAdministrators",
     "manageReports",
   ];
