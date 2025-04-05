@@ -35,6 +35,7 @@ import {
 import { getProfiles } from "../../store/profile/Profile";
 import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 import { Switch } from "@mui/material";
+import SnackBox from "../../snacks/ui/integral-box/SnackBox"; // ajusta la ruta si es necesario
 
 const SnackCrudMyCorrespondent: React.FC<{
   permissions: string[];
@@ -65,8 +66,13 @@ const SnackCrudMyCorrespondent: React.FC<{
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<any[]>([]);
 
+  // Estado para el modal.
+  const [openCashDialog, setOpenCashDialog] = useState(false);
+  const [selectedCashCorrespondent, setSelectedCashCorrespondent] =
+    useState<any>(null);
+
   useEffect(() => {
-    if (!permissions.includes("manageCorrespondents")) {
+    if (!permissions.includes("manageCorrespondent")) {
       navigate("/profile");
     }
   }, [permissions, navigate]);
@@ -246,6 +252,12 @@ const SnackCrudMyCorrespondent: React.FC<{
     }
   };
 
+  // Gestionar la caja del corresponsal.
+  const handleOpenCashDialog = (correspondent: any) => {
+    setSelectedCashCorrespondent(correspondent);
+    setOpenCashDialog(true);
+  };
+
   return (
     <Box
       sx={{
@@ -365,6 +377,12 @@ const SnackCrudMyCorrespondent: React.FC<{
                         onClick={() => handleEditCorrespondent(correspondent)}
                       >
                         <Edit />
+                      </IconButton>
+                      <IconButton
+                        color="success"
+                        onClick={() => handleOpenCashDialog(correspondent)}
+                      >
+                        <PointOfSale />
                       </IconButton>
                       <IconButton
                         color="error"
@@ -730,6 +748,52 @@ const SnackCrudMyCorrespondent: React.FC<{
           {alertMessage}
         </Alert>
       </Snackbar>
+      {/* Modal para gestionar la caja */}
+      <Dialog
+        open={openCashDialog}
+        onClose={() => setOpenCashDialog(false)}
+        fullScreen
+        sx={{
+          "& .MuiDialog-paper": {
+            backgroundColor: colors.background,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontFamily: fonts.heading,
+            fontSize: "1.2rem",
+            backgroundColor: colors.primary,
+            color: colors.text_white,
+          }}
+        >
+          Caja del Corresponsal: {selectedCashCorrespondent?.name || ""}
+        </DialogTitle>
+
+        <DialogContent sx={{ padding: 0 }}>
+          {/* Aquí se renderiza el componente de gestión de caja */}
+          <SnackBox
+            correspondent={selectedCashCorrespondent}
+            permissions={permissions}
+          />
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            backgroundColor: colors.background,
+            padding: "16px",
+            justifyContent: "flex-end",
+          }}
+        >
+          <Button
+            onClick={() => setOpenCashDialog(false)}
+            variant="contained"
+            sx={{ backgroundColor: colors.secondary }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

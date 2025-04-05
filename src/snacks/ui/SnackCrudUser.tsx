@@ -62,6 +62,7 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
     "manageCorrespondent",
     "manageAdministrators",
     "manageReports",
+    "manageCash",
   ];
 
   // Estado inicial para un nuevo usuario

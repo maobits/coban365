@@ -72,7 +72,7 @@ const CrudMyCorrespondentScreen: React.FC = () => {
         }
 
         // Verifica si el usuario tiene permisos
-        if (parsedPermissions.includes("manageCorrespondents")) {
+        if (parsedPermissions.includes("manageCorrespondent")) {
           setUserPermission(true);
         } else {
           navigate("/profile"); // Si no tiene permisos, redirigir
@@ -101,7 +101,7 @@ const CrudMyCorrespondentScreen: React.FC = () => {
       {/* Renderiza el CRUD solo si el usuario tiene permisos */}
       {!loading && userPermission && userId !== null && (
         <SnackCrudMyCorrespondent
-          permissions={["manageCorrespondents"]}
+          permissions={["manageCorrespondent"]}
           userId={userId} // ✅ Pasamos el ID correctamente
         />
       )}
