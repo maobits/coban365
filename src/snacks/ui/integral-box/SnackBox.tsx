@@ -13,6 +13,7 @@ import {
 import { useTheme } from "../../../glamour/ThemeContext";
 import { AccountBalanceWallet } from "@mui/icons-material";
 import SnackCrudCrash from "./SnackCrudCash";
+import SnackCrudCashier from "./SnackCrudCashier"; // ✅ Asegúrate que la ruta es correcta
 
 // Asegúrate de tener esto en la parte superior
 interface Props {
@@ -91,6 +92,40 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               />
             </ListItemButton>
           </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              selected={selected === "misCajeros"}
+              onClick={() => setSelected("misCajeros")}
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: colors.secondary,
+                  color: colors.text,
+                  "& .MuiListItemIcon-root": {
+                    color: colors.text,
+                  },
+                },
+              }}
+            >
+              <ListItemIcon>
+                <AccountBalanceWallet
+                  sx={{
+                    color:
+                      selected === "misCajeros"
+                        ? colors.text
+                        : colors.secondary,
+                  }}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary="Mis Cajeros"
+                primaryTypographyProps={{
+                  fontFamily: fonts.main,
+                  color:
+                    selected === "misCajeros" ? colors.text : colors.text_white,
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Paper>
 
@@ -104,6 +139,12 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
       >
         {selected === "misCajas" && (
           <SnackCrudCrash
+            permissions={permissions}
+            correspondent={correspondent}
+          />
+        )}
+        {selected === "misCajeros" && (
+          <SnackCrudCashier
             permissions={permissions}
             correspondent={correspondent}
           />
