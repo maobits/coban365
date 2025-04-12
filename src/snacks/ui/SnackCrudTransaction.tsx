@@ -22,6 +22,7 @@ import {
   Snackbar,
   Alert,
   Autocomplete,
+  Chip,
 } from "@mui/material";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -58,9 +59,14 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
     "Transferir",
   ];
 
-  const [newType, setNewType] = useState({
+  const [newType, setNewType] = useState<{
+    name: string;
+    category: string;
+    polarity: boolean;
+  }>({
     name: "",
     category: "",
+    polarity: true,
   });
 
   const [selectedType, setSelectedType] = useState<any>(null);
@@ -97,17 +103,26 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewType({ name: "", category: "" });
+    setNewType({ name: "", category: "", polarity: true }); // ← incluye polarity
   };
+
   const handleCreateType = async () => {
     try {
-      if (newType.name.trim() === "" || newType.category.trim() === "") {
+      if (
+        newType.name.trim() === "" ||
+        newType.category.trim() === "" ||
+        newType.polarity === undefined
+      ) {
         setAlertMessage("Todos los campos son obligatorios.");
         setAlertType("error");
         return;
       }
 
-      const response = await createTransactionType(newType);
+      const response = await createTransactionType({
+        name: newType.name,
+        category: newType.category,
+        polarity: newType.polarity, // ✅ Asegura que se incluya
+      });
 
       if (response.success) {
         setAlertMessage("Tipo de transacción creado.");
@@ -129,7 +144,7 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
   };
 
   const handleEditType = (type: any) => {
-    setSelectedType({ ...type });
+    setSelectedType({ ...type, polarity: Boolean(type.polarity) });
     setOpenEditDialog(true);
   };
 
@@ -137,7 +152,13 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
     if (!selectedType) return;
 
     try {
-      const response = await updateTransactionType(selectedType);
+      // 🛠️ Convertir polarity a número antes de enviar
+      const fixedType = {
+        ...selectedType,
+        polarity: Number(selectedType.polarity),
+      };
+
+      const response = await updateTransactionType(fixedType);
 
       if (response.success) {
         setAlertMessage("Tipo actualizado correctamente.");
@@ -215,6 +236,7 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
               <TableRow>
                 <TableCell>Nombre</TableCell>
                 <TableCell>Categoría</TableCell>
+                <TableCell>Impacto</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -223,6 +245,17 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
                 <TableRow key={type.id}>
                   <TableCell>{type.name}</TableCell>
                   <TableCell>{type.category}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={
+                        type.polarity ? "Impacto positivo" : "Impacto negativo"
+                      }
+                      color={type.polarity ? "success" : "error"}
+                      variant="outlined"
+                      size="small"
+                    />
+                  </TableCell>
+
                   <TableCell>
                     <IconButton
                       color="primary"
@@ -266,6 +299,30 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
             )}
             sx={{ mb: 2 }}
           />
+
+          <Autocomplete
+            options={[
+              { label: "Impacto positivo", value: true },
+              { label: "Impacto negativo", value: false },
+            ]}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value}
+            value={
+              newType.polarity === true
+                ? { label: "Impacto positivo", value: true }
+                : { label: "Impacto negativo", value: false }
+            }
+            onChange={(_, value) =>
+              setNewType((prev) => ({
+                ...prev,
+                polarity: value?.value ?? true,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Impacto" fullWidth />
+            )}
+            sx={{ mb: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="secondary">
@@ -299,6 +356,29 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
             }
             renderInput={(params) => (
               <TextField {...params} label="Categoría" fullWidth />
+            )}
+            sx={{ mb: 2 }}
+          />
+          <Autocomplete
+            options={[
+              { label: "Impacto positivo", value: true },
+              { label: "Impacto negativo", value: false },
+            ]}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value}
+            value={
+              selectedType?.polarity === true
+                ? { label: "Impacto positivo", value: true }
+                : { label: "Impacto negativo", value: false }
+            }
+            onChange={(_, value) =>
+              setSelectedType((prev: any) => ({
+                ...prev,
+                polarity: value?.value ?? true,
+              }))
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Impacto" fullWidth />
             )}
             sx={{ mb: 2 }}
           />

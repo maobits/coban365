@@ -20,7 +20,7 @@ export const getTransactionTypes = async (): Promise<any> => {
 export const createTransactionType = async (transactionTypeData: {
   name: string;
   category: string;
-  description: string;
+  polarity: boolean;
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/transactions/create_transaction.php`;
@@ -48,7 +48,7 @@ export const updateTransactionType = async (transactionTypeData: {
   id: number;
   name: string;
   category: string;
-  description: string;
+  polarity: boolean;
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/transactions/update_transaction.php`;
