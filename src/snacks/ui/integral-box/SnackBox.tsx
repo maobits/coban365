@@ -11,10 +11,15 @@ import {
   Paper,
 } from "@mui/material";
 import { useTheme } from "../../../glamour/ThemeContext";
-import { AccountBalanceWallet, MonetizationOn } from "@mui/icons-material";
+import {
+  AccountBalanceWallet,
+  MonetizationOn,
+  Groups,
+} from "@mui/icons-material";
 import SnackCrudCrash from "./SnackCrudCash";
 import SnackCrudCashier from "./SnackCrudCashier";
 import SnackCrudRate from "./SnackCrudRate";
+import SnackCrudOther from "./SnackCrudOther";
 
 // Asegúrate de tener esto en la parte superior
 interface Props {
@@ -161,6 +166,42 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               />
             </ListItemButton>
           </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              selected={selected === "misTerceros"}
+              onClick={() => setSelected("misTerceros")}
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: colors.secondary,
+                  color: colors.text,
+                  "& .MuiListItemIcon-root": {
+                    color: colors.text,
+                  },
+                },
+              }}
+            >
+              <ListItemIcon>
+                <Groups // Puedes cambiar el icono si lo deseas
+                  sx={{
+                    color:
+                      selected === "misTerceros"
+                        ? colors.text
+                        : colors.secondary,
+                  }}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary="Mis Terceros"
+                primaryTypographyProps={{
+                  fontFamily: fonts.main,
+                  color:
+                    selected === "misTerceros"
+                      ? colors.text
+                      : colors.text_white,
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Paper>
 
@@ -186,6 +227,13 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
         )}
         {selected === "misTarifas" && (
           <SnackCrudRate
+            permissions={permissions}
+            correspondent={correspondent}
+          />
+        )}
+
+        {selected === "misTerceros" && (
+          <SnackCrudOther
             permissions={permissions}
             correspondent={correspondent}
           />
