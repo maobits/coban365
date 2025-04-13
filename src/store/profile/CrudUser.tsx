@@ -13,7 +13,7 @@ export const createUser = async (userData: {
   phone?: string;
   password: string;
   role: "admin" | "superadmin" | "cajero" | "tercero";
-  permissions?: { permissions: string[] };
+  permissions?: string[];
 }): Promise<any> => {
   try {
     // Construye la URL del endpoint para crear un usuario
