@@ -11,9 +11,10 @@ import {
   Paper,
 } from "@mui/material";
 import { useTheme } from "../../../glamour/ThemeContext";
-import { AccountBalanceWallet } from "@mui/icons-material";
+import { AccountBalanceWallet, MonetizationOn } from "@mui/icons-material";
 import SnackCrudCrash from "./SnackCrudCash";
-import SnackCrudCashier from "./SnackCrudCashier"; // ✅ Asegúrate que la ruta es correcta
+import SnackCrudCashier from "./SnackCrudCashier";
+import SnackCrudRate from "./SnackCrudRate";
 
 // Asegúrate de tener esto en la parte superior
 interface Props {
@@ -126,6 +127,40 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               />
             </ListItemButton>
           </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              selected={selected === "misTarifas"}
+              onClick={() => setSelected("misTarifas")}
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: colors.secondary,
+                  color: colors.text,
+                  "& .MuiListItemIcon-root": {
+                    color: colors.text,
+                  },
+                },
+              }}
+            >
+              <ListItemIcon>
+                <MonetizationOn
+                  sx={{
+                    color:
+                      selected === "misTarifas"
+                        ? colors.text
+                        : colors.secondary,
+                  }}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary="Mis Tarifas"
+                primaryTypographyProps={{
+                  fontFamily: fonts.main,
+                  color:
+                    selected === "misTarifas" ? colors.text : colors.text_white,
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Paper>
 
@@ -145,6 +180,12 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
         )}
         {selected === "misCajeros" && (
           <SnackCrudCashier
+            permissions={permissions}
+            correspondent={correspondent}
+          />
+        )}
+        {selected === "misTarifas" && (
+          <SnackCrudRate
             permissions={permissions}
             correspondent={correspondent}
           />

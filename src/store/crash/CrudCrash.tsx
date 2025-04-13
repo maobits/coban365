@@ -71,7 +71,7 @@ export const getCashByCorrespondent = async (
   correspondentId: number
 ): Promise<any> => {
   try {
-    const url = `${baseUrl}/api/cash/list_cash.php?correspondent_id=${correspondentId}`;
+    const url = `${baseUrl}/api/cash/list_cash_by_correspondent.php?correspondent_id=${correspondentId}`;
 
     const response = await fetch(url);
 

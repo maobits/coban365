@@ -31,7 +31,7 @@ import {
   createCash,
   updateCash,
   deleteCash,
-  getCash,
+  getCashByCorrespondent,
   updateCashState,
   getCashiers,
 } from "../../../store/crash/CrudCrash";
@@ -73,7 +73,7 @@ const SnackCrudCash: React.FC<{
     const fetchData = async () => {
       try {
         const [cashData, correspondentData, cashierData] = await Promise.all([
-          getCash(),
+          getCashByCorrespondent(correspondent.id), // ✅ solo las cajas del corresponsal
           getCorrespondents(),
           getProfiles(),
         ]);
@@ -83,14 +83,15 @@ const SnackCrudCash: React.FC<{
           setCorrespondents(correspondentData.data);
         if (cashierData.success) setCashiers(cashierData.users);
       } catch (error) {
-        console.error("Error al cargar cajas:", error);
+        console.error("❌ Error al cargar datos:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [correspondent.id]); // ← Dependencia para recargar si cambia el corresponsal
+
   // Abrir diálogo de creación
   const handleOpenDialog = async () => {
     try {
@@ -147,7 +148,7 @@ const SnackCrudCash: React.FC<{
         setAlertType("success");
         handleCloseDialog();
 
-        const updatedList = await getCash();
+        const updatedList = await getCashByCorrespondent(correspondent.id);
         if (updatedList.success) {
           setCashes(updatedList.data);
         }
@@ -178,7 +179,7 @@ const SnackCrudCash: React.FC<{
         setAlertMessage("Caja actualizada correctamente.");
         setAlertType("success");
 
-        const updatedList = await getCash();
+        const updatedList = await getCashByCorrespondent(correspondent.id);
         if (updatedList.success) {
           setCashes(updatedList.data);
         }
@@ -202,7 +203,7 @@ const SnackCrudCash: React.FC<{
       const response = await deleteCash(id);
       if (response.success) {
         alert("Caja eliminada correctamente");
-        const updatedList = await getCash();
+        const updatedList = await getCashByCorrespondent(correspondent.id);
         if (updatedList.success) {
           setCashes(updatedList.data);
         }
@@ -224,7 +225,7 @@ const SnackCrudCash: React.FC<{
         setAlertMessage("Estado actualizado correctamente.");
         setAlertType("success");
 
-        const updatedList = await getCash();
+        const updatedList = await getCashByCorrespondent(correspondent.id);
         if (updatedList.success) {
           setCashes(updatedList.data);
         }

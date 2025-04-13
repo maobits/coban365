@@ -88,24 +88,34 @@ const SnackCrudMyCorrespondent: React.FC<{
             getTransactionTypes(),
           ]);
 
-        // Logs para depurar
-        console.log("📌 Tipos de Corresponsales:", typesData);
-        console.log("📌 Perfiles de Usuarios:", profilesData);
-        console.log("📌 Transacciones Disponibles:", transactionsData);
-        console.log("📌 Corresponsales:", correspondentsData);
-
+        // 🔹 Tipos de transacciones
         if (transactionsData.success && Array.isArray(transactionsData.data)) {
           setTransactionTypes(transactionsData.data);
         }
 
+        // 🔹 Tipos de corresponsales
         if (typesData.success && Array.isArray(typesData.data)) {
           setTypes(typesData.data);
         }
 
+        // 🔹 Perfiles (Operadores)
         if (profilesData.success && Array.isArray(profilesData.users)) {
           setProfiles(profilesData.users);
+
+          // ✅ Preseleccionar operador actual con userId
+          const currentUserProfile = profilesData.users.find(
+            (p: any) => p.id === userId
+          );
+
+          if (currentUserProfile) {
+            setNewCorrespondent((prev) => ({
+              ...prev,
+              operator_id: currentUserProfile.id,
+            }));
+          }
         }
 
+        // 🔹 Corresponsales actuales del usuario
         if (
           correspondentsData.success &&
           Array.isArray(correspondentsData.data)
@@ -278,10 +288,10 @@ const SnackCrudMyCorrespondent: React.FC<{
       <Button
         variant="contained"
         color="primary"
-        startIcon={<PointOfSale />}
+        startIcon={<Add />}
         onClick={handleOpenDialog}
       >
-        Gestionar la caja
+        Nuevo corresponsal
       </Button>
 
       {loading ? (
@@ -462,14 +472,13 @@ const SnackCrudMyCorrespondent: React.FC<{
             )}
           />
           <Autocomplete
+            disabled // ⛔ No editable
             options={profiles}
             getOptionLabel={(option) => option.fullname}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            onChange={(_, newValue) =>
-              setNewCorrespondent((prev) => ({
-                ...prev,
-                operator_id: newValue?.id || null,
-              }))
+            value={
+              profiles.find((p) => p.id === newCorrespondent.operator_id) ||
+              null
             }
             renderInput={(params) => (
               <TextField
@@ -485,6 +494,7 @@ const SnackCrudMyCorrespondent: React.FC<{
               />
             )}
           />
+
           <TextField
             fullWidth
             label="Departamento"
