@@ -141,7 +141,7 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
 
       const response = await createUser({
         ...newUser,
-        permissions: { permissions: newUser.permissions }, // Convertir permisos a JSON
+        permissions: newUser.permissions,
       });
 
       if (response.success) {
