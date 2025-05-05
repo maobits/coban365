@@ -62,7 +62,7 @@ const SnackProfile: React.FC = () => {
       icon: manageCorrespondentIcon,
     },
     manageAdministrators: {
-      name: "Gestionar Administradores",
+      name: "Gestionar Usuarios",
       icon: manageAdministratorsIcon,
     },
     manageReports: { name: "Gestionar Reportes", icon: manageReportsIcon },

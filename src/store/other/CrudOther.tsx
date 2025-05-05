@@ -147,3 +147,41 @@ export const updateOtherState = async (
     throw error;
   }
 };
+
+/**
+ * Servicio para listar los terceros (others) asociados a un corresponsal específico
+ * con su balance financiero (calculado desde account_statement_others).
+ * Llama al endpoint `other_account_statement.php`.
+ *
+ * @param {number} correspondentId - ID del corresponsal
+ * @returns {Promise<any>} Lista de terceros con su balance
+ */
+export const listOtherAccountStatement = async (
+  correspondentId: number
+): Promise<any> => {
+  if (!correspondentId || correspondentId <= 0) {
+    throw new Error("ID del corresponsal inválido.");
+  }
+
+  try {
+    const url = `${baseUrl}/api/other/utils/other_account_statement.php?correspondent_id=${correspondentId}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.message || "Error desconocido al obtener la información."
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error("❌ Error al obtener estados de cuenta de terceros:", error);
+    throw error;
+  }
+};

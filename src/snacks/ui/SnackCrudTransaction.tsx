@@ -32,7 +32,7 @@ import {
   createTransactionType,
   updateTransactionType,
   deleteTransactionType,
-} from "../../store/transaction/CrudCorrespondent";
+} from "../../store//transaction/CrudCorrespondent";
 
 /**
  * Componente SnackCrudTransactionTypes

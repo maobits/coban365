@@ -8,6 +8,7 @@ import CrudCorrespondentScreen from "./showcase/manage_correspondent/CrudCorresp
 import CrudMyCorrespondentScreen from "./showcase/manage_correspondent/CrudMyCorrespondentScreen";
 import CrudUsersScreen from "./showcase/manage_users/CrudUsersScreen";
 import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactionScreen";
+import CrudTransactionsCheckoutScreen from "./showcase/manage_transactions/CrudTransactionScreenCheckout";
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -25,6 +26,7 @@ const App: React.FC = () => (
       />
       <Route path="/manageAdministrators" element={<CrudUsersScreen />} />
       <Route path="/manageTransactions" element={<CrudTransactionScreen />} />
+      <Route path="/manageCash" element={<CrudTransactionsCheckoutScreen />} />
       <Route path="/manageReports" element={<HomeScreen />} />
     </Routes>
     <SnackNavigationBar /> {/* Barra de navegación siempre visible */}

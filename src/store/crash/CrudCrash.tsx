@@ -215,3 +215,50 @@ export const getCashiers = async (): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener todas las cajas asociadas a un cajero específico.
+ * Realiza una solicitud GET al endpoint correspondiente.
+ *
+ * @param {number} cashierId - ID del cajero.
+ * @returns {Promise<any>} Promesa que resuelve con la lista de cajas.
+ */
+export const getCashByCashier = async (cashierId: number): Promise<any> => {
+  console.log(
+    "🚀 Iniciando solicitud para obtener cajas del cajero:",
+    cashierId
+  );
+
+  try {
+    const url = `${baseUrl}/api/cash/list_cash_by_cashier.php?cashier_id=${cashierId}`;
+    console.log("🔗 URL generada:", url);
+
+    const response = await fetch(url);
+    console.log("📡 Respuesta recibida:", response);
+
+    if (!response.ok) {
+      console.error(
+        "❌ Error en respuesta HTTP:",
+        response.status,
+        response.statusText
+      );
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("📦 Datos parseados:", data);
+
+    if (data.success) {
+      console.log("✅ Datos obtenidos correctamente:", data.data);
+    } else {
+      console.warn("⚠️ Respuesta sin éxito:", data.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error general en getCashByCashier:", error);
+    throw error;
+  } finally {
+    console.log("🏁 Solicitud finalizada para obtener cajas del cajero.");
+  }
+};
