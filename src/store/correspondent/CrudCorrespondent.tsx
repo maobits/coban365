@@ -49,6 +49,7 @@ export const createCorrespondent = async (correspondentData: {
   name: string;
   location: { departamento: string; ciudad: string };
   transactions: { id: number; name: string }[]; // ⬅️ Nuevo campo
+  credit_limit: number; // ✅ Añade esta línea
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/correspondent/create_correspondent.php`;

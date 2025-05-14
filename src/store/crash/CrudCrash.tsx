@@ -262,3 +262,64 @@ export const getCashByCashier = async (cashierId: number): Promise<any> => {
     console.log("🏁 Solicitud finalizada para obtener cajas del cajero.");
   }
 };
+
+/**
+ * Servicio para abrir una caja específica asignándole un balance inicial.
+ * Realiza una solicitud POST al backend.
+ *
+ * @param {number} cashId - ID de la caja que se desea abrir.
+ * @param {number} balance - Valor con el que se abre la caja.
+ * @param {string} [lastNote] - Nota opcional sobre la apertura.
+ * @returns {Promise<any>} - Promesa que resuelve con el resultado del backend.
+ */
+export const openCash = async (
+  cashId: number,
+  balance: number,
+  lastNote?: string
+): Promise<any> => {
+  console.log("🚀 Iniciando apertura de caja:", cashId);
+
+  try {
+    const url = `${baseUrl}/api/cash/open_cash.php`;
+    console.log("🔗 Endpoint:", url);
+
+    const payload = {
+      cash_id: cashId,
+      balance,
+      last_note: lastNote || "",
+    };
+
+    console.log("📤 Enviando payload:", payload);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(
+        "❌ Error en respuesta HTTP:",
+        response.status,
+        response.statusText
+      );
+      throw new Error(`Error HTTP: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("📦 Respuesta del servidor:", data);
+
+    if (!data.success) {
+      console.warn("⚠️ Backend respondió con error:", data.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error al abrir la caja:", error);
+    throw error;
+  } finally {
+    console.log("🏁 Proceso de apertura de caja finalizado.");
+  }
+};

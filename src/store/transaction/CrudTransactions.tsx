@@ -118,3 +118,61 @@ export const getTransactionTypesByCorrespondent = async (
     };
   }
 };
+
+/**
+ * Servicio para obtener la lista de ingresos activos de una caja.
+ *
+ * @param {number} cashId - ID de la caja.
+ * @returns {Promise<any>} Promesa con los ingresos y total acumulado.
+ */
+
+export const getCashIncomes = async (cashId: number): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/get_cash_incomes.php?id_cash=${cashId}`;
+    console.log("📡 Consultando ingresos de la caja:", cashId);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Ingresos de caja recibidos:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener ingresos de caja:", error);
+    return {
+      success: false,
+      message: "No se pudieron cargar los ingresos de la caja.",
+    };
+  }
+};
+
+/**
+ * Servicio para obtener la lista de retiros activos de una caja.
+ *
+ * @param {number} cashId - ID de la caja.
+ * @returns {Promise<any>} Promesa con los retiros y total acumulado.
+ */
+
+export const getCashWithdrawals = async (cashId: number): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/get_cashouts.php?id_cash=${cashId}`;
+    console.log("📡 Consultando retiros de la caja:", cashId);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Retiros de caja recibidos:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener retiros de caja:", error);
+    return {
+      success: false,
+      message: "No se pudieron cargar los retiros de la caja.",
+    };
+  }
+};

@@ -32,7 +32,7 @@ import {
   deleteCorrespondent,
   updateCorrespondentState,
 } from "../../store/correspondent/CrudCorrespondent";
-import { getProfiles } from "../../store/profile/Profile";
+import { getAdminProfiles } from "../../store/profile/Profile";
 import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 import { Switch } from "@mui/material";
 
@@ -53,6 +53,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
     name: "",
     location: { departamento: "", ciudad: "" },
     transactions: [] as { id: number; name: string }[],
+    credit_limit: 0,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
@@ -76,7 +77,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         const [typesData, profilesData, correspondentsData, transactionsData] =
           await Promise.all([
             getTypesCorrespondent(),
-            getProfiles(),
+            getAdminProfiles(),
             getCorrespondents(),
             getTransactionTypes(),
           ]);
@@ -152,6 +153,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         name: newCorrespondent.name,
         location: newCorrespondent.location,
         transactions: newCorrespondent.transactions,
+        credit_limit: newCorrespondent.credit_limit, // ✅ Agregado correctamente
       });
 
       if (response.success) {
@@ -442,8 +444,16 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           />
           <Autocomplete
             options={profiles}
-            getOptionLabel={(option) => option.fullname}
+            getOptionLabel={(option) =>
+              option.fullname && option.email
+                ? `${option.fullname} (${option.email})`
+                : option.fullname || ""
+            }
             isOptionEqualToValue={(option, value) => option.id === value.id}
+            value={
+              profiles.find((p) => p.id === newCorrespondent.operator_id) ||
+              null
+            } // 👈 Aquí se establece el valor actual
             onChange={(_, newValue) =>
               setNewCorrespondent((prev) => ({
                 ...prev,
@@ -464,6 +474,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
               />
             )}
           />
+
           <TextField
             fullWidth
             label="Departamento"
@@ -518,6 +529,29 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 }}
               />
             )}
+          />
+
+          <TextField
+            fullWidth
+            label="Cupo en COP"
+            variant="outlined"
+            value={
+              typeof newCorrespondent.credit_limit === "number"
+                ? newCorrespondent.credit_limit.toLocaleString("es-CO", {
+                    style: "currency",
+                    currency: "COP",
+                    minimumFractionDigits: 0,
+                  })
+                : ""
+            }
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^\d]/g, "");
+              setNewCorrespondent({
+                ...newCorrespondent,
+                credit_limit: Number(raw),
+              });
+            }}
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
           />
         </DialogContent>
         <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
@@ -607,7 +641,11 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
           />
           <Autocomplete
             options={profiles}
-            getOptionLabel={(option) => option.fullname}
+            getOptionLabel={(option) =>
+              option.fullname && option.email
+                ? `${option.fullname} (${option.email})`
+                : option.fullname || ""
+            }
             isOptionEqualToValue={(option, value) => option.id === value.id}
             value={
               profiles.find(
@@ -634,22 +672,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
               />
             )}
           />
-          <TextField
-            fullWidth
-            label="Departamento"
-            variant="outlined"
-            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
-            value={selectedCorrespondent?.location.departamento || ""}
-            onChange={(e) =>
-              setSelectedCorrespondent((prev) => ({
-                ...prev,
-                location: {
-                  ...prev.location,
-                  departamento: e.target.value,
-                },
-              }))
-            }
-          />
+
           <TextField
             fullWidth
             label="Ciudad"
@@ -695,6 +718,27 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 }}
               />
             )}
+          />
+
+          <TextField
+            fullWidth
+            label="Cupo en COP"
+            variant="outlined"
+            value={
+              selectedCorrespondent?.credit_limit?.toLocaleString("es-CO", {
+                style: "currency",
+                currency: "COP",
+                minimumFractionDigits: 0,
+              }) || "$0"
+            }
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^\d]/g, "");
+              setSelectedCorrespondent((prev: any) => ({
+                ...prev,
+                credit_limit: Number(raw),
+              }));
+            }}
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
           />
         </DialogContent>
         <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
