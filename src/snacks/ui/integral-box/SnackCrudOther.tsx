@@ -53,12 +53,18 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Estado para crear nuevo tercero
   const [newOther, setNewOther] = useState({
     name: "",
-    credit: "",
-    state: true,
+    id_type: "",
+    id_number: "",
+    email: "",
+    phone: "",
+    address: "",
+    credit: 0,
+    state: 1,
     correspondent_id: correspondent?.id || null,
   });
 
@@ -107,14 +113,31 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       name: "",
       credit: 0,
       state: 1,
-      correspondent_id: correspondent.id,
+      correspondent_id: correspondent?.id || null,
+      id_type: "",
+      id_number: "",
+      email: "",
+      phone: "",
+      address: "",
     });
   };
 
-  // Función para crear un nuevo tercero
   const handleCreateOther = async () => {
-    if (newOther.name.trim() === "") {
-      setAlertMessage("El nombre del tercero es obligatorio.");
+    const errors: Record<string, string> = {};
+
+    // Validación segura
+    if (!newOther.name?.trim()) errors.name = "Nombre requerido.";
+    if (!newOther.id_type?.trim())
+      errors.id_type = "Selecciona un tipo de identificación.";
+    if (!newOther.id_number?.trim())
+      errors.id_number = "Número de identificación requerido.";
+    if (!newOther.email?.trim()) errors.email = "Correo electrónico requerido.";
+    if (!newOther.phone?.trim()) errors.phone = "Celular requerido.";
+    if (!newOther.address?.trim()) errors.address = "Dirección requerida.";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors); // 👈 Muestra los errores visuales
+      setAlertMessage("Completa todos los campos requeridos.");
       setAlertType("error");
       return;
     }
@@ -180,7 +203,12 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   const handleEditOther = (other: any) => {
     setSelectedOther({
       ...other,
-      credit: parseFloat(other.credit), // Asegurar que el crédito sea numérico
+      credit: parseFloat(other.credit),
+      id_type: other.id_type || "",
+      id_number: other.id_number || "",
+      email: other.email || "",
+      phone: other.phone || "",
+      address: other.address || "",
     });
     setOpenEditDialog(true);
   };
@@ -236,6 +264,18 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
     }
   };
 
+  {
+    /* Formatear en COP */
+  }
+  const formatCOP = (value: string | number) => {
+    const number = typeof value === "string" ? parseFloat(value) : value;
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(isNaN(number) ? 0 : number);
+  };
+
   return (
     <Box
       sx={{
@@ -272,16 +312,25 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
             <TableHead>
               <TableRow>
                 <TableCell>Nombre</TableCell>
+                <TableCell>Identificación</TableCell>
+                <TableCell>Correo Electrónico</TableCell>
+                <TableCell>Celular</TableCell>
                 <TableCell>Crédito</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {others.map((other) => (
                 <TableRow key={other.id}>
                   <TableCell>{other.name}</TableCell>
-                  <TableCell>${parseFloat(other.credit).toFixed(2)}</TableCell>
+                  <TableCell>
+                    {other.id_type} {other.id_number}
+                  </TableCell>
+                  <TableCell>{other.email}</TableCell>
+                  <TableCell>{other.phone}</TableCell>
+                  <TableCell>{formatCOP(other.credit)}</TableCell>
                   <TableCell>
                     <FormControlLabel
                       control={
@@ -316,7 +365,6 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
           </Table>
         </TableContainer>
       )}
-      {/* Diálogo para crear tercero */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -334,14 +382,13 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
           sx={{
             fontFamily: fonts.heading,
             color: colors.primary,
-            mb: 1.5, // ✅ Separación profesional del título
+            mb: 1.5,
           }}
         >
           Nuevo Tercero
         </DialogTitle>
 
         <DialogContent sx={{ padding: 3 }}>
-          {/* Contenedor del formulario con márgenes entre campos */}
           <Box
             component="form"
             noValidate
@@ -350,7 +397,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
               flexDirection: "column",
               gap: 2,
               mt: 1,
-              mb: 2, // ✅ Espacio inferior entre formulario y acciones
+              mb: 2,
             }}
           >
             <TextField
@@ -371,24 +418,99 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
               onChange={(e) =>
                 setNewOther({ ...newOther, name: e.target.value })
               }
-              sx={{
-                backgroundColor: colors.background,
-                borderRadius: 1,
-              }}
+              error={!!formErrors.name}
+              helperText={formErrors.name}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Tipo de Identificación"
+              select
+              value={newOther.id_type}
+              onChange={(e) =>
+                setNewOther({ ...newOther, id_type: e.target.value })
+              }
+              SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
+              error={!!formErrors.id_type}
+              helperText={formErrors.id_type}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            >
+              <option value="">Selecciona...</option>
+              <option value="Cédula de Ciudadanía">Cédula de Ciudadanía</option>
+              <option value="NIT">NIT</option>
+              <option value="Cédula de Extranjería">
+                Cédula de Extranjería
+              </option>
+              <option value="Pasaporte">Pasaporte</option>
+              <option value="DNI">DNI</option>
+              <option value="RUT">RUT</option>
+              <option value="Otro">Otro</option>
+            </TextField>
+
+            <TextField
+              fullWidth
+              label="Número de Identificación"
+              value={newOther.id_number}
+              onChange={(e) =>
+                setNewOther({ ...newOther, id_number: e.target.value })
+              }
+              error={!!formErrors.id_number}
+              helperText={formErrors.id_number}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Correo Electrónico"
+              value={newOther.email}
+              onChange={(e) =>
+                setNewOther({ ...newOther, email: e.target.value })
+              }
+              error={!!formErrors.email}
+              helperText={formErrors.email}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Celular"
+              value={newOther.phone}
+              onChange={(e) =>
+                setNewOther({ ...newOther, phone: e.target.value })
+              }
+              error={!!formErrors.phone}
+              helperText={formErrors.phone}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Dirección"
+              value={newOther.address}
+              onChange={(e) =>
+                setNewOther({ ...newOther, address: e.target.value })
+              }
+              error={!!formErrors.address}
+              helperText={formErrors.address}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
 
             <TextField
               fullWidth
               label="Crédito Disponible"
-              type="number"
-              value={newOther.credit}
+              value={formatCOP(newOther.credit)}
               onChange={(e) =>
-                setNewOther({ ...newOther, credit: e.target.value })
+                setNewOther({
+                  ...newOther,
+                  credit:
+                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
+                })
               }
-              sx={{
-                backgroundColor: colors.background,
-                borderRadius: 1,
-              }}
+              error={!!formErrors.credit}
+              helperText={formErrors.credit}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
           </Box>
         </DialogContent>
@@ -461,13 +583,92 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
 
             <TextField
               fullWidth
-              label="Crédito Disponible"
-              type="number"
-              value={selectedOther?.credit || ""}
+              label="Tipo de Identificación"
+              select
+              value={selectedOther?.id_type || ""}
               onChange={(e) =>
                 setSelectedOther((prev: any) => ({
                   ...prev,
-                  credit: e.target.value,
+                  id_type: e.target.value,
+                }))
+              }
+              SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            >
+              <option value="">Selecciona...</option>
+              <option value="Cédula de Ciudadanía">Cédula de Ciudadanía</option>
+              <option value="NIT">NIT</option>
+              <option value="Cédula de Extranjería">
+                Cédula de Extranjería
+              </option>
+              <option value="Pasaporte">Pasaporte</option>
+              <option value="DNI">DNI</option>
+              <option value="RUT">RUT</option>
+              <option value="Otro">Otro</option>
+            </TextField>
+
+            <TextField
+              fullWidth
+              label="Número de Identificación"
+              value={selectedOther?.id_number || ""}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  id_number: e.target.value,
+                }))
+              }
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Correo Electrónico"
+              value={selectedOther?.email || ""}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  email: e.target.value,
+                }))
+              }
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Celular"
+              value={selectedOther?.phone || ""}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  phone: e.target.value,
+                }))
+              }
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Dirección"
+              value={selectedOther?.address || ""}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  address: e.target.value,
+                }))
+              }
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Crédito Disponible"
+              value={formatCOP(selectedOther?.credit || 0)}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  credit:
+                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
                 }))
               }
               sx={{
