@@ -32,6 +32,8 @@ import {
   updateUser,
   deleteUser,
 } from "../../store/profile/CrudUser";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { InputAdornment } from "@mui/material";
 
 /**
  * Componente SnackCrudUser
@@ -52,6 +54,7 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Lista de roles disponibles
   const roles = ["admin", "superadmin", "cajero", "tercero"];
@@ -256,6 +259,16 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
     }
   };
 
+  {
+    /* Permisos con etiquetas. */
+  }
+  const translatedPermissions = [
+    { value: "manageCorrespondents", label: "Gestionar corresponsales" },
+    { value: "manageCorrespondent", label: "Gestionar su corresponsal" },
+    { value: "manageAdministrators", label: "Gestionar administradores" },
+    { value: "manageReports", label: "Gestionar reportes" },
+  ];
+
   return (
     <Box
       sx={{
@@ -327,17 +340,35 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
       )}
 
       {/* Diálogo para agregar usuario */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>Nuevo Usuario</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            backgroundColor: colors.background,
+            color: colors.text_white,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: fonts.heading, color: colors.primary }}>
+          Nuevo Usuario
+        </DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
           <TextField
             fullWidth
             label="Email"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
           />
           <TextField
             fullWidth
             label="Nombre Completo"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) =>
               setNewUser({ ...newUser, fullname: e.target.value })
             }
@@ -345,42 +376,101 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
           <TextField
             fullWidth
             label="Teléfono"
+            variant="outlined"
+            sx={{ mb: 2, backgroundColor: colors.background, borderRadius: 1 }}
             onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
           />
           <TextField
             fullWidth
             label="Contraseña"
-            type="password"
+            type={showPassword ? "text" : "password"}
+            variant="outlined"
+            value={newUser.password}
             onChange={(e) =>
               setNewUser({ ...newUser, password: e.target.value })
             }
+            sx={{
+              mb: 2,
+              backgroundColor: colors.background,
+              borderRadius: 1,
+            }}
+            InputLabelProps={{
+              shrink: true, // 🔧 Esto arregla el label visualmente
+              style: { color: colors.text },
+            }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    edge="end"
+                    sx={{ color: colors.secondary }}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+              style: { color: colors.text },
+            }}
           />
+
           <Autocomplete
-            options={roles}
+            options={["admin", "superadmin"]}
             getOptionLabel={(option) => option}
             value={newUser.role}
             onChange={(_, value) => setNewUser({ ...newUser, role: value })}
             renderInput={(params) => (
-              <TextField {...params} label="Rol" fullWidth />
+              <TextField
+                {...params}
+                label="Rol"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
             )}
           />
+
           <Autocomplete
             multiple
-            options={permissionsList}
-            value={newUser.permissions}
+            options={translatedPermissions}
+            getOptionLabel={(option) => option.label}
+            value={translatedPermissions.filter((p) =>
+              newUser.permissions.includes(p.value)
+            )}
             onChange={(_, newPermissions) =>
-              setNewUser({ ...newUser, permissions: newPermissions })
+              setNewUser({
+                ...newUser,
+                permissions: newPermissions.map((p) => p.value),
+              })
             }
             renderInput={(params) => (
-              <TextField {...params} label="Permisos" fullWidth />
+              <TextField
+                {...params}
+                label="Permisos"
+                fullWidth
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  backgroundColor: colors.background,
+                  borderRadius: 1,
+                }}
+              />
             )}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} color="secondary">
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDialog} sx={{ color: colors.text_white }}>
             Cancelar
           </Button>
-          <Button onClick={handleCreateUser} color="primary">
+          <Button
+            onClick={handleCreateUser}
+            variant="contained"
+            sx={{ backgroundColor: colors.secondary }}
+          >
             Guardar
           </Button>
         </DialogActions>
@@ -464,14 +554,17 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
           {/* Selección de Permisos */}
           <Autocomplete
             multiple
-            options={permissionsList} // 🔹 Muestra todas las opciones
-            value={selectedUser?.permissions || []} // 🔹 Solo muestra los permisos seleccionados del usuario
-            onChange={(_, newPermissions) => {
+            options={translatedPermissions}
+            getOptionLabel={(option) => option.label}
+            value={translatedPermissions.filter((p) =>
+              selectedUser?.permissions.includes(p.value)
+            )}
+            onChange={(_, newPermissions) =>
               setSelectedUser({
                 ...selectedUser,
-                permissions: newPermissions, // 🔹 Guarda solo los permisos seleccionados
-              });
-            }}
+                permissions: newPermissions.map((p) => p.value),
+              })
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
