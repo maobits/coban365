@@ -16,11 +16,10 @@ import { useTheme } from "../../glamour/ThemeContext";
 // Importa los iconos de los permisos
 import manageCorrespondentsIcon from "../../ingredients/icons/profile/manageCorrespondents.png";
 import manageCorrespondentIcon from "../../ingredients/icons/profile/manageCorrespondents.png";
-
 import manageAdministratorsIcon from "../../ingredients/icons/profile/manageAdministrators.png";
-
 import manageReportsIcon from "../../ingredients/icons/profile/manageReports.png";
 import manageTransactionIcon from "../../ingredients/icons/profile/manageTransactions.png";
+import manageCashIcon from "../../ingredients/icons/profile/manageCash.png";
 
 // Importa los avatares según el rol del usuario
 import adminAvatar from "../../ingredients/icons/roles/admin.png";
@@ -69,6 +68,10 @@ const SnackProfile: React.FC = () => {
     manageTransactions: {
       name: "Gestionar Transacciones",
       icon: manageTransactionIcon,
+    },
+    manageCash: {
+      name: "Gestionar Caja",
+      icon: manageCashIcon,
     },
   };
 
