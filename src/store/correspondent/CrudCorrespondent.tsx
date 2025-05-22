@@ -253,3 +253,37 @@ export const getMyCorrespondent = async (id: number): Promise<any> => {
     throw error;
   }
 };
+/**
+ * Servicio para obtener el corresponsal asignado a una caja específica.
+ * Realiza una solicitud GET al endpoint `list_correspondent_by_cash.php`.
+ *
+ * @param {number} cashId - ID de la caja.
+ * @returns {Promise<any>} Promesa que resuelve con los datos del corresponsal.
+ */
+export const getCorrespondentByCash = async (cashId: number): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/correspondent/list_correspondent_by_cash.php?cash_id=${cashId}`;
+
+    console.log("🔍 Consultando corresponsal por caja ID:", cashId);
+    console.log("🔗 URL:", url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      console.warn("⚠️ No se obtuvo corresponsal:", data.message);
+    } else {
+      console.log("✅ Corresponsal obtenido:", data.data);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el corresponsal por caja:", error);
+    throw error;
+  }
+};

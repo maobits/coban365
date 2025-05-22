@@ -32,21 +32,17 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 import InfoIcon from "@mui/icons-material/Info";
 
 import {
-  getTransactions,
+  getTransactionsByCash,
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  getTransactionTypesByCorrespondent,
 } from "../../store/transaction/CrudTransactions";
 import { getCashByCashier } from "../../store/crash/CrudCrash";
-import { getMyCorrespondent } from "../../store/correspondent/CrudCorrespondent";
-import SnackBalanceThird from "../../snacks/ui/integral-box/SnackBalanceThird";
-import { InputAdornment } from "@mui/material";
-import Stack from "@mui/material/Stack";
+import { getCorrespondentByCash } from "../../store/correspondent/CrudCorrespondent";
 import Chip from "@mui/material/Chip";
-import { openCash } from "../../store/crash/CrudCrash"; // Asegúrate de que la ruta sea correcta
-import { getCashIncomes } from "../../store/transaction/CrudTransactions"; // asegúrate de que la ruta sea correcta
-import { getCashWithdrawals } from "../../store/transaction/CrudTransactions";
+
+// Plugins.
+import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
 
 interface Props {
   permissions: string[];
@@ -71,6 +67,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
+  // Esstados para los plugins.
+  const [selectedCorrespondent, setSelectedCorrespondent] = useState<any>(null);
+  const [selectedCash, setSelectedCash] = useState<any>(null);
+  const [correspondents, setCorrespondents] = useState<any[]>([]);
+
   // Abrir el modal para abrir caja.
   const [openCashModal, setOpenCashModal] = useState(false);
   const [openAmount, setOpenAmount] = useState("");
@@ -83,18 +84,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     setOpenAmount("");
     setNoteOpening("");
   };
-
-  // Estados para manejar ingresos, retiros y saldo en  caja.
-  const [cashIncomes, setCashIncomes] = useState<any[]>([]);
-  const [cashIncomesTotal, setCashIncomesTotal] = useState(0);
-  const [cashWithdrawals, setCashWithdrawals] = useState<any[]>([]);
-  const [cashWithdrawalsTotal, setCashWithdrawalsTotal] = useState(0);
-  const [cashBalance, setCashBalance] = useState(0); // saldo de apertura
-  const [cashTotal, setCashTotal] = useState(0); // saldo actual
-
-  useEffect(() => {
-    setCashTotal(cashBalance + cashIncomesTotal - cashWithdrawalsTotal);
-  }, [cashBalance, cashIncomesTotal, cashWithdrawalsTotal]);
 
   useEffect(() => {
     fetchInitialData();
@@ -110,10 +99,25 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       const user = JSON.parse(storedUser);
       setCashier(user);
 
-      const transRes = await getTransactions(user.id);
+      const cashRes = await getCashByCashier(user.id);
 
-      if (transRes.success) {
-        setTransactions(transRes.data);
+      if (cashRes.success && cashRes.data.length > 0) {
+        const firstCash = cashRes.data[0];
+        setSelectedCash(firstCash);
+
+        const corrRes = await getCorrespondentByCash(firstCash.id);
+        if (corrRes.success && corrRes.data) {
+          setCorrespondents([corrRes.data]);
+          setSelectedCorrespondent(corrRes.data);
+        }
+
+        // 👇 Obtener transacciones de esa caja
+        const transRes = await getTransactionsByCash(firstCash.id);
+        if (transRes.success) {
+          setTransactions(transRes.data);
+        }
+      } else {
+        console.warn("⚠️ No se encontraron cajas asignadas al cajero.");
       }
     } catch (error) {
       console.error("❌ Error al cargar datos iniciales:", error);
@@ -191,43 +195,10 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     }
   };
 
-  const fetchIncomesByCash = async (cashId: number) => {
-    if (!cashId) return;
+  // LOG.
+  console.log("🔎 selectedCorrespondent:", selectedCorrespondent);
+  console.log("🔎 selectedCash:", selectedCash);
 
-    try {
-      const res = await getCashIncomes(cashId);
-      if (res.success) {
-        setCashIncomes(res.data); // Lista de ingresos
-        setCashIncomesTotal(res.total); // Total acumulado
-      } else {
-        setCashIncomes([]);
-        setCashIncomesTotal(0);
-      }
-    } catch (error) {
-      console.error("❌ Error cargando ingresos:", error);
-      setCashIncomes([]);
-      setCashIncomesTotal(0);
-    }
-  };
-
-  const fetchWithdrawalsByCash = async (cashId: number) => {
-    if (!cashId) return;
-
-    try {
-      const res = await getCashWithdrawals(cashId);
-      if (res.success) {
-        setCashWithdrawals(res.data); // Lista de retiros
-        setCashWithdrawalsTotal(res.total); // Total acumulado
-      } else {
-        setCashWithdrawals([]);
-        setCashWithdrawalsTotal(0);
-      }
-    } catch (error) {
-      console.error("❌ Error cargando retiros:", error);
-      setCashWithdrawals([]);
-      setCashWithdrawalsTotal(0);
-    }
-  };
   return (
     <Box
       sx={{
@@ -242,17 +213,56 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         color={colors.primary}
         gutterBottom
       >
-        Gestión de Transacciones
+        Gestión de transacciones del corresponsal:
       </Typography>
 
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<Add />}
-        onClick={handleOpenDialog}
-      >
-        Nueva Transacción
-      </Button>
+      {correspondents.length > 0 && (
+        <Autocomplete
+          options={correspondents}
+          getOptionLabel={(option) => option.name}
+          value={selectedCorrespondent}
+          onChange={(_, value) => setSelectedCorrespondent(value)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Seleccionar Corresponsal"
+              sx={{ maxWidth: 400, mb: 2 }}
+            />
+          )}
+        />
+      )}
+      {selectedCorrespondent && selectedCash && (
+        <Box
+          sx={{
+            mt: 4,
+            p: 4,
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+            boxShadow: 4,
+          }}
+        >
+          <Typography
+            variant="h5"
+            fontFamily={fonts.heading}
+            color={colors.text_white}
+            gutterBottom
+            sx={{ fontWeight: "bold" }}
+          >
+            Movimientos del corresponsal{" "}
+            <Box component="span" fontWeight="bold" color={colors.secondary}>
+              {selectedCorrespondent.name}
+            </Box>
+          </Typography>
+
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 3 }}>
+            <SnackPluginDeposits
+              correspondent={selectedCorrespondent}
+              cash={selectedCash}
+              onTransactionComplete={fetchInitialData}
+            />
+          </Box>
+        </Box>
+      )}
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
@@ -265,13 +275,9 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               <TableRow>
                 <TableCell>Tipo</TableCell>
                 <TableCell>Valor</TableCell>
-                <TableCell>Corresponsal</TableCell>
-                <TableCell>Caja</TableCell>
-                <TableCell>Tercero</TableCell>{" "}
-                {/* ✅ Muestra el nombre del tercero */}
-                <TableCell>Fecha</TableCell>{" "}
-                {/* ✅ Ahora es la fecha legible */}
+                <TableCell>Impacto</TableCell>
                 <TableCell>Nota</TableCell>
+                <TableCell>Fecha</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
@@ -281,21 +287,28 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               {transactions.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell>{t.transaction_type_name}</TableCell>
-                  <TableCell>${parseFloat(t.cost).toFixed(2)}</TableCell>
-                  <TableCell>{t.correspondent_name || "—"}</TableCell>
-                  <TableCell>{t.cash_name || "—"}</TableCell>
-
-                  {/* Tercero */}
                   <TableCell>
-                    {t.client_reference_name ? t.client_reference_name : "—"}
+                    <Typography fontWeight="bold">
+                      ${parseFloat(t.cost).toFixed(2)}
+                    </Typography>
                   </TableCell>
-                  {/* Cliente → cambia a fecha */}
-                  <TableCell>{t.formatted_date}</TableCell>
+                  {/* Impacto */}
+                  <TableCell>
+                    {t.polarity === 1 ? (
+                      <Chip label="Positivo" color="success" />
+                    ) : (
+                      <Chip label="Negativo" color="error" />
+                    )}
+                  </TableCell>
 
                   <TableCell>{t.note || "—"}</TableCell>
+                  <TableCell>{t.formatted_date}</TableCell>
+
+                  {/* Estado como switch */}
                   <TableCell>
                     <Switch checked={t.state === 1} disabled />
                   </TableCell>
+
                   <TableCell>
                     <IconButton
                       color="primary"
@@ -331,26 +344,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           {alertMessage}
         </Alert>
       </Snackbar>
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullScreen>
-        <DialogTitle>
-          <Typography fontWeight="bold" variant="h6">
-            Nueva Transacción
-          </Typography>
-        </DialogTitle>
-        <DialogContent>{/* Aquí empezarás desde cero */}</DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleCloseDialog}
-            color="secondary"
-            variant="outlined"
-          >
-            Cancelar
-          </Button>
-          <Button onClick={() => {}} color="primary" variant="contained">
-            Guardar
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

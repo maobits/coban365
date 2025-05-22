@@ -18,6 +18,20 @@ export const getTransactions = async (id_cashier?: number): Promise<any> => {
 };
 
 /**
+ * Obtiene todas las transacciones registradas para una caja específica.
+ */
+export const getTransactionsByCash = async (id_cash: number): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}`;
+    const res = await fetch(url);
+    return await res.json();
+  } catch (error) {
+    console.error("❌ Error al obtener transacciones por caja:", error);
+    return { success: false, message: "Error en el servidor." };
+  }
+};
+
+/**
  * Crea una nueva transacción.
  * @param payload - Objeto con los datos de la transacción.
  */
@@ -83,16 +97,18 @@ export const deleteTransaction = async (
 };
 
 /**
- * Servicio para obtener los tipos de transacciones permitidos para un corresponsal.
+ * Servicio para obtener los tipos de transacciones permitidos para un corresponsal y tipo de movimiento.
  *
  * @param {number} correspondentId - ID del corresponsal.
- * @returns {Promise<any>} Promesa que resuelve con los tipos de transacciones permitidas.
+ * @param {string} movementType - Tipo de movimiento (e.g., "deposits").
+ * @returns {Promise<any>} Promesa con los tipos de transacciones válidas.
  */
 export const getTransactionTypesByCorrespondent = async (
-  correspondentId: number
+  correspondentId: number,
+  movementType: string
 ): Promise<any> => {
   try {
-    const url = `${baseUrl}/api/transactions/utils/types_correspondent_transactions.php?correspondent_id=${correspondentId}`;
+    const url = `${baseUrl}/api/transactions/utils/types_correspondent_transactions.php?correspondent_id=${correspondentId}&movement_type=${movementType}`;
     console.log(
       "📡 Consultando tipos de transacción para el corresponsal:",
       correspondentId
@@ -173,6 +189,72 @@ export const getCashWithdrawals = async (cashId: number): Promise<any> => {
     return {
       success: false,
       message: "No se pudieron cargar los retiros de la caja.",
+    };
+  }
+};
+
+/**
+ * Servicio para obtener el monto inicial configurado de una caja.
+ *
+ * @param {number} cashId - ID de la caja a consultar.
+ * @returns {Promise<any>} Promesa con la respuesta del servidor.
+ */
+export const getInitialCashConfiguration = async (
+  cashId: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/get_initial_box_configuration.php?id_cash=${cashId}`;
+    console.log("📡 Consultando configuración inicial de la caja:", url);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Monto inicial recibido:", data);
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener configuración inicial de caja:", error);
+    return {
+      success: false,
+      message: "No se pudo obtener el monto inicial de la caja.",
+    };
+  }
+};
+
+/**
+ * Servicio para consultar la deuda del corresponsal con el banco.
+ *
+ * @param {number} correspondentId - ID del corresponsal.
+ * @returns {Promise<any>} Objeto con ingresos, egresos, neto y detalle de cajas.
+ */
+
+export const getDebtToBankByCorrespondent = async (
+  correspondentId: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/debt_correspondent_bank.php?correspondent_id=${correspondentId}`;
+    console.log("📡 Consultando deuda bancaria del corresponsal:", url);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Deuda bancaria recibida:", data);
+
+    return data;
+  } catch (error) {
+    console.error(
+      "❌ Error al obtener deuda bancaria del corresponsal:",
+      error
+    );
+    return {
+      success: false,
+      message: "No se pudo obtener la deuda bancaria del corresponsal.",
     };
   }
 };

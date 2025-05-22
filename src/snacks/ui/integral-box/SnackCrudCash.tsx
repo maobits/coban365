@@ -37,6 +37,10 @@ import {
 } from "../../../store/crash/CrudCrash";
 import { getCorrespondents } from "../../../store/correspondent/CrudCorrespondent";
 import { getProfiles } from "../../../store/profile/Profile";
+import { Settings } from "@mui/icons-material"; // ya tienes otros íconos
+import { createInitialBoxConfiguration } from "../../../store/crash/CrudCrash"; // Ajusta el path si cambia
+import { InputAdornment } from "@mui/material";
+import { getInitialCashConfiguration } from "../../../store/transaction/CrudTransactions";
 
 const SnackCrudCash: React.FC<{
   permissions: string[];
@@ -77,6 +81,47 @@ const SnackCrudCash: React.FC<{
     capacity: false,
     last_note: false, // ← nuevo campo
   });
+
+  // Estados para la configuración inicial
+  const [openInitialDialog, setOpenInitialDialog] = useState(false);
+  const [initialAmountCash, setInitialAmountCash] = useState<any>(null);
+  const [initialAmountValue, setInitialAmountValue] = useState<string>("");
+
+  // Estados frases de seguridad.
+  const [securityPhrase, setSecurityPhrase] = useState("");
+  const [canEditAmount, setCanEditAmount] = useState(true); // Por defecto true si es 0 o null
+
+  // Frase de seguridad.
+
+  const handleSetupInitialCash = async (cash: any) => {
+    try {
+      // 1. Guardar la caja seleccionada
+      setInitialAmountCash(cash);
+      setSecurityPhrase("");
+      setCanEditAmount(false); // Por defecto no editable
+
+      // 2. Obtener el monto actualizado desde el backend
+      const response = await getInitialCashConfiguration(cash.id);
+
+      if (response.success) {
+        const amount = parseFloat(response.data.initial_amount || "0");
+
+        setInitialAmountValue(amount.toString());
+        setCanEditAmount(amount === 0); // Solo editable si es cero
+      } else {
+        setInitialAmountValue("0");
+        setCanEditAmount(true); // Si falla, permitir editar por defecto
+      }
+
+      // 3. Mostrar el modal
+      setOpenInitialDialog(true);
+    } catch (error) {
+      console.error("❌ Error en handleSetupInitialCash:", error);
+      setInitialAmountValue("0");
+      setCanEditAmount(true);
+      setOpenInitialDialog(true);
+    }
+  };
 
   const [editFormErrors, setEditFormErrors] = useState({
     name: false,
@@ -303,6 +348,42 @@ const SnackCrudCash: React.FC<{
     }).format(isNaN(num) ? 0 : num);
   };
 
+  // Controlador de la carga inicial.
+  const handleSaveInitialAmount = async () => {
+    const id_cash = initialAmountCash?.id;
+    const cost = Number(initialAmountValue.replace(/\D/g, ""));
+
+    if (!id_cash || !cost) {
+      setAlertMessage("Faltan datos para guardar la configuración inicial.");
+      setAlertType("error");
+      return;
+    }
+
+    console.log("📤 Enviando a createInitialBoxConfiguration:", {
+      id_cash,
+      cost,
+    });
+
+    try {
+      const response = await createInitialBoxConfiguration({ id_cash, cost });
+
+      if (response.success) {
+        setAlertMessage("Configuración inicial guardada.");
+        setAlertType("success");
+        setOpenInitialDialog(false);
+
+        const updatedList = await getCashByCorrespondent(correspondent.id);
+        if (updatedList.success) setCashes(updatedList.data);
+      } else {
+        setAlertMessage(response.message);
+        setAlertType("error");
+      }
+    } catch (err) {
+      setAlertMessage("Error al guardar configuración inicial.");
+      setAlertType("error");
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -359,6 +440,13 @@ const SnackCrudCash: React.FC<{
                     />
                   </TableCell>
                   <TableCell>
+                    <IconButton
+                      color="secondary"
+                      onClick={() => handleSetupInitialCash(cash)}
+                      title="Configurar monto inicial"
+                    >
+                      <Settings />
+                    </IconButton>
                     <IconButton
                       color="primary"
                       onClick={() => handleEditCash(cash)}
@@ -740,6 +828,136 @@ const SnackCrudCash: React.FC<{
             sx={{ backgroundColor: colors.secondary }}
           >
             Guardar Cambios
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openInitialDialog}
+        onClose={() => setOpenInitialDialog(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        {/* Encabezado con fondo primary y texto blanco */}
+        <Box sx={{ backgroundColor: colors.primary, px: 3, py: 2 }}>
+          <Typography variant="h6" fontWeight="bold" color={colors.text_white}>
+            Configurar Monto Inicial
+          </Typography>
+        </Box>
+
+        {/* Cuerpo del diálogo */}
+        <DialogContent
+          sx={{ backgroundColor: colors.primary_dark, px: 3, py: 4 }}
+        >
+          <Typography
+            fontWeight="bold"
+            sx={{ color: colors.text_white, mb: 1, fontSize: "1rem" }}
+          >
+            Monto Inicial
+          </Typography>
+
+          {/* Campo del monto (fondo blanco) */}
+          <TextField
+            fullWidth
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={new Intl.NumberFormat("es-CO").format(
+              parseFloat(initialAmountValue) || 0
+            )}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\D/g, "");
+              setInitialAmountValue(raw);
+            }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Typography color={colors.secondary} fontWeight="bold">
+                    COP
+                  </Typography>
+                </InputAdornment>
+              ),
+              sx: {
+                fontSize: "1.8rem",
+                fontWeight: "bold",
+                textAlign: "right",
+                height: 60,
+              },
+            }}
+            sx={{
+              mb: 3,
+              backgroundColor: "#fff",
+              borderRadius: 1,
+              "& input": {
+                color: colors.secondary,
+              },
+            }}
+            disabled={!canEditAmount}
+          />
+
+          {/* Frase de seguridad */}
+          <TextField
+            fullWidth
+            placeholder="Frase de seguridad para modificar"
+            value={securityPhrase}
+            onChange={(e) => {
+              const phrase = e.target.value;
+              setSecurityPhrase(phrase);
+              setCanEditAmount(
+                parseFloat(initialAmountValue) === 0 ||
+                  phrase.toLowerCase() === "modificar monto"
+              );
+            }}
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: 1,
+              "& input": {
+                color: "#333",
+              },
+              mb: 2,
+            }}
+            disabled={parseFloat(initialAmountValue) === 0}
+          />
+        </DialogContent>
+
+        {/* Botones */}
+        <DialogActions
+          sx={{
+            backgroundColor: colors.primary_dark,
+            px: 3,
+            py: 2,
+            justifyContent: "space-between",
+          }}
+        >
+          <Button
+            variant="outlined"
+            sx={{
+              color: colors.secondary,
+              borderColor: colors.secondary,
+              fontWeight: "bold",
+              px: 3,
+            }}
+            onClick={() => setOpenInitialDialog(false)}
+          >
+            CERRAR
+          </Button>
+          <Button
+            variant="contained"
+            sx={{
+              backgroundColor: colors.primary,
+              color: colors.text_white,
+              fontWeight: "bold",
+              px: 3,
+              "&:hover": {
+                backgroundColor: colors.primary_dark,
+              },
+            }}
+            onClick={handleSaveInitialAmount}
+            disabled={
+              parseFloat(initialAmountValue) !== 0 &&
+              securityPhrase.toLowerCase() !== "modificar monto"
+            }
+          >
+            GUARDAR
           </Button>
         </DialogActions>
       </Dialog>
