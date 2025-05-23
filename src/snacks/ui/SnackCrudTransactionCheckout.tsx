@@ -43,12 +43,15 @@ import Chip from "@mui/material/Chip";
 
 // Plugins.
 import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
+import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPluginWithdrawals";
 
 interface Props {
   permissions: string[];
 }
 
 const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { colors, fonts } = useTheme();
 
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -256,6 +259,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 3 }}>
             <SnackPluginDeposits
+              correspondent={selectedCorrespondent}
+              cash={selectedCash}
+              onTransactionComplete={fetchInitialData}
+            />
+            <SnackPluginWithdrawals
               correspondent={selectedCorrespondent}
               cash={selectedCash}
               onTransactionComplete={fetchInitialData}

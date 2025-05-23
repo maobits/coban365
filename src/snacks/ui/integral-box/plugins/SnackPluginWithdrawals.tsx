@@ -37,7 +37,7 @@ interface Props {
   onTransactionComplete?: () => void; // ← nuevo
 }
 
-const SnackPluginDeposits: React.FC<Props> = ({
+const SnackPluginWithdrawals: React.FC<Props> = ({
   correspondent,
   cash,
   onTransactionComplete,
@@ -130,7 +130,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // 1. Obtener tipos de transacción (depósitos)
       const res = await getTransactionTypesByCorrespondent(
         correspondent.id,
-        "deposits"
+        "withdrawals"
       );
 
       if (res.success) {
@@ -223,18 +223,19 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
-      // ✅ 2. Validar contra el cupo disponible actualizado
-      if (valorIngresado > cupoDisponible) {
+      // ✅ Validar si el monto es mayor al saldo disponible en caja
+      if (valorIngresado > currentCash) {
         setAlertMessage(
           `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
             valorIngresado
-          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
+          )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
             "es-CO"
           ).format(
-            cupoDisponible
-          )}). La información ha cambiado. Intenta con un monto menor o realiza una compensación.`
+            currentCash
+          )}). No es posible retirar más de lo que hay disponible.`
         );
         setAlertOpen(true);
+        amountRef.current?.focus();
         return;
       }
 
@@ -251,7 +252,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         id_cash: cash.id,
         id_correspondent: correspondent.id,
         transaction_type_id: selectedTransaction,
-        polarity: true,
+        polarity: false,
         cost: valorIngresado,
         utility,
       };
@@ -308,7 +309,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
           },
         }}
       >
-        Depósitos
+        Retiros
       </Button>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -321,7 +322,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
             py: 2,
           }}
         >
-          Depósitos en el corresponsal{" "}
+          Retiros en el corresponsal{" "}
           <Box component="span" fontWeight="bold" color={colors.secondary}>
             {correspondent.name}
           </Box>{" "}
@@ -650,9 +651,9 @@ const SnackPluginDeposits: React.FC<Props> = ({
             onClick={handleRegister}
             variant="contained"
             color="primary"
-            disabled={!amount || parseFloat(amount) <= 0}
+            disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
           >
-            Registrar
+            {isSubmitting ? "Registrando..." : "Registrar"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -776,4 +777,4 @@ const SnackPluginDeposits: React.FC<Props> = ({
   );
 };
 
-export default SnackPluginDeposits;
+export default SnackPluginWithdrawals;
