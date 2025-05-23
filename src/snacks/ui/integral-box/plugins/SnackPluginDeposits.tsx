@@ -23,6 +23,7 @@ import {
 import { getDebtToBankByCorrespondent } from "../../../../store/transaction/CrudTransactions";
 import { createTransaction } from "../../../../store/transaction/CrudTransactions";
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
+import { LinearProgress } from "@mui/material";
 
 interface Props {
   correspondent: {
@@ -52,6 +53,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const [incomes, setIncomes] = useState(0);
   const [withdrawals, setWithdrawals] = useState(0);
 
+  // Porcentaje de capacidad de la caja.
+  const cashCapacity = cash.capacity || 1; // evitamos división por cero
+  const currentCash = initialConfig + incomes - withdrawals;
+  const cashPercentage = (currentCash / cashCapacity) * 100;
+
   // Estado para la deuda.
   const [bankDebt, setBankDebt] = useState(0);
 
@@ -64,6 +70,18 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
   // Referencia:
   const amountRef = useRef<HTMLInputElement>(null);
+
+  // Barra de progreso.
+
+  const creditLimit = correspondent.credit_limit || 0;
+  const debtPercentage = creditLimit > 0 ? (bankDebt / creditLimit) * 100 : 0;
+  const availablePercentage =
+    creditLimit > 0 ? ((creditLimit - bankDebt) / creditLimit) * 100 : 0;
+
+  //  Progreso de a caja en el cupo disponible.
+  const saldoCaja = initialConfig + incomes - withdrawals;
+  const saldoCajaPercentage =
+    creditLimit > 0 ? (saldoCaja / creditLimit) * 100 : 0;
 
   {
     /* Función para cargar el valor en caja. */
@@ -418,6 +436,31 @@ const SnackPluginDeposits: React.FC<Props> = ({
                       >
                         ${new Intl.NumberFormat("es-CO").format(bankDebt)}
                       </Typography>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={debtPercentage}
+                        sx={{
+                          mt: 1,
+                          height: 8,
+                          borderRadius: 5,
+                          backgroundColor: "#ddd",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: colors.secondary,
+                          },
+                        }}
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 1,
+                          display: "block",
+                          color: colors.text_white,
+                        }}
+                      >
+                        {debtPercentage.toFixed(1)}% del cupo usado
+                      </Typography>
                     </Box>
                   </Grid>
 
@@ -449,6 +492,30 @@ const SnackPluginDeposits: React.FC<Props> = ({
                           initialConfig + incomes - withdrawals
                         )}
                       </Typography>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={cashPercentage}
+                        sx={{
+                          mt: 1,
+                          height: 8,
+                          borderRadius: 5,
+                          backgroundColor: "#ddd",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: colors.secondary,
+                          },
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 1,
+                          display: "block",
+                          color: colors.text_white,
+                        }}
+                      >
+                        {cashPercentage.toFixed(1)}% de capacidad
+                      </Typography>
                     </Box>
                   </Grid>
 
@@ -475,10 +542,33 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         fontWeight="bold"
                         color={colors.secondary}
                       >
-                        $
-                        {new Intl.NumberFormat("es-CO").format(
-                          correspondent.credit_limit || 0
-                        )}
+                        ${new Intl.NumberFormat("es-CO").format(creditLimit)}
+                      </Typography>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={saldoCajaPercentage}
+                        sx={{
+                          mt: 1,
+                          height: 8,
+                          borderRadius: 5,
+                          backgroundColor: "#ddd",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: colors.secondary,
+                          },
+                        }}
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 1,
+                          display: "block",
+                          color: colors.text_white,
+                        }}
+                      >
+                        {saldoCajaPercentage.toFixed(1)}% del cupo ocupado con
+                        saldo en caja
                       </Typography>
                     </Box>
                   </Grid>
@@ -510,6 +600,31 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         {new Intl.NumberFormat("es-CO").format(
                           (correspondent.credit_limit || 0) - (bankDebt || 0)
                         )}
+                      </Typography>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={availablePercentage}
+                        sx={{
+                          mt: 1,
+                          height: 8,
+                          borderRadius: 5,
+                          backgroundColor: "#ddd",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: colors.secondary,
+                          },
+                        }}
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 1,
+                          display: "block",
+                          color: colors.text_white,
+                        }}
+                      >
+                        {availablePercentage.toFixed(1)}% del cupo disponible
                       </Typography>
                     </Box>
                   </Grid>
