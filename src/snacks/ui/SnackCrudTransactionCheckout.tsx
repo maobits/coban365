@@ -44,14 +44,13 @@ import Chip from "@mui/material/Chip";
 // Plugins.
 import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
 import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPluginWithdrawals";
+import SnackPluginOthers from "../../snacks/ui/integral-box/plugins/SnackPluginOthers";
 
 interface Props {
   permissions: string[];
 }
 
 const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const { colors, fonts } = useTheme();
 
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -264,6 +263,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               onTransactionComplete={fetchInitialData}
             />
             <SnackPluginWithdrawals
+              correspondent={selectedCorrespondent}
+              cash={selectedCash}
+              onTransactionComplete={fetchInitialData}
+            />
+            <SnackPluginOthers
               correspondent={selectedCorrespondent}
               cash={selectedCash}
               onTransactionComplete={fetchInitialData}
