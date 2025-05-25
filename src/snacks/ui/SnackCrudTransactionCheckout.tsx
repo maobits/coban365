@@ -45,6 +45,7 @@ import Chip from "@mui/material/Chip";
 import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
 import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPluginWithdrawals";
 import SnackPluginOthers from "../../snacks/ui/integral-box/plugins/SnackPluginOthers";
+import SnackPluginThirdParty from "../../snacks/ui/integral-box/plugins/SnackPluginThirdParty";
 
 interface Props {
   permissions: string[];
@@ -268,6 +269,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               onTransactionComplete={fetchInitialData}
             />
             <SnackPluginOthers
+              correspondent={selectedCorrespondent}
+              cash={selectedCash}
+              onTransactionComplete={fetchInitialData}
+            />
+            <SnackPluginThirdParty
               correspondent={selectedCorrespondent}
               cash={selectedCash}
               onTransactionComplete={fetchInitialData}

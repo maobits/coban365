@@ -258,3 +258,37 @@ export const getDebtToBankByCorrespondent = async (
     };
   }
 };
+
+/**
+ * Consulta el balance financiero entre un corresponsal y un tercero.
+ * Incluye: deuda, cobros, préstamos realizados y recibidos.
+ *
+ * @param {number} correspondentId - ID del corresponsal
+ * @param {number} thirdPartyId - ID del tercero
+ * @returns {Promise<any>} Respuesta con el resumen financiero
+ */
+export const getThirdPartyBalance = async (
+  correspondentId: number,
+  thirdPartyId: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/third_party_balance_sheet.php?correspondent_id=${correspondentId}&third_party_id=${thirdPartyId}`;
+    console.log("📡 Consultando movimientos con el tercero:", url);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Movimientos del tercero recibidos:", data);
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener movimientos del tercero:", error);
+    return {
+      success: false,
+      message: "No se pudo obtener el balance financiero del tercero.",
+    };
+  }
+};

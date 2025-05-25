@@ -55,6 +55,7 @@ const SnackCrudTransactionTypes: React.FC<{ permissions: string[] }> = ({
     "Ingresos",
     "Retiros",
     "Otros",
+    "Terceros",
     "Compensación",
     "Transferir",
   ];
