@@ -46,6 +46,7 @@ import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPlugi
 import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPluginWithdrawals";
 import SnackPluginOthers from "../../snacks/ui/integral-box/plugins/SnackPluginOthers";
 import SnackPluginThirdParty from "../../snacks/ui/integral-box/plugins/SnackPluginThirdParty";
+import SnackPluginCompesation from "../../snacks/ui/integral-box/plugins/SnackPluginCompensation";
 
 interface Props {
   permissions: string[];
@@ -274,6 +275,12 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               onTransactionComplete={fetchInitialData}
             />
             <SnackPluginThirdParty
+              correspondent={selectedCorrespondent}
+              cash={selectedCash}
+              onTransactionComplete={fetchInitialData}
+            />
+            {/* 🔽 Agrega aquí el nuevo plugin de Compensaciones */}
+            <SnackPluginCompesation
               correspondent={selectedCorrespondent}
               cash={selectedCash}
               onTransactionComplete={fetchInitialData}

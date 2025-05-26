@@ -21,7 +21,7 @@ import {
   getCashWithdrawals,
 } from "../../../../store/transaction/CrudTransactions";
 import { getDebtToBankByCorrespondent } from "../../../../store/transaction/CrudTransactions";
-import { createTransaction } from "../../../../store/transaction/CrudTransactions";
+import { createClearingTransaction } from "../../../../store/transaction/CrudTransactions";
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
 
@@ -37,7 +37,7 @@ interface Props {
   onTransactionComplete?: () => void; // ← nuevo
 }
 
-const SnackPluginOthers: React.FC<Props> = ({
+const SnackPluginCompesation: React.FC<Props> = ({
   correspondent,
   cash,
   onTransactionComplete,
@@ -130,7 +130,7 @@ const SnackPluginOthers: React.FC<Props> = ({
       // 1. Obtener tipos de transacción (depósitos)
       const res = await getTransactionTypesByCorrespondent(
         correspondent.id,
-        "others"
+        "compensation"
       );
 
       if (res.success) {
@@ -197,8 +197,8 @@ const SnackPluginOthers: React.FC<Props> = ({
       const valorIngresado = parseFloat(amount.replace(/\D/g, ""));
 
       // Validar si es cero o inválido
-      if (isNaN(valorIngresado)) {
-        setAlertMessage("⚠️ El valor ingresado no es válido.");
+      if (!valorIngresado || valorIngresado <= 0) {
+        setAlertMessage("⚠️ No se permite una transacción con el monto $0.");
         setAlertOpen(true);
         amountRef.current?.focus();
         return;
@@ -223,19 +223,31 @@ const SnackPluginOthers: React.FC<Props> = ({
       // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
-      // ✅ Validar si el monto es mayor al saldo disponible en caja
-      if (valorIngresado > currentCash) {
+      // ✅ 2. Validar contra el cupo disponible actualizado
+      if (valorIngresado > cupoDisponible) {
         setAlertMessage(
           `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
             valorIngresado
-          )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
+          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
             "es-CO"
           ).format(
-            currentCash
-          )}). No es posible retirar más de lo que hay disponible.`
+            cupoDisponible
+          )}). La información ha cambiado. Intenta con un monto menor o realiza una compensación.`
         );
         setAlertOpen(true);
-        amountRef.current?.focus();
+        return;
+      }
+
+      // ✅ 3. Validar contra el saldo disponible en caja
+      if (valorIngresado > currentCash) {
+        setAlertMessage(
+          `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+            valorIngresado
+          )}) es mayor al saldo actual en caja ($${new Intl.NumberFormat(
+            "es-CO"
+          ).format(currentCash)}). Disminuye el valor para continuar.`
+        );
+        setAlertOpen(true);
         return;
       }
 
@@ -257,7 +269,7 @@ const SnackPluginOthers: React.FC<Props> = ({
         utility,
       };
 
-      const res = await createTransaction(payload);
+      const res = await createClearingTransaction(payload);
 
       if (res.success) {
         setSuccessOpen(true);
@@ -309,7 +321,7 @@ const SnackPluginOthers: React.FC<Props> = ({
           },
         }}
       >
-        Otros
+        Compensación
       </Button>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -322,7 +334,7 @@ const SnackPluginOthers: React.FC<Props> = ({
             py: 2,
           }}
         >
-          Otros en el corresponsal{" "}
+          Compesación en el corresponsal{" "}
           <Box component="span" fontWeight="bold" color={colors.secondary}>
             {correspondent.name}
           </Box>{" "}
@@ -390,12 +402,12 @@ const SnackPluginOthers: React.FC<Props> = ({
                 onChange={(e) => {
                   let raw = e.target.value.replace(/\D/g, "");
 
-                  // Si comienza con '0' y tiene más de un dígito, quítalo
+                  // Si comienza con '0' y tiene más de un dígito, elimina los ceros iniciales
                   if (raw.length > 1 && raw.startsWith("0")) {
                     raw = raw.replace(/^0+/, "");
                   }
 
-                  // Si queda vacío, poner "0"
+                  // Si el campo queda vacío, asigna "0"
                   setAmount(raw || "0");
                 }}
                 InputProps={{
@@ -658,9 +670,9 @@ const SnackPluginOthers: React.FC<Props> = ({
             onClick={handleRegister}
             variant="contained"
             color="primary"
-            disabled={isSubmitting || amount.trim() === ""}
+            disabled={!amount || parseFloat(amount) <= 0}
           >
-            {isSubmitting ? "Registrando..." : "Registrar"}
+            Registrar
           </Button>
         </DialogActions>
       </Dialog>
@@ -784,4 +796,4 @@ const SnackPluginOthers: React.FC<Props> = ({
   );
 };
 
-export default SnackPluginOthers;
+export default SnackPluginCompesation;

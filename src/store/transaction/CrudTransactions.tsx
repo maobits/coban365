@@ -292,3 +292,100 @@ export const getThirdPartyBalance = async (
     };
   }
 };
+
+/**
+ * Registra una transacción entre un corresponsal y un tercero.
+ *
+ * @param {Object} payload - Datos necesarios para la transacción.
+ * @param {number} payload.id_cashier - ID del cajero.
+ * @param {number} payload.id_cash - ID de la caja.
+ * @param {number} payload.id_correspondent - ID del corresponsal.
+ * @param {number} payload.transaction_type_id - ID del tipo de transacción.
+ * @param {boolean} payload.polarity - True para ingreso, false para egreso.
+ * @param {number} payload.cost - Monto de la transacción.
+ * @param {number|string} payload.client_reference - ID del tercero asociado.
+ * @param {string} payload.third_party_note - Código especial de transacción (ej. "debt-to-third-party").
+ * @param {number} [payload.utility] - Utilidad opcional.
+ * @returns {Promise<any>} Resultado de la operación.
+ */
+export const createThirdPartyTransaction = async (payload: {
+  id_cashier: number;
+  id_cash: number;
+  id_correspondent: number;
+  transaction_type_id: number;
+  polarity: boolean;
+  cost: number;
+  client_reference: number | string;
+  third_party_note: string;
+  utility?: number;
+}): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/new-third-party-transaction.php`;
+    console.log("📡 Registrando transacción con tercero:", payload);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    console.log("✅ Resultado del registro:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al registrar transacción con tercero:", error);
+    return {
+      success: false,
+      message: "Error al registrar la transacción con el tercero.",
+    };
+  }
+};
+
+/**
+ * Registra una transacción de compensación ("clearing") entre un corresponsal y su caja.
+ *
+ * @param {Object} payload - Datos necesarios para la transacción.
+ * @param {number} payload.id_cashier - ID del cajero.
+ * @param {number} payload.id_cash - ID de la caja.
+ * @param {number} payload.id_correspondent - ID del corresponsal.
+ * @param {number} payload.transaction_type_id - ID del tipo de transacción.
+ * @param {boolean} payload.polarity - True para ingreso, false para egreso.
+ * @param {number} payload.cost - Monto de la transacción.
+ * @param {number} [payload.utility] - Utilidad opcional.
+ * @returns {Promise<any>} Resultado de la operación.
+ */
+
+export const createClearingTransaction = async (payload: {
+  id_cashier: number;
+  id_cash: number;
+  id_correspondent: number;
+  transaction_type_id: number;
+  polarity: boolean;
+  cost: number;
+  utility?: number;
+}): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/new_clearing_transaction.php`;
+    console.log("📡 Registrando transacción de compensación:", payload);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    console.log("✅ Resultado de la compensación:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al registrar transacción de compensación:", error);
+    return {
+      success: false,
+      message: "Error al registrar la transacción de compensación.",
+    };
+  }
+};

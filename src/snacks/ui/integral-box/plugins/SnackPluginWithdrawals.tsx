@@ -388,8 +388,15 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
                 pattern="[0-9]*"
                 value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")} // formato en tiempo real
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "");
-                  setAmount(raw);
+                  let raw = e.target.value.replace(/\D/g, "");
+
+                  // Si comienza con '0' y tiene más de un dígito, eliminar ceros iniciales
+                  if (raw.length > 1 && raw.startsWith("0")) {
+                    raw = raw.replace(/^0+/, "");
+                  }
+
+                  // Si se borra todo, asignar "0"
+                  setAmount(raw || "0");
                 }}
                 InputProps={{
                   endAdornment: (

@@ -21,7 +21,7 @@ import {
   getCashWithdrawals,
 } from "../../../../store/transaction/CrudTransactions";
 import { getDebtToBankByCorrespondent } from "../../../../store/transaction/CrudTransactions";
-import { createTransaction } from "../../../../store/transaction/CrudTransactions";
+import { createThirdPartyTransaction } from "../../../../store/transaction/CrudTransactions";
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
 import { listOthersByCorrespondent } from "../../../../store/other/CrudOther";
@@ -50,7 +50,9 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("0");
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>("");
+  const [selectedTransaction, setSelectedTransaction] = useState<number | "">(
+    ""
+  );
 
   // Estados para el calculo de la caja.
   const [initialConfig, setInitialConfig] = useState(0);
@@ -88,6 +90,26 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const debtPercentage = creditLimit > 0 ? (bankDebt / creditLimit) * 100 : 0;
   const availablePercentage =
     creditLimit > 0 ? ((creditLimit - bankDebt) / creditLimit) * 100 : 0;
+
+  //Cupo disponible
+  const totalCredit = selectedOther?.credit || 0;
+  const usedCredit = thirdPartyBalance?.charge_to_third_party || 0;
+  const availableCredit = totalCredit - usedCredit;
+  const isFullCredit = availableCredit === totalCredit;
+
+  // Nota del tercero según el tipo de transacción
+  const transactionNoteMap: Record<string, string> = {
+    "Pago a tercero": "debt_to_third_party",
+    "Pago de tercero": "charge_to_third_party",
+    "Prestamo a tercero": "loan_to_third_party",
+    "Prestamo de tercero": "loan_from_third_party",
+  };
+
+  const transactionType = transactionTypes.find(
+    (t) => t.id === selectedTransaction
+  );
+
+  const thirdPartyNote = transactionNoteMap[transactionType?.name] || "unknown";
 
   //  Progreso de a caja en el cupo disponible.
   const saldoCaja = initialConfig + incomes - withdrawals;
@@ -136,7 +158,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         corresponsal: correspondent.name,
       });
 
-      // 1. Obtener tipos de transacción (depósitos)
+      // Cargar tipos de transacción desde el backend
       const res = await getTransactionTypesByCorrespondent(
         correspondent.id,
         "third_parties"
@@ -192,19 +214,26 @@ const SnackPluginDeposits: React.FC<Props> = ({
   };
 
   const handleClose = () => setOpen(false);
-
   const handleRegister = async () => {
-    if (isSubmitting) return; // ✅ Evita doble clic
-    setIsSubmitting(true); // ✅ Activa estado de envío
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
-      // Validar si no se ha seleccionado un tipo de transacción
+      // 1. Validación: tipo de transacción
       if (!selectedTransaction) {
         setAlertMessage("⚠️ Debes seleccionar un tipo de transacción.");
         setAlertOpen(true);
         return;
       }
 
-      // Validar si el campo de monto está vacío
+      // 2. Validación: tercero seleccionado
+      if (!selectedOther) {
+        setAlertMessage("⚠️ Debes seleccionar un tercero.");
+        setAlertOpen(true);
+        return;
+      }
+
+      // 3. Validación: monto ingresado
       if (!amount || amount.trim() === "") {
         setAlertMessage("⚠️ Debes ingresar una cantidad para continuar.");
         setAlertOpen(true);
@@ -212,10 +241,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
-      // Convertir el valor numérico (eliminar puntos, comas u otros símbolos)
       const valorIngresado = parseFloat(amount.replace(/\D/g, ""));
-
-      // Validar si es cero o inválido
       if (!valorIngresado || valorIngresado <= 0) {
         setAlertMessage("⚠️ No se permite una transacción con el monto $0.");
         setAlertOpen(true);
@@ -223,11 +249,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
-      // ✅ 1. Consultar deuda actualizada justo antes de registrar
+      // 4. Validación: cupo disponible actualizado
       const latestDebtRes = await getDebtToBankByCorrespondent(
         correspondent.id
       );
-
       if (!latestDebtRes.success) {
         throw new Error("No se pudo obtener la deuda bancaria actualizada.");
       }
@@ -236,52 +261,165 @@ const SnackPluginDeposits: React.FC<Props> = ({
       const creditLimit = correspondent.credit_limit || 0;
       const cupoDisponible = creditLimit - latestDebt;
 
-      // ✅ Actualizar el estado de deuda (aunque no se registre)
       setBankDebt(latestDebt);
-
-      // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
-      // ✅ 2. Validar contra el cupo disponible actualizado
       if (valorIngresado > cupoDisponible) {
         setAlertMessage(
           `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
             valorIngresado
           )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
             "es-CO"
-          ).format(
-            cupoDisponible
-          )}). La información ha cambiado. Intenta con un monto menor o realiza una compensación.`
+          ).format(cupoDisponible)}). Intenta con un monto menor.`
         );
         setAlertOpen(true);
         return;
       }
 
-      // 3. Obtener tarifa (utility)
+      // 5. Obtener tarifa (utility)
       const rateRes = await listRatesByCorrespondent(correspondent.id);
-      const tarifa = rateRes?.data?.find(
-        (r: any) => r.transaction_type_id === selectedTransaction
-      );
-      const utility = tarifa ? parseFloat(tarifa.price) : 0;
+      const utility =
+        rateRes?.data?.find(
+          (r: any) => r.transaction_type_id === selectedTransaction
+        )?.price || 0;
 
-      // 4. Registrar transacción
+      // 6. Buscar el tipo seleccionado para obtener el nombre
+      const selectedType = transactionTypes.find(
+        (t: any) => t.id === selectedTransaction
+      );
+
+      console.log("🧾 Tipo seleccionado:", selectedType?.name);
+
+      // Mapeo predefinido
+      const transactionNoteMap: Record<string, string> = {
+        "pago a tercero": "debt_to_third_party",
+        "pago de tercero": "charge_to_third_party",
+        "prestamo a tercero": "loan_to_third_party",
+        "prestamo de terceros": "loan_from_third_party",
+      };
+
+      // Función robusta de normalización
+      const normalizeText = (text: string) =>
+        text
+          .toLowerCase()
+          .normalize("NFD") // separa caracteres diacríticos
+          .replace(/[\u0300-\u036f]/g, "") // elimina tildes
+          .replace(/[^\w\s]/gi, "") // elimina caracteres especiales
+          .replace(/\s+/g, " ") // unifica espacios múltiples
+          .trim();
+
+      // Normalizar nombre del tipo
+      const normalizedName = normalizeText(selectedType?.name || "");
+      console.log("🔍 Nombre normalizado:", normalizedName);
+
+      // Obtener nota especial
+      const third_party_note = transactionNoteMap[normalizedName] || "unknown";
+
+      // Validar que se reconoció correctamente
+      if (third_party_note === "unknown") {
+        setAlertMessage(
+          "⚠️ No se pudo determinar la nota especial para este tipo de transacción."
+        );
+        setAlertOpen(true);
+        return;
+      }
+
+      // Si es un pago al tercero, validar deuda existente y saldo suficiente en caja
+      if (third_party_note === "debt_to_third_party") {
+        const deudaAlTercero = thirdPartyBalance?.debt_to_third_party || 0;
+
+        if (deudaAlTercero <= 0) {
+          setAlertMessage(
+            "⚠️ No existe deuda pendiente con este tercero. No se puede registrar un pago."
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        const saldoCaja = initialConfig + incomes - withdrawals;
+
+        if (valorIngresado > saldoCaja) {
+          setAlertMessage(
+            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(saldoCaja)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
+      // Si es un pago de tercero, validar que haya saldo pendiente por cobrar
+      if (third_party_note === "charge_to_third_party") {
+        const cobrosAlTercero = thirdPartyBalance?.charge_to_third_party || 0;
+
+        if (cobrosAlTercero <= 0) {
+          setAlertMessage(
+            "⚠️ No hay cobros pendientes a este tercero. No se puede registrar el pago."
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
+      // Si es un préstamo al tercero, validar cupo disponible y saldo en caja
+      if (third_party_note === "loan_to_third_party") {
+        const creditLimitTercero = selectedOther?.credit || 0;
+        const chargeToThirdParty =
+          thirdPartyBalance?.charge_to_third_party || 0;
+        const availableCredit = creditLimitTercero - chargeToThirdParty;
+
+        if (valorIngresado > availableCredit) {
+          setAlertMessage(
+            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )} excede el cupo disponible del tercero ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(availableCredit)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        const saldoCaja = initialConfig + incomes - withdrawals;
+
+        if (valorIngresado > saldoCaja) {
+          setAlertMessage(
+            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(saldoCaja)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
+      // 7. Construir payload con ID real y nota especial
       const payload = {
-        id_cashier: 1, // ← Reemplazar por el ID real del cajero
+        id_cashier: 1, // ← reemplazar por el ID real si aplica
         id_cash: cash.id,
         id_correspondent: correspondent.id,
         transaction_type_id: selectedTransaction,
         polarity: true,
         cost: valorIngresado,
-        utility,
+        utility: parseFloat(utility),
+        client_reference: selectedOther.id,
+        third_party_note,
       };
 
-      const res = await createTransaction(payload);
+      console.log("📤 Registrando transacción con tercero:", payload);
 
+      const res = await createThirdPartyTransaction(payload);
+
+      // 8. Validar respuesta
       if (res.success) {
         setSuccessOpen(true);
-
-        // Actualizar datos en el tablero.
         await loadCashSummary();
+
         const updatedDebtRes = await getDebtToBankByCorrespondent(
           correspondent.id
         );
@@ -289,13 +427,18 @@ const SnackPluginDeposits: React.FC<Props> = ({
           setBankDebt(updatedDebtRes.data.debt_to_bank || 0);
         }
 
+        // 🔄 Actualizar balance del tercero
+        const updatedBalanceRes = await getThirdPartyBalance(
+          correspondent.id,
+          selectedOther.id
+        );
+        if (updatedBalanceRes.success) {
+          setThirdPartyBalance(updatedBalanceRes.data);
+        }
+
         setAmount("0");
         setSelectedTransaction("");
-
-        // ✅ Notificar al padre que se completó la transacción
-        if (onTransactionComplete) {
-          onTransactionComplete();
-        }
+        if (onTransactionComplete) onTransactionComplete();
       } else {
         setAlertMessage("❌ Error al registrar la transacción.");
         setAlertOpen(true);
@@ -305,9 +448,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
       setAlertMessage("❌ Ocurrió un error al procesar la transacción.");
       setAlertOpen(true);
     } finally {
-      setIsSubmitting(false); // ✅ Siempre habilita el botón al finalizar
+      setIsSubmitting(false);
     }
   };
+
   return (
     <>
       <Button
@@ -371,20 +515,14 @@ const SnackPluginDeposits: React.FC<Props> = ({
                 fullWidth
                 select
                 value={selectedTransaction}
-                onChange={(e) => setSelectedTransaction(e.target.value)}
-                sx={{ fontSize: "1.4rem" }}
-                InputProps={{
-                  sx: {
-                    fontSize: "1.4rem",
-                    height: 70,
-                  },
-                }}
+                onChange={(e) =>
+                  setSelectedTransaction(parseInt(e.target.value))
+                }
               >
-                <MenuItem value="">Seleccionar tipo de transacción</MenuItem>{" "}
-                {/* ← agregada */}
-                {transactionTypes.map((t: any) => (
-                  <MenuItem key={t.id} value={t.id}>
-                    {t.name}
+                <MenuItem value="">Seleccionar tipo de transacción</MenuItem>
+                {transactionTypes.map((type: any) => (
+                  <MenuItem key={type.id} value={type.id}>
+                    {type.name}
                   </MenuItem>
                 ))}
               </TextField>
@@ -457,8 +595,15 @@ const SnackPluginDeposits: React.FC<Props> = ({
                 pattern="[0-9]*"
                 value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "");
-                  setAmount(raw);
+                  let raw = e.target.value.replace(/\D/g, "");
+
+                  // Si comienza con '0' y tiene más de un dígito, quítalo
+                  if (raw.length > 1 && raw.startsWith("0")) {
+                    raw = raw.replace(/^0+/, "");
+                  }
+
+                  // Si el campo queda vacío, lo ponemos a "0"
+                  setAmount(raw || "0");
                 }}
                 InputProps={{
                   endAdornment: (
@@ -495,29 +640,41 @@ const SnackPluginDeposits: React.FC<Props> = ({
                     color={colors.secondary}
                     gutterBottom
                   >
-                    🏦 Cupo del Tercero:{" "}
-                    <Box component="span" fontWeight="bold">
-                      $
-                      {new Intl.NumberFormat("es-CO").format(
-                        selectedOther?.credit || 0
-                      )}
-                    </Box>
+                    ✅ Cupo disponible del Tercero:
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    color={colors.secondary}
+                    mt={-1}
+                  >
+                    {`$${new Intl.NumberFormat("es-CO").format(
+                      availableCredit
+                    )}`}
+                    {!isFullCredit && (
+                      <Box component="span" fontSize="1rem" fontWeight="normal">
+                        {` de $${new Intl.NumberFormat("es-CO").format(
+                          totalCredit
+                        )}`}
+                      </Box>
+                    )}
                   </Typography>
 
                   <Typography mt={1}>
-                    <strong>💸 Deuda al tercero:</strong> $
+                    <strong>💸 Este corresponsal debe al tercero:</strong> $
                     {new Intl.NumberFormat("es-CO").format(
                       thirdPartyBalance.debt_to_third_party
                     )}
                   </Typography>
 
                   <Typography mt={1}>
-                    <strong>📥 Cobros al tercero:</strong> $
+                    <strong>📥 Este tercero debe al corresponsal:</strong> $
                     {new Intl.NumberFormat("es-CO").format(
                       thirdPartyBalance.charge_to_third_party
                     )}
                   </Typography>
 
+                  {/* 
                   <Typography mt={1}>
                     <strong>🏦 Préstamos a tercero:</strong> $
                     {new Intl.NumberFormat("es-CO").format(
@@ -531,6 +688,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
                       thirdPartyBalance.loan_from_third_party
                     )}
                   </Typography>
+                  */}
                 </Paper>
               </Grid>
             )}
