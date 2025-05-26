@@ -17,12 +17,13 @@ export const getTransactions = async (id_cashier?: number): Promise<any> => {
   }
 };
 
-/**
- * Obtiene todas las transacciones registradas para una caja específica.
- */
-export const getTransactionsByCash = async (id_cash: number): Promise<any> => {
+export const getTransactionsByCash = async (
+  id_cash: number,
+  page: number = 1,
+  perPage: number = 10
+): Promise<any> => {
   try {
-    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}`;
+    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}`;
     const res = await fetch(url);
     return await res.json();
   } catch (error) {

@@ -30,6 +30,7 @@ import Avatar from "@mui/material/Avatar";
 import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import InfoIcon from "@mui/icons-material/Info";
+import SnackPagination from "./utils/SnackPagination";
 
 import {
   getTransactionsByCash,
@@ -47,6 +48,10 @@ import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPl
 import SnackPluginOthers from "../../snacks/ui/integral-box/plugins/SnackPluginOthers";
 import SnackPluginThirdParty from "../../snacks/ui/integral-box/plugins/SnackPluginThirdParty";
 import SnackPluginCompesation from "../../snacks/ui/integral-box/plugins/SnackPluginCompensation";
+
+// Utils.
+import SnackLottieNoData from "./utils/SnackLottieNoData";
+import SnackLottieMoney from "./utils/SnackLottieMoney";
 
 interface Props {
   permissions: string[];
@@ -89,6 +94,13 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     setNoteOpening("");
   };
 
+  // Estados de paginación.
+  const [totalPages, setTotalPages] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20); // ← valor inicial válido
+  const itemsPerPage = rowsPerPage;
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalItems, setTotalItems] = useState(0); // ← AGREGA ESTA LÍNEA
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -102,6 +114,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
       const user = JSON.parse(storedUser);
       setCashier(user);
+      await loadCashAndTransactions(user.id);
 
       const cashRes = await getCashByCashier(user.id);
 
@@ -116,9 +129,14 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         }
 
         // 👇 Obtener transacciones de esa caja
-        const transRes = await getTransactionsByCash(firstCash.id);
+        const transRes = await getTransactionsByCash(
+          firstCash.id,
+          currentPage,
+          itemsPerPage
+        );
         if (transRes.success) {
-          setTransactions(transRes.data);
+          setTransactions(transRes.data.items);
+          setTotalPages(transRes.data.total_pages);
         }
       } else {
         console.warn("⚠️ No se encontraron cajas asignadas al cajero.");
@@ -199,6 +217,33 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     }
   };
 
+  {
+    /*  */
+  }
+  const loadCashAndTransactions = async (
+    cashierId: number,
+    page = 1,
+    perPage = 10
+  ) => {
+    const cashRes = await getCashByCashier(cashierId);
+    if (cashRes.success && cashRes.data.length > 0) {
+      const firstCash = cashRes.data[0];
+      setSelectedCash(firstCash);
+
+      const corrRes = await getCorrespondentByCash(firstCash.id);
+      if (corrRes.success && corrRes.data) {
+        setCorrespondents([corrRes.data]);
+        setSelectedCorrespondent(corrRes.data);
+      }
+
+      const transRes = await getTransactionsByCash(firstCash.id, page, perPage);
+      if (transRes.success) {
+        setTransactions(transRes.data.items);
+        setTotalItems(transRes.data.total);
+      }
+    }
+  };
+
   // LOG.
   console.log("🔎 selectedCorrespondent:", selectedCorrespondent);
   console.log("🔎 selectedCash:", selectedCash);
@@ -225,7 +270,16 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           options={correspondents}
           getOptionLabel={(option) => option.name}
           value={selectedCorrespondent}
-          onChange={(_, value) => setSelectedCorrespondent(value)}
+          onChange={async (_, value) => {
+            if (!cashier || !value) {
+              setSelectedCorrespondent(null);
+              setSelectedCash(null);
+              setTransactions([]);
+              return;
+            }
+            setSelectedCorrespondent(value);
+            await loadCashAndTransactions(cashier.id);
+          }}
           renderInput={(params) => (
             <TextField
               {...params}
@@ -235,7 +289,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           )}
         />
       )}
-      {selectedCorrespondent && selectedCash && (
+      {selectedCorrespondent?.state === 1 && selectedCash?.state === 1 && (
         <Box
           sx={{
             mt: 4,
@@ -279,7 +333,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               cash={selectedCash}
               onTransactionComplete={fetchInitialData}
             />
-            {/* 🔽 Agrega aquí el nuevo plugin de Compensaciones */}
             <SnackPluginCompesation
               correspondent={selectedCorrespondent}
               cash={selectedCash}
@@ -293,7 +346,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
           <CircularProgress />
         </Box>
-      ) : (
+      ) : selectedCorrespondent?.state === 1 && selectedCash?.state === 1 ? (
         <TableContainer component={Paper} sx={{ marginTop: 3 }}>
           <Table>
             <TableHead>
@@ -307,52 +360,100 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
-
             <TableBody>
-              {transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell>{t.transaction_type_name}</TableCell>
-                  <TableCell>
-                    <Typography fontWeight="bold">
-                      ${parseFloat(t.cost).toFixed(2)}
-                    </Typography>
-                  </TableCell>
-                  {/* Impacto */}
-                  <TableCell>
-                    {t.polarity === 1 ? (
-                      <Chip label="Positivo" color="success" />
-                    ) : (
-                      <Chip label="Negativo" color="error" />
-                    )}
-                  </TableCell>
-
-                  <TableCell>{t.note || "—"}</TableCell>
-                  <TableCell>{t.formatted_date}</TableCell>
-
-                  {/* Estado como switch */}
-                  <TableCell>
-                    <Switch checked={t.state === 1} disabled />
-                  </TableCell>
-
-                  <TableCell>
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleEditTransaction(t)}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteTransaction(t.id)}
-                    >
-                      <Delete />
-                    </IconButton>
+              {Array.isArray(transactions) && transactions.length > 0 ? (
+                transactions.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>{t.transaction_type_name}</TableCell>
+                    <TableCell>
+                      <Typography fontWeight="bold">
+                        ${parseFloat(t.cost).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {t.polarity === 1 ? (
+                        <Chip label="Positivo" color="success" />
+                      ) : (
+                        <Chip label="Negativo" color="error" />
+                      )}
+                    </TableCell>
+                    <TableCell>{t.note || "—"}</TableCell>
+                    <TableCell>{t.formatted_date}</TableCell>
+                    <TableCell>
+                      <Switch checked={t.state === 1} disabled />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleEditTransaction(t)}
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteTransaction(t.id)}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No hay transacciones disponibles.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
+          <SnackPagination
+            total={totalItems}
+            currentPage={currentPage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={(newPage) => {
+              setCurrentPage(newPage);
+              loadCashAndTransactions(cashier.id, newPage, rowsPerPage);
+            }}
+            onRowsPerPageChange={(newRows) => {
+              setRowsPerPage(newRows);
+              setCurrentPage(1);
+              loadCashAndTransactions(cashier.id, 1, newRows);
+            }}
+          />
         </TableContainer>
+      ) : selectedCash?.state === 0 ? (
+        <Box sx={{ mt: 8, textAlign: "center" }}>
+          <SnackLottieMoney width={250} height={250} />
+          <Typography
+            variant="h6"
+            sx={{
+              mt: 3,
+              fontSize: "1.3rem",
+              color: "text.secondary",
+              fontWeight: "medium",
+            }}
+          >
+            La caja seleccionada está deshabilitada. Actívala para registrar
+            movimientos.
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ mt: 8, textAlign: "center" }}>
+          <SnackLottieNoData width={250} height={250} />
+          <Typography
+            variant="h6"
+            sx={{
+              mt: 3,
+              fontSize: "1.3rem",
+              color: "text.secondary",
+              fontWeight: "medium",
+            }}
+          >
+            👆 Selecciona un corresponsal con una caja activa para ver las
+            transacciones.
+          </Typography>
+        </Box>
       )}
 
       <Snackbar
