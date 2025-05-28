@@ -44,6 +44,7 @@ import { getCorrespondentByCash } from "../../store/correspondent/CrudCorrespond
 import Chip from "@mui/material/Chip";
 import { getDebtToBankByCorrespondent } from "../../store/transaction/CrudTransactions"; // ya lo usas en el otro archivo
 import { acceptTransferFromAnotherBank } from "../../store/transaction/CrudTransactions";
+import { cancelTransactionById } from "../../store/transaction/CrudTransactions";
 
 // Plugins.
 import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
@@ -126,6 +127,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [withdrawals, setWithdrawals] = useState(0);
   const [bankDebt, setBankDebt] = useState(0);
   const [offsets, setOffsets] = useState(0);
+
+  // Cancelar transacción.
+  const [openCancelModal, setOpenCancelModal] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [transactionToCancel, setTransactionToCancel] = useState<any>(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -341,6 +347,43 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     }
   };
 
+  // Funciones cancelar transacción.
+  const handleCancelTransaction = (transaction: any) => {
+    setTransactionToCancel(transaction);
+    setCancelNote("");
+    setOpenCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelNote.trim()) {
+      setAlertMessage("La nota de cancelación no puede estar vacía.");
+      setAlertType("error");
+      return;
+    }
+
+    if (cancelNote.length > 200) {
+      setAlertMessage("La nota no puede exceder los 200 caracteres.");
+      setAlertType("error");
+      return;
+    }
+
+    const response = await cancelTransactionById(
+      transactionToCancel.id,
+      cancelNote.trim()
+    );
+
+    if (response.success) {
+      setAlertMessage("Transacción anulada exitosamente.");
+      setAlertType("success");
+      fetchInitialData();
+    } else {
+      setAlertMessage(response.message || "Error al anular transacción.");
+      setAlertType("error");
+    }
+
+    setOpenCancelModal(false);
+  };
+
   return (
     <Box
       sx={{
@@ -373,8 +416,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             {/* Saldo en caja */}
             <Box
               sx={{
-                backgroundColor: colors.primary,
-                color: colors.text_white,
+                backgroundColor: "#0c1c3f", // fondo azul oscuro
+                color: "#ffc107", // texto amarillo
                 padding: "12px 20px",
                 borderRadius: 2,
                 textAlign: "center",
@@ -562,7 +605,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 <TableCell>Impacto</TableCell>
                 <TableCell>Nota</TableCell>
                 <TableCell>Fecha</TableCell>
-                <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -605,22 +647,16 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                     </TableCell>
 
                     <TableCell>{t.formatted_date}</TableCell>
+
                     <TableCell>
-                      <Switch checked={t.state === 1} disabled />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleEditTransaction(t)}
-                      >
-                        <Edit />
-                      </IconButton>
-                      <IconButton
+                      <Button
+                        size="small"
+                        variant="outlined"
                         color="error"
-                        onClick={() => handleDeleteTransaction(t.id)}
+                        onClick={() => handleCancelTransaction(t)}
                       >
-                        <Delete />
-                      </IconButton>
+                        Anular transacción
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -720,6 +756,35 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowIncomingModal(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openCancelModal} onClose={() => setOpenCancelModal(false)}>
+        <DialogTitle>¿Deseas anular esta transacción?</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Motivo de anulación"
+            variant="outlined"
+            fullWidth
+            multiline
+            rows={3}
+            value={cancelNote}
+            onChange={(e) => setCancelNote(e.target.value)}
+            inputProps={{ maxLength: 200 }}
+            helperText={`${cancelNote.length}/200`}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mt: 2 }} // 👈 Aplica un margen superior de 2 unidades
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCancelModal(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmCancel}
+          >
+            Confirmar anulación
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

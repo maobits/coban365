@@ -480,3 +480,45 @@ export const acceptTransferFromAnotherBank = async (
     };
   }
 };
+
+/**
+ * Cancela una transacción activa y guarda una nota de cancelación.
+ *
+ * @param {number} transaction_id - ID de la transacción a cancelar.
+ * @param {string} cancellation_note - Nota personalizada para justificar la cancelación.
+ * @returns {Promise<any>} Resultado de la operación.
+ */
+export const cancelTransactionById = async (
+  transaction_id: number,
+  cancellation_note: string
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/cancel_transfer.php`;
+    console.log(
+      "🛑 Cancelando transacción:",
+      transaction_id,
+      cancellation_note
+    );
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        transaction_id,
+        cancellation_note,
+      }),
+    });
+
+    const data = await response.json();
+    console.log("✅ Resultado de la cancelación:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al cancelar la transacción:", error);
+    return {
+      success: false,
+      message: "Error al cancelar la transacción.",
+    };
+  }
+};
