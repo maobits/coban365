@@ -390,3 +390,93 @@ export const createClearingTransaction = async (payload: {
     };
   }
 };
+
+/**
+ * Registra una transacción de transferencia entre cajas.
+ *
+ * @param {Object} payload - Datos requeridos para la transferencia.
+ * @param {number} payload.id_cashier - ID del cajero.
+ * @param {number} payload.id_cash - ID de la caja actual (receptora).
+ * @param {number} payload.id_correspondent - ID del corresponsal.
+ * @param {number} payload.transaction_type_id - ID del tipo de transacción.
+ * @param {boolean} payload.polarity - True para ingreso, false para egreso.
+ * @param {number} payload.cost - Monto de la transacción.
+ * @param {number} payload.box_reference - ID de la caja que envía la transferencia.
+ * @param {boolean} [payload.utility] - Utilidad opcional.
+ * @param {boolean} [payload.is_transfer] - Indica si es una transferencia (default: true).
+ * @param {boolean} [payload.transfer_status] - Estado de la transferencia (false por defecto).
+ * @returns {Promise<any>} Resultado del registro.
+ */
+
+export const createTransferTransaction = async (payload: {
+  id_cashier: number;
+  id_cash: number;
+  id_correspondent: number;
+  transaction_type_id: number;
+  polarity: boolean;
+  cost: number;
+  box_reference: number;
+  utility?: number;
+  is_transfer?: boolean;
+  transfer_status?: boolean;
+}): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/new_transfer_transaction.php`;
+    console.log("📦 Registrando transferencia entre cajas:", payload);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...payload,
+        is_transfer: true,
+        transfer_status: false,
+      }),
+    });
+
+    const data = await response.json();
+    console.log("✅ Resultado de la transferencia:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al registrar transferencia entre cajas:", error);
+    return {
+      success: false,
+      message: "Error al registrar la transferencia entre cajas.",
+    };
+  }
+};
+
+/**
+ * Acepta una transferencia pendiente desde otra caja.
+ *
+ * @param {number} transaction_id - ID de la transacción de transferencia a aceptar.
+ * @returns {Promise<any>} Resultado de la operación.
+ */
+export const acceptTransferFromAnotherBank = async (
+  transaction_id: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/accept_transfer_from_another_bank.php`;
+    console.log("📥 Aceptando transferencia entrante:", transaction_id);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ transaction_id }), // ← clave correcta
+    });
+
+    const data = await response.json();
+    console.log("✅ Resultado de la aceptación:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error al aceptar la transferencia:", error);
+    return {
+      success: false,
+      message: "Error al aceptar la transferencia desde otra caja.",
+    };
+  }
+};

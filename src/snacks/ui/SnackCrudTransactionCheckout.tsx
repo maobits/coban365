@@ -23,6 +23,7 @@ import {
   Autocomplete,
   Grid,
   Divider,
+  Badge,
 } from "@mui/material";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import { useTheme } from "../../glamour/ThemeContext";
@@ -41,17 +42,27 @@ import {
 import { getCashByCashier } from "../../store/crash/CrudCrash";
 import { getCorrespondentByCash } from "../../store/correspondent/CrudCorrespondent";
 import Chip from "@mui/material/Chip";
+import { getDebtToBankByCorrespondent } from "../../store/transaction/CrudTransactions"; // ya lo usas en el otro archivo
+import { acceptTransferFromAnotherBank } from "../../store/transaction/CrudTransactions";
 
 // Plugins.
 import SnackPluginDeposits from "../../snacks/ui/integral-box/plugins/SnackPluginDeposits";
 import SnackPluginWithdrawals from "../../snacks/ui/integral-box/plugins/SnackPluginWithdrawals";
 import SnackPluginOthers from "../../snacks/ui/integral-box/plugins/SnackPluginOthers";
 import SnackPluginThirdParty from "../../snacks/ui/integral-box/plugins/SnackPluginThirdParty";
-import SnackPluginCompesation from "../../snacks/ui/integral-box/plugins/SnackPluginCompensation";
+import SnackPluginCompesation from "./integral-box/plugins/SnackPluginCompensation";
+import SnackPluginTransfer from "../../snacks/ui/integral-box/plugins/SnackPluginTransfer";
+
+import FinancialSummaryPanel from "../../snacks/ui/integral-box/plugins/SnackFinancialSummaryPanel";
 
 // Utils.
 import SnackLottieNoData from "./utils/SnackLottieNoData";
 import SnackLottieMoney from "./utils/SnackLottieMoney";
+
+import {
+  getCashIncomes,
+  getCashWithdrawals,
+} from "../../store/transaction/CrudTransactions";
 
 interface Props {
   permissions: string[];
@@ -94,12 +105,27 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     setNoteOpening("");
   };
 
+  // Transferencias pendientes.
+  const [pendingTransferAmount, setPendingTransferAmount] = useState(0);
+  const [receivedTransfers, setReceivedTransfers] = useState<any[]>([]);
+  const [incomingTransfers, setIncomingTransfers] = useState<any[]>([]);
+
+  // Modal transferencias pendientes.
+  const [showIncomingModal, setShowIncomingModal] = useState(false);
+
   // Estados de paginación.
   const [totalPages, setTotalPages] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20); // ← valor inicial válido
   const itemsPerPage = rowsPerPage;
   const [currentPage, setCurrentPage] = useState(0);
   const [totalItems, setTotalItems] = useState(0); // ← AGREGA ESTA LÍNEA
+
+  // Estados Resumen financiero.
+  const [initialConfig, setInitialConfig] = useState(0);
+  const [incomes, setIncomes] = useState(0);
+  const [withdrawals, setWithdrawals] = useState(0);
+  const [bankDebt, setBankDebt] = useState(0);
+  const [offsets, setOffsets] = useState(0);
 
   useEffect(() => {
     fetchInitialData();
@@ -236,9 +262,63 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         setSelectedCorrespondent(corrRes.data);
       }
 
+      // Deuda al banco (global)
+      const debtRes = await getDebtToBankByCorrespondent(corrRes.data.id);
+      if (debtRes.success) {
+        setBankDebt(debtRes.data.debt_to_bank || 0);
+
+        // Solo el saldo inicial de esta caja
+        const cajaActual = (debtRes.data.cashes || []).find(
+          (c: any) => c.id === firstCash.id
+        );
+        setInitialConfig(cajaActual?.initial_amount || 0);
+
+        // Compensaciones (globales)
+        const compensationTotal = (debtRes.data.items || [])
+          .filter(
+            (tx: any) => tx.transaction_type_name === "offset_transaction"
+          )
+          .reduce((sum: number, tx: any) => sum + Number(tx.cost || 0), 0);
+        setOffsets(compensationTotal);
+      }
+
+      // Ingresos y egresos de esta caja
+      const [incomeRes, withdrawalRes] = await Promise.all([
+        getCashIncomes(firstCash.id),
+        getCashWithdrawals(firstCash.id),
+      ]);
+      setIncomes(incomeRes?.total || 0);
+      setWithdrawals(withdrawalRes?.total || 0);
+
+      // Transacciones
       const transRes = await getTransactionsByCash(firstCash.id, page, perPage);
       if (transRes.success) {
         setTransactions(transRes.data.items);
+
+        // Filtrar las transacciones.
+        const pendingTransfers = (transRes.data.items || []).filter(
+          (t: any) =>
+            t.is_transfer === 1 &&
+            t.transfer_status === 0 &&
+            t.id_cash === firstCash.id // caja origen actual
+        );
+
+        const pendingTransferTotal = pendingTransfers.reduce(
+          (sum: number, t: any) => sum + Number(t.cost || 0),
+          0
+        );
+        setPendingTransferAmount(pendingTransferTotal); // nuevo estado
+
+        //  Transferencias pendientes ENTRANTES (donde esta caja es destino)
+        const incoming = transRes.data.items.filter(
+          (t: any) =>
+            t.is_transfer === 1 &&
+            t.transfer_status === 0 &&
+            t.box_reference === firstCash.id &&
+            t.id_cash !== firstCash.id
+        );
+        setIncomingTransfers(incoming); // almacena para el modal
+
         setTotalItems(transRes.data.total);
       }
     }
@@ -248,6 +328,19 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   console.log("🔎 selectedCorrespondent:", selectedCorrespondent);
   console.log("🔎 selectedCash:", selectedCash);
 
+  // Funciones para aceptar y rechazar las transferencias.
+  const handleAcceptTransfer = async (transactionId: number) => {
+    const result = await acceptTransferFromAnotherBank(transactionId);
+    if (result.success) {
+      setAlertMessage("Transferencia aceptada exitosamente.");
+      setAlertType("success");
+      fetchInitialData();
+    } else {
+      setAlertMessage(result.message || "Error al aceptar transferencia.");
+      setAlertType("error");
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -256,14 +349,106 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         minHeight: "100vh",
       }}
     >
-      <Typography
-        variant="h4"
-        fontFamily={fonts.heading}
-        color={colors.primary}
-        gutterBottom
+      <Grid
+        container
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 2 }}
       >
-        Gestión de transacciones del corresponsal:
-      </Typography>
+        {/* Título */}
+        <Grid item>
+          <Typography
+            variant="h4"
+            fontFamily={fonts.heading}
+            color={colors.primary}
+            gutterBottom
+          >
+            Gestión de transacciones del corresponsal:
+          </Typography>
+        </Grid>
+
+        {/* Saldo + Botón de Transferencia */}
+        <Grid item>
+          <Box display="flex" alignItems="center" gap={2}>
+            {/* Saldo en caja */}
+            <Box
+              sx={{
+                backgroundColor: colors.primary,
+                color: colors.text_white,
+                padding: "12px 20px",
+                borderRadius: 2,
+                textAlign: "center",
+                minWidth: 160,
+              }}
+            >
+              <Typography fontSize="0.8rem">Saldo en caja</Typography>
+              <Typography fontWeight="bold" fontSize="1.2rem">
+                $
+                {new Intl.NumberFormat("es-CO").format(
+                  initialConfig + incomes - withdrawals - offsets
+                )}
+              </Typography>
+            </Box>
+
+            {/* Botón Transferencias (SnackPluginTransfer) */}
+            {selectedCash && selectedCorrespondent && (
+              <SnackPluginTransfer
+                correspondent={selectedCorrespondent}
+                cash={selectedCash}
+                onTransactionComplete={fetchInitialData}
+              />
+            )}
+            {incomingTransfers.length > 0 && (
+              <IconButton
+                onClick={() => setShowIncomingModal(true)}
+                sx={{
+                  backgroundColor: "#fff3e0",
+                  border: `2px solid ${colors.warning || "#ffa726"}`,
+                  ml: 1,
+                }}
+              >
+                <Badge badgeContent={incomingTransfers.length} color="warning">
+                  <CreditCardIcon sx={{ color: "#f57c00" }} />
+                </Badge>
+              </IconButton>
+            )}
+          </Box>
+          {pendingTransferAmount > 0 && (
+            <Box
+              sx={{
+                backgroundColor: "#fff3e0",
+                border: `2px solid ${colors.warning || "#ffa726"}`,
+                borderRadius: 2,
+                padding: "10px 16px",
+                marginTop: 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <CreditCardIcon sx={{ color: "#f57c00" }} />
+              <Typography
+                sx={{
+                  color: "#f57c00",
+                  fontWeight: "bold",
+                  fontSize: "1rem",
+                }}
+              >
+                Transferencia pendiente de ser aceptada:
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "1.2rem",
+                  fontWeight: "bold",
+                  color: "#e65100",
+                }}
+              >
+                ${new Intl.NumberFormat("es-CO").format(pendingTransferAmount)}
+              </Typography>
+            </Box>
+          )}
+        </Grid>
+      </Grid>
 
       {correspondents.length > 0 && (
         <Autocomplete
@@ -308,37 +493,58 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           >
             Movimientos del corresponsal{" "}
             <Box component="span" fontWeight="bold" color={colors.secondary}>
-              {selectedCorrespondent.name}
+              {selectedCorrespondent?.name || "—"}
             </Box>
           </Typography>
 
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 3 }}>
-            <SnackPluginDeposits
-              correspondent={selectedCorrespondent}
-              cash={selectedCash}
-              onTransactionComplete={fetchInitialData}
-            />
-            <SnackPluginWithdrawals
-              correspondent={selectedCorrespondent}
-              cash={selectedCash}
-              onTransactionComplete={fetchInitialData}
-            />
-            <SnackPluginOthers
-              correspondent={selectedCorrespondent}
-              cash={selectedCash}
-              onTransactionComplete={fetchInitialData}
-            />
-            <SnackPluginThirdParty
-              correspondent={selectedCorrespondent}
-              cash={selectedCash}
-              onTransactionComplete={fetchInitialData}
-            />
-            <SnackPluginCompesation
-              correspondent={selectedCorrespondent}
-              cash={selectedCash}
-              onTransactionComplete={fetchInitialData}
-            />
-          </Box>
+          <Grid container spacing={2} alignItems="center" mt={2}>
+            {/* Botones a la izquierda */}
+            <Grid item xs={12} md={7}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                <SnackPluginDeposits
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                />
+                <SnackPluginWithdrawals
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                />
+                <SnackPluginOthers
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                />
+                <SnackPluginThirdParty
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                />
+                <SnackPluginCompesation
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                />
+              </Box>
+            </Grid>
+
+            {/* Panel financiero a la derecha */}
+            <Grid item xs={12} md={5}>
+              <FinancialSummaryPanel
+                bankDebt={bankDebt}
+                cashBalance={
+                  initialConfig +
+                  incomes -
+                  withdrawals -
+                  offsets -
+                  pendingTransferAmount
+                }
+                creditLimit={selectedCorrespondent?.credit_limit || 0}
+                cashCapacity={selectedCash?.capacity || 1}
+              />
+            </Grid>
+          </Grid>
         </Box>
       )}
 
@@ -377,7 +583,27 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                         <Chip label="Negativo" color="error" />
                       )}
                     </TableCell>
-                    <TableCell>{t.note || "—"}</TableCell>
+                    <TableCell>
+                      {t.is_transfer === 1 && t.transfer_status === 0 ? (
+                        <Typography
+                          sx={{
+                            fontWeight:
+                              t.is_transfer === 1 && t.transfer_status === 0
+                                ? "bold"
+                                : "normal",
+                            color:
+                              t.is_transfer === 1 && t.transfer_status === 0
+                                ? "orange"
+                                : "inherit",
+                          }}
+                        >
+                          {t.note || "—"}
+                        </Typography>
+                      ) : (
+                        t.note || "—"
+                      )}
+                    </TableCell>
+
                     <TableCell>{t.formatted_date}</TableCell>
                     <TableCell>
                       <Switch checked={t.state === 1} disabled />
@@ -470,6 +696,32 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           {alertMessage}
         </Alert>
       </Snackbar>
+      <Dialog
+        open={showIncomingModal}
+        onClose={() => setShowIncomingModal(false)}
+      >
+        <DialogTitle>Transferencias pendientes</DialogTitle>
+        <DialogContent dividers>
+          {incomingTransfers.map((t, idx) => (
+            <Box key={idx} mb={2}>
+              <Typography>
+                💰 <b>${t.cost}</b> enviado desde <b>{t.cash_name}</b>
+              </Typography>
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                onClick={() => handleAcceptTransfer(t.id)}
+              >
+                Aceptar
+              </Button>
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowIncomingModal(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

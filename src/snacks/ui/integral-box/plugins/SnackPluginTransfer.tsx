@@ -21,11 +21,10 @@ import {
   getCashWithdrawals,
 } from "../../../../store/transaction/CrudTransactions";
 import { getDebtToBankByCorrespondent } from "../../../../store/transaction/CrudTransactions";
-import { createThirdPartyTransaction } from "../../../../store/transaction/CrudTransactions";
+import { createTransferTransaction } from "../../../../store/transaction/CrudTransactions";
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
-import { listOthersByCorrespondent } from "../../../../store/other/CrudOther";
-import { getThirdPartyBalance } from "../../../../store/transaction/CrudTransactions"; // o la ruta correcta
+import { getCashByCorrespondent } from "../../../../store/crash/CrudCrash";
 
 interface Props {
   correspondent: {
@@ -35,11 +34,12 @@ interface Props {
   };
   cash: {
     name: string;
+    capacity: number;
   };
   onTransactionComplete?: () => void; // ← nuevo
 }
 
-const SnackPluginDeposits: React.FC<Props> = ({
+const SnackPluginTransfer: React.FC<Props> = ({
   correspondent,
   cash,
   onTransactionComplete,
@@ -54,15 +54,18 @@ const SnackPluginDeposits: React.FC<Props> = ({
     ""
   );
 
+  // Estados para la lista de cajas.
+
   // Estados para el calculo de la caja.
   const [initialConfig, setInitialConfig] = useState(0);
   const [incomes, setIncomes] = useState(0);
   const [withdrawals, setWithdrawals] = useState(0);
 
   // Porcentaje de capacidad de la caja.
-  const cashCapacity = cash.capacity || 1; // evitamos división por cero
+  const cashCapacity = cash?.capacity || 1;
   const currentCash = initialConfig + incomes - withdrawals;
-  const cashPercentage = (currentCash / cashCapacity) * 100;
+  const cashPercentage =
+    cashCapacity > 0 ? (currentCash / cashCapacity) * 100 : 0;
 
   // Estado para la deuda.
   const [bankDebt, setBankDebt] = useState(0);
@@ -78,11 +81,9 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const amountRef = useRef<HTMLInputElement>(null);
 
   // Estado para lista de terceros.
-  const [othersList, setOthersList] = useState<any[]>([]);
-  const [selectedOther, setSelectedOther] = useState<any>(null);
-
-  // Estado para el balance de un tercero.
-  const [thirdPartyBalance, setThirdPartyBalance] = useState<any>(null);
+  const [destinationCashList, setDestinationCashList] = useState<any[]>([]);
+  const [selectedDestinationCash, setSelectedDestinationCash] =
+    useState<any>(null);
 
   // Barra de progreso.
 
@@ -91,25 +92,9 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const availablePercentage =
     creditLimit > 0 ? ((creditLimit - bankDebt) / creditLimit) * 100 : 0;
 
-  //Cupo disponible
-  const totalCredit = selectedOther?.credit || 0;
-  const usedCredit = thirdPartyBalance?.charge_to_third_party || 0;
-  const availableCredit = totalCredit - usedCredit;
-  const isFullCredit = availableCredit === totalCredit;
-
-  // Nota del tercero según el tipo de transacción
-  const transactionNoteMap: Record<string, string> = {
-    "Pago a tercero": "debt_to_third_party",
-    "Pago de tercero": "charge_to_third_party",
-    "Prestamo a tercero": "loan_to_third_party",
-    "Prestamo de tercero": "loan_from_third_party",
-  };
-
   const transactionType = transactionTypes.find(
     (t) => t.id === selectedTransaction
   );
-
-  const thirdPartyNote = transactionNoteMap[transactionType?.name] || "unknown";
 
   //  Progreso de a caja en el cupo disponible.
   const saldoCaja = initialConfig + incomes - withdrawals;
@@ -161,7 +146,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // Cargar tipos de transacción desde el backend
       const res = await getTransactionTypesByCorrespondent(
         correspondent.id,
-        "third_parties"
+        "transfer"
       );
 
       if (res.success) {
@@ -174,13 +159,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
       }
 
       // 1.5. Cargar lista de terceros
-      const othersRes = await listOthersByCorrespondent(correspondent.id);
-      if (othersRes.success) {
-        setOthersList(othersRes.data);
-        setSelectedOther(null);
-      } else {
-        setOthersList([]);
-        setSelectedOther(null);
+      const cashListRes = await getCashByCorrespondent(correspondent.id);
+      if (cashListRes.success) {
+        const filtered = cashListRes.data.filter((c: any) => c.id !== cash.id);
+        setDestinationCashList(filtered);
+        setSelectedDestinationCash(null);
       }
 
       // 2. Cargar deuda bancaria completa del corresponsal
@@ -222,13 +205,6 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // 1. Validación: tipo de transacción
       if (!selectedTransaction) {
         setAlertMessage("⚠️ Debes seleccionar un tipo de transacción.");
-        setAlertOpen(true);
-        return;
-      }
-
-      // 2. Validación: tercero seleccionado
-      if (!selectedOther) {
-        setAlertMessage("⚠️ Debes seleccionar un tercero.");
         setAlertOpen(true);
         return;
       }
@@ -302,129 +278,52 @@ const SnackPluginDeposits: React.FC<Props> = ({
       const normalizeText = (text: string) =>
         text
           .toLowerCase()
-          .normalize("NFD") // separa caracteres diacríticos
-          .replace(/[\u0300-\u036f]/g, "") // elimina tildes
-          .replace(/[^\w\s]/gi, "") // elimina caracteres especiales
-          .replace(/\s+/g, " ") // unifica espacios múltiples
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\w\s]/gi, "")
+          .replace(/\s+/g, " ")
           .trim();
 
-      // Normalizar nombre del tipo
       const normalizedName = normalizeText(selectedType?.name || "");
       console.log("🔍 Nombre normalizado:", normalizedName);
 
-      // Obtener nota especial
-      const third_party_note = transactionNoteMap[normalizedName] || "unknown";
+      // 🔁 Obtener ID real del cajero
+      const storedUser = localStorage.getItem("userSession");
+      const cashierId = storedUser ? JSON.parse(storedUser).id : null;
 
-      // 🔄 ACTUALIZAR balance antes de registrar
-      const refreshedBalance = await getThirdPartyBalance(
-        correspondent.id,
-        selectedOther.id
-      );
-      if (refreshedBalance.success) {
-        setThirdPartyBalance(refreshedBalance.data);
-      } else {
-        setThirdPartyBalance(null); // fallback por si falla
+      if (!cashierId) {
+        setAlertMessage("⚠️ No se pudo obtener el ID del cajero.");
+        setAlertOpen(true);
+        return;
       }
 
-      // Validar que se reconoció correctamente
-      if (third_party_note === "unknown") {
+      // 5. Validar que el valor ingresado no exceda el saldo real en caja (visualizado)
+      const saldoCaja = initialConfig + incomes - withdrawals;
+      if (valorIngresado > saldoCaja) {
         setAlertMessage(
-          "⚠️ No se pudo determinar la nota especial para este tipo de transacción."
+          `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
+            valorIngresado
+          )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
+            "es-CO"
+          ).format(saldoCaja)}).`
         );
         setAlertOpen(true);
         return;
       }
 
-      // Si es un pago al tercero, validar deuda existente y saldo suficiente en caja
-      if (third_party_note === "debt_to_third_party") {
-        const deudaAlTercero = thirdPartyBalance?.debt_to_third_party || 0;
-
-        if (deudaAlTercero <= 0) {
-          setAlertMessage(
-            "⚠️ No existe deuda pendiente con este tercero. No se puede registrar un pago."
-          );
-          setAlertOpen(true);
-          return;
-        }
-
-        const saldoCaja = initialConfig + incomes - withdrawals;
-
-        if (valorIngresado > saldoCaja) {
-          setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(saldoCaja)}).`
-          );
-          setAlertOpen(true);
-          return;
-        }
-      }
-
-      // Si es un pago de tercero, validar que haya saldo pendiente por cobrar
-      if (third_party_note === "charge_to_third_party") {
-        const cobrosAlTercero = thirdPartyBalance?.charge_to_third_party || 0;
-
-        if (cobrosAlTercero <= 0) {
-          setAlertMessage(
-            "⚠️ No hay cobros pendientes a este tercero. No se puede registrar el pago."
-          );
-          setAlertOpen(true);
-          return;
-        }
-      }
-
-      // Si es un préstamo al tercero, validar cupo disponible y saldo en caja
-      if (third_party_note === "loan_to_third_party") {
-        const creditLimitTercero = selectedOther?.credit || 0;
-        const chargeToThirdParty =
-          thirdPartyBalance?.charge_to_third_party || 0;
-        const availableCredit = creditLimitTercero - chargeToThirdParty;
-
-        if (valorIngresado > availableCredit) {
-          setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )} excede el cupo disponible del tercero ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(availableCredit)}).`
-          );
-          setAlertOpen(true);
-          return;
-        }
-
-        const saldoCaja = initialConfig + incomes - withdrawals;
-
-        if (valorIngresado > saldoCaja) {
-          setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(saldoCaja)}).`
-          );
-          setAlertOpen(true);
-          return;
-        }
-      }
-
-      // 7. Construir payload con ID real y nota especial
-      const payload = {
-        id_cashier: 1, // ← reemplazar por el ID real si aplica
-        id_cash: cash.id,
+      // 7. Registrar transferencia usando nuevo servicio
+      const res = await createTransferTransaction({
+        id_cashier: cashierId, // ✅ ID real del cajero
+        id_cash: cash.id, // caja origen
         id_correspondent: correspondent.id,
         transaction_type_id: selectedTransaction,
-        polarity: true,
+        polarity: false,
         cost: valorIngresado,
         utility: parseFloat(utility),
-        client_reference: selectedOther.id,
-        third_party_note,
-      };
-
-      console.log("📤 Registrando transacción con tercero:", payload);
-
-      const res = await createThirdPartyTransaction(payload);
+        box_reference: selectedDestinationCash?.id, // caja destino
+        is_transfer: true,
+        transfer_status: false,
+      });
 
       // 8. Validar respuesta
       if (res.success) {
@@ -436,15 +335,6 @@ const SnackPluginDeposits: React.FC<Props> = ({
         );
         if (updatedDebtRes.success) {
           setBankDebt(updatedDebtRes.data.debt_to_bank || 0);
-        }
-
-        // 🔄 Actualizar balance del tercero
-        const updatedBalanceRes = await getThirdPartyBalance(
-          correspondent.id,
-          selectedOther.id
-        );
-        if (updatedBalanceRes.success) {
-          setThirdPartyBalance(updatedBalanceRes.data);
         }
 
         setAmount("0");
@@ -482,7 +372,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
           },
         }}
       >
-        Terceros
+        Transferencias
       </Button>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -495,7 +385,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
             py: 2,
           }}
         >
-          Terceros en el corresponsal{" "}
+          Transferencias en el corresponsal{" "}
           <Box component="span" fontWeight="bold" color={colors.secondary}>
             {correspondent.name}
           </Box>{" "}
@@ -546,32 +436,17 @@ const SnackPluginDeposits: React.FC<Props> = ({
                 gutterBottom
                 sx={{ fontSize: "1.2rem", mt: 2 }}
               >
-                Seleccionar Tercero
+                Caja destino
               </Typography>
               <TextField
                 fullWidth
                 select
-                value={selectedOther?.id || ""}
-                onChange={async (e) => {
-                  const selected = othersList.find(
-                    (o) => o.id === parseInt(e.target.value)
+                value={selectedDestinationCash?.id || ""}
+                onChange={(e) => {
+                  const selected = destinationCashList.find(
+                    (c) => c.id === parseInt(e.target.value)
                   );
-                  setSelectedOther(selected);
-
-                  if (selected) {
-                    const balanceRes = await getThirdPartyBalance(
-                      correspondent.id,
-                      selected.id
-                    );
-
-                    if (balanceRes.success) {
-                      setThirdPartyBalance(balanceRes.data);
-                    } else {
-                      setThirdPartyBalance(null);
-                    }
-                  } else {
-                    setThirdPartyBalance(null);
-                  }
+                  setSelectedDestinationCash(selected);
                 }}
                 sx={{ fontSize: "1.4rem" }}
                 InputProps={{
@@ -581,10 +456,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   },
                 }}
               >
-                <MenuItem value="">Seleccionar tercero</MenuItem>
-                {othersList.map((o: any) => (
-                  <MenuItem key={o.id} value={o.id}>
-                    {o.name} — {o.id_number}
+                <MenuItem value="">Seleccionar caja destino</MenuItem>
+                {destinationCashList.map((caja: any) => (
+                  <MenuItem key={caja.id} value={caja.id}>
+                    {caja.name}
                   </MenuItem>
                 ))}
               </TextField>
@@ -629,80 +504,6 @@ const SnackPluginDeposits: React.FC<Props> = ({
                 }}
               />
             </Grid>
-
-            {/* Panel de balance (derecha) */}
-            {selectedOther && thirdPartyBalance && (
-              <Grid item xs={12} md={6} mb={4}>
-                <Paper
-                  elevation={2}
-                  sx={{
-                    px: 3,
-                    pt: 3,
-                    pb: 2,
-                    border: "1px solid",
-                    borderColor: colors.secondary,
-                    borderRadius: 2,
-                    height: "100%",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color={colors.secondary}
-                    gutterBottom
-                  >
-                    ✅ Cupo disponible del Tercero:
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                    color={colors.secondary}
-                    mt={-1}
-                  >
-                    {`$${new Intl.NumberFormat("es-CO").format(
-                      availableCredit
-                    )}`}
-                    {!isFullCredit && (
-                      <Box component="span" fontSize="1rem" fontWeight="normal">
-                        {` de $${new Intl.NumberFormat("es-CO").format(
-                          totalCredit
-                        )}`}
-                      </Box>
-                    )}
-                  </Typography>
-
-                  <Typography mt={1}>
-                    <strong>💸 Este corresponsal debe al tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.debt_to_third_party
-                    )}
-                  </Typography>
-
-                  <Typography mt={1}>
-                    <strong>📥 Este tercero debe al corresponsal:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.charge_to_third_party
-                    )}
-                  </Typography>
-
-                  {/* 
-                  <Typography mt={1}>
-                    <strong>🏦 Préstamos a tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.loan_to_third_party
-                    )}
-                  </Typography>
-
-                  <Typography mt={1}>
-                    <strong>🤝 Préstamos desde tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.loan_from_third_party
-                    )}
-                  </Typography>
-                  */}
-                </Paper>
-              </Grid>
-            )}
 
             {/* Panel financiero */}
             <Grid item xs={12}>
@@ -1076,4 +877,4 @@ const SnackPluginDeposits: React.FC<Props> = ({
   );
 };
 
-export default SnackPluginDeposits;
+export default SnackPluginTransfer;
