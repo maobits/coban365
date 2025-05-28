@@ -133,6 +133,19 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [cancelNote, setCancelNote] = useState("");
   const [transactionToCancel, setTransactionToCancel] = useState<any>(null);
 
+  // Estado para la categoría seleccionada.
+  const categories = [
+    "Ingresos",
+    "Retiros",
+    "Terceros",
+    "Otros",
+    "Compensación",
+    "Transferir",
+  ];
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -255,7 +268,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const loadCashAndTransactions = async (
     cashierId: number,
     page = 1,
-    perPage = 10
+    perPage = 10,
+    category: string = "" // 👈 nuevo parámetro opcional
   ) => {
     const cashRes = await getCashByCashier(cashierId);
     if (cashRes.success && cashRes.data.length > 0) {
@@ -273,13 +287,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       if (debtRes.success) {
         setBankDebt(debtRes.data.debt_to_bank || 0);
 
-        // Solo el saldo inicial de esta caja
         const cajaActual = (debtRes.data.cashes || []).find(
           (c: any) => c.id === firstCash.id
         );
         setInitialConfig(cajaActual?.initial_amount || 0);
 
-        // Compensaciones (globales)
         const compensationTotal = (debtRes.data.items || [])
           .filter(
             (tx: any) => tx.transaction_type_name === "offset_transaction"
@@ -288,7 +300,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         setOffsets(compensationTotal);
       }
 
-      // Ingresos y egresos de esta caja
+      // Ingresos y egresos
       const [incomeRes, withdrawalRes] = await Promise.all([
         getCashIncomes(firstCash.id),
         getCashWithdrawals(firstCash.id),
@@ -296,26 +308,28 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       setIncomes(incomeRes?.total || 0);
       setWithdrawals(withdrawalRes?.total || 0);
 
-      // Transacciones
-      const transRes = await getTransactionsByCash(firstCash.id, page, perPage);
+      // Transacciones con filtro de categoría
+      const transRes = await getTransactionsByCash(
+        firstCash.id,
+        page,
+        perPage,
+        category
+      );
       if (transRes.success) {
         setTransactions(transRes.data.items);
 
-        // Filtrar las transacciones.
         const pendingTransfers = (transRes.data.items || []).filter(
           (t: any) =>
             t.is_transfer === 1 &&
             t.transfer_status === 0 &&
-            t.id_cash === firstCash.id // caja origen actual
+            t.id_cash === firstCash.id
         );
-
         const pendingTransferTotal = pendingTransfers.reduce(
           (sum: number, t: any) => sum + Number(t.cost || 0),
           0
         );
-        setPendingTransferAmount(pendingTransferTotal); // nuevo estado
+        setPendingTransferAmount(pendingTransferTotal);
 
-        //  Transferencias pendientes ENTRANTES (donde esta caja es destino)
         const incoming = transRes.data.items.filter(
           (t: any) =>
             t.is_transfer === 1 &&
@@ -323,7 +337,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             t.box_reference === firstCash.id &&
             t.id_cash !== firstCash.id
         );
-        setIncomingTransfers(incoming); // almacena para el modal
+        setIncomingTransfers(incoming);
 
         setTotalItems(transRes.data.total);
       }
@@ -406,7 +420,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             color={colors.primary}
             gutterBottom
           >
-            Gestión de transacciones del corresponsal:
+            {cashier?.fullname || "—"}, administras la{" "}
+            {selectedCash?.name || "—"}
           </Typography>
         </Grid>
 
@@ -619,12 +634,18 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {t.polarity === 1 ? (
+                      {t.is_transfer === 0 && t.neutral === 1 ? (
+                        <Chip
+                          label="No afecta"
+                          sx={{ backgroundColor: "#ffffff", color: "#000000" }}
+                        />
+                      ) : t.polarity === 1 ? (
                         <Chip label="Positivo" color="success" />
                       ) : (
                         <Chip label="Negativo" color="error" />
                       )}
                     </TableCell>
+
                     <TableCell>
                       {t.is_transfer === 1 && t.transfer_status === 0 ? (
                         <Typography
@@ -669,20 +690,42 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               )}
             </TableBody>
           </Table>
-          <SnackPagination
-            total={totalItems}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            onPageChange={(newPage) => {
-              setCurrentPage(newPage);
-              loadCashAndTransactions(cashier.id, newPage, rowsPerPage);
-            }}
-            onRowsPerPageChange={(newRows) => {
-              setRowsPerPage(newRows);
-              setCurrentPage(1);
-              loadCashAndTransactions(cashier.id, 1, newRows);
-            }}
-          />
+          <TableContainer component={Paper} sx={{ marginTop: 3 }}>
+            <Table>{/* ... tu tabla */}</Table>
+          </TableContainer>
+
+          <Box mt={3}>
+            <SnackPagination
+              total={totalItems}
+              currentPage={currentPage}
+              rowsPerPage={rowsPerPage}
+              onPageChange={(newPage) => {
+                setCurrentPage(newPage);
+                loadCashAndTransactions(
+                  cashier.id,
+                  newPage,
+                  rowsPerPage,
+                  categoryFilter
+                );
+              }}
+              onRowsPerPageChange={(newRows) => {
+                setRowsPerPage(newRows);
+                setCurrentPage(1);
+                loadCashAndTransactions(cashier.id, 1, newRows, categoryFilter);
+              }}
+              categoryFilter={categoryFilter}
+              onCategoryChange={(newCategory) => {
+                setCategoryFilter(newCategory);
+                setCurrentPage(1);
+                loadCashAndTransactions(
+                  cashier.id,
+                  1,
+                  rowsPerPage,
+                  newCategory
+                );
+              }}
+            />
+          </Box>
         </TableContainer>
       ) : selectedCash?.state === 0 ? (
         <Box sx={{ mt: 8, textAlign: "center" }}>

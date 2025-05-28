@@ -24,7 +24,7 @@ const ProfileScreen: React.FC = () => {
       console.warn("🔒 Usuario no autenticado. Redirigiendo a LoginScreen...");
       navigate("/login"); // Redirige a la pantalla de inicio de sesión
     } else {
-      setIsAuthenticated(true); // Usuario autenticado
+      setIsAuthenticated(true); // Usuario autenticadao
     }
   }, [navigate]);
 

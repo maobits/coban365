@@ -20,10 +20,14 @@ export const getTransactions = async (id_cashier?: number): Promise<any> => {
 export const getTransactionsByCash = async (
   id_cash: number,
   page: number = 1,
-  perPage: number = 10
+  perPage: number = 10,
+  category: string = ""
 ): Promise<any> => {
   try {
-    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}`;
+    const categoryParam = category
+      ? `&category=${encodeURIComponent(category)}`
+      : "";
+    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}${categoryParam}`;
     const res = await fetch(url);
     return await res.json();
   } catch (error) {
