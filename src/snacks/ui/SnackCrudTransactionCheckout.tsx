@@ -670,14 +670,23 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                     <TableCell>{t.formatted_date}</TableCell>
 
                     <TableCell>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleCancelTransaction(t)}
-                      >
-                        Anular transacción
-                      </Button>
+                      {t.is_transfer === 0 ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleCancelTransaction(t)}
+                        >
+                          Anular transacción
+                        </Button>
+                      ) : (
+                        <Chip
+                          label="No anulable"
+                          color="warning"
+                          variant="outlined"
+                          sx={{ fontWeight: "bold" }}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
