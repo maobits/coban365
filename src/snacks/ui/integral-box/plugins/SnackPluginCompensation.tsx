@@ -223,21 +223,6 @@ const SnackPluginCompesation: React.FC<Props> = ({
       // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
-      // ✅ 2. Validar contra el cupo disponible actualizado
-      if (valorIngresado > cupoDisponible) {
-        setAlertMessage(
-          `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
-            valorIngresado
-          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
-            "es-CO"
-          ).format(
-            cupoDisponible
-          )}). La información ha cambiado. Intenta con un monto menor o realiza una compensación.`
-        );
-        setAlertOpen(true);
-        return;
-      }
-
       // ✅ 3. Validar contra el saldo disponible en caja
       if (valorIngresado > currentCash) {
         setAlertMessage(

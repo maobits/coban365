@@ -617,8 +617,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               <TableRow>
                 <TableCell>Tipo</TableCell>
                 <TableCell>Valor</TableCell>
-                <TableCell>Impacto</TableCell>
-                <TableCell>Nota</TableCell>
                 <TableCell>Fecha</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
@@ -630,41 +628,13 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                     <TableCell>{t.transaction_type_name}</TableCell>
                     <TableCell>
                       <Typography fontWeight="bold">
-                        ${parseFloat(t.cost).toFixed(2)}
+                        {new Intl.NumberFormat("es-CO", {
+                          style: "currency",
+                          currency: "COP",
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        }).format(Number(t.cost))}
                       </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {t.is_transfer === 0 && t.neutral === 1 ? (
-                        <Chip
-                          label="No afecta"
-                          sx={{ backgroundColor: "#ffffff", color: "#000000" }}
-                        />
-                      ) : t.polarity === 1 ? (
-                        <Chip label="Positivo" color="success" />
-                      ) : (
-                        <Chip label="Negativo" color="error" />
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {t.is_transfer === 1 && t.transfer_status === 0 ? (
-                        <Typography
-                          sx={{
-                            fontWeight:
-                              t.is_transfer === 1 && t.transfer_status === 0
-                                ? "bold"
-                                : "normal",
-                            color:
-                              t.is_transfer === 1 && t.transfer_status === 0
-                                ? "orange"
-                                : "inherit",
-                          }}
-                        >
-                          {t.note || "—"}
-                        </Typography>
-                      ) : (
-                        t.note || "—"
-                      )}
                     </TableCell>
 
                     <TableCell>{t.formatted_date}</TableCell>

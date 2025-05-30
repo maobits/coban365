@@ -347,6 +347,18 @@ const SnackPluginDeposits: React.FC<Props> = ({
           return;
         }
 
+        if (valorIngresado > deudaAlTercero) {
+          setAlertMessage(
+            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(deudaAlTercero)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+
         const saldoCaja = initialConfig + incomes - withdrawals;
 
         if (valorIngresado > saldoCaja) {
@@ -369,6 +381,18 @@ const SnackPluginDeposits: React.FC<Props> = ({
         if (cobrosAlTercero <= 0) {
           setAlertMessage(
             "⚠️ No hay cobros pendientes a este tercero. No se puede registrar el pago."
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        if (valorIngresado > cobrosAlTercero) {
+          setAlertMessage(
+            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )}) excede el valor que este tercero debe al corresponsal ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(cobrosAlTercero)}).`
           );
           setAlertOpen(true);
           return;
@@ -429,8 +453,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // 8. Validar respuesta
       if (res.success) {
         setSuccessOpen(true);
+
+        // 🔄 Actualizar resumen financiero de la caja
         await loadCashSummary();
 
+        // 🔄 Actualizar deuda al banco
         const updatedDebtRes = await getDebtToBankByCorrespondent(
           correspondent.id
         );
@@ -447,8 +474,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
           setThirdPartyBalance(updatedBalanceRes.data);
         }
 
+        // 🧹 Limpiar formulario
         setAmount("0");
         setSelectedTransaction("");
+
+        // ✅ Callback externo (si existe)
         if (onTransactionComplete) onTransactionComplete();
       } else {
         setAlertMessage("❌ Error al registrar la transacción.");
@@ -564,8 +594,15 @@ const SnackPluginDeposits: React.FC<Props> = ({
                       selected.id
                     );
 
-                    if (balanceRes.success) {
+                    // Mostrar el panel aunque success sea false si hay data válida
+                    if (balanceRes.data) {
                       setThirdPartyBalance(balanceRes.data);
+
+                      // Mostrar advertencia si success es false pero data existe
+                      if (!balanceRes.success && balanceRes.message) {
+                        setAlertMessage(`⚠️ ${balanceRes.message}`);
+                        setAlertOpen(true);
+                      }
                     } else {
                       setThirdPartyBalance(null);
                     }
@@ -674,7 +711,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   <Typography mt={1}>
                     <strong>💸 Este corresponsal debe al tercero:</strong> $
                     {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.debt_to_third_party
+                      thirdPartyBalance?.debt_to_third_party || 0
                     )}
                   </Typography>
 
