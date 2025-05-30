@@ -66,6 +66,7 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
         </Typography>
         <Divider sx={{ borderColor: colors.secondary }} />
         <List>
+          {/* Mis Cajas */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misCajas"}
@@ -73,31 +74,30 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
-                  color: colors.text,
+                  color: colors.text_white,
                   "& .MuiListItemIcon-root": {
-                    color: colors.text,
+                    color: colors.text_white,
+                  },
+                  "& .MuiTypography-root": {
+                    color: colors.text_white,
                   },
                 },
               }}
             >
               <ListItemIcon>
-                <AccountBalanceWallet
-                  sx={{
-                    color:
-                      selected === "misCajas" ? colors.text : colors.secondary,
-                  }}
-                />
+                <AccountBalanceWallet sx={{ color: colors.text_white }} />
               </ListItemIcon>
               <ListItemText
                 primary="Mis Cajas"
                 primaryTypographyProps={{
                   fontFamily: fonts.main,
-                  color:
-                    selected === "misCajas" ? colors.text : colors.text_white,
+                  color: colors.text_white,
                 }}
               />
             </ListItemButton>
           </ListItem>
+
+          {/* Mis Cajeros */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misCajeros"}
@@ -105,33 +105,30 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
-                  color: colors.text,
+                  color: colors.text_white,
                   "& .MuiListItemIcon-root": {
-                    color: colors.text,
+                    color: colors.text_white,
+                  },
+                  "& .MuiTypography-root": {
+                    color: colors.text_white,
                   },
                 },
               }}
             >
               <ListItemIcon>
-                <AccountBalanceWallet
-                  sx={{
-                    color:
-                      selected === "misCajeros"
-                        ? colors.text
-                        : colors.secondary,
-                  }}
-                />
+                <AccountBalanceWallet sx={{ color: colors.text_white }} />
               </ListItemIcon>
               <ListItemText
                 primary="Mis Cajeros"
                 primaryTypographyProps={{
                   fontFamily: fonts.main,
-                  color:
-                    selected === "misCajeros" ? colors.text : colors.text_white,
+                  color: colors.text_white,
                 }}
               />
             </ListItemButton>
           </ListItem>
+
+          {/* Mis Tarifas */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misTarifas"}
@@ -139,33 +136,30 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
-                  color: colors.text,
+                  color: colors.text_white,
                   "& .MuiListItemIcon-root": {
-                    color: colors.text,
+                    color: colors.text_white,
+                  },
+                  "& .MuiTypography-root": {
+                    color: colors.text_white,
                   },
                 },
               }}
             >
               <ListItemIcon>
-                <MonetizationOn
-                  sx={{
-                    color:
-                      selected === "misTarifas"
-                        ? colors.text
-                        : colors.secondary,
-                  }}
-                />
+                <MonetizationOn sx={{ color: colors.text_white }} />
               </ListItemIcon>
               <ListItemText
                 primary="Mis Tarifas"
                 primaryTypographyProps={{
                   fontFamily: fonts.main,
-                  color:
-                    selected === "misTarifas" ? colors.text : colors.text_white,
+                  color: colors.text_white,
                 }}
               />
             </ListItemButton>
           </ListItem>
+
+          {/* Mis Terceros */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misTerceros"}
@@ -173,31 +167,24 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
-                  color: colors.text,
+                  color: colors.text_white,
                   "& .MuiListItemIcon-root": {
-                    color: colors.text,
+                    color: colors.text_white,
+                  },
+                  "& .MuiTypography-root": {
+                    color: colors.text_white,
                   },
                 },
               }}
             >
               <ListItemIcon>
-                <Groups // Puedes cambiar el icono si lo deseas
-                  sx={{
-                    color:
-                      selected === "misTerceros"
-                        ? colors.text
-                        : colors.secondary,
-                  }}
-                />
+                <Groups sx={{ color: colors.text_white }} />
               </ListItemIcon>
               <ListItemText
                 primary="Mis Terceros"
                 primaryTypographyProps={{
                   fontFamily: fonts.main,
-                  color:
-                    selected === "misTerceros"
-                      ? colors.text
-                      : colors.text_white,
+                  color: colors.text_white,
                 }}
               />
             </ListItemButton>

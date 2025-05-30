@@ -27,12 +27,12 @@ interface PartialTheme {
 // 3. Valor por defecto (defaultTheme)
 const defaultTheme: Theme = {
   colors: {
-    primary: "#0A1E41",
-    secondary: "#8CBF3F",
-    background: "#ffffff",
-    background_grey: "#24456E",
-    text: "#333333",
-    text_white: "#ffffff",
+    primary: "#1a1a1a", // Negro profundo (usado como fondo principal o encabezados)
+    secondary: "#4d4d4d", // Gris oscuro (usado para botones, bordes, íconos activos)
+    background: "#ffffff", // Blanco puro (fondo principal)
+    background_grey: "#f2f2f2", // Gris claro (fondo de secciones o tarjetas)
+    text: "#1a1a1a", // Texto principal (negro casi puro)
+    text_white: "#ffffff", // Texto blanco (para fondos oscuros)
   },
   fonts: {
     main: "Roboto, sans-serif",

@@ -102,8 +102,9 @@ const SnackNavigationBar: React.FC = () => {
             icon={<Home />}
             onClick={() => navigate("/")}
             sx={{
-              color: colors.text_white,
-              "&.Mui-selected": { color: colors.secondary },
+              color: colors.secondary,
+              "&.Mui-selected": { color: colors.text_white },
+
               minWidth: "auto",
               padding: "10px 0",
             }}
@@ -115,8 +116,9 @@ const SnackNavigationBar: React.FC = () => {
             icon={<Calculate />}
             onClick={() => navigate("/calculator")}
             sx={{
-              color: colors.text_white,
-              "&.Mui-selected": { color: colors.secondary },
+              color: colors.secondary,
+              "&.Mui-selected": { color: colors.text_white },
+
               minWidth: "auto",
               padding: "10px 0",
             }}
@@ -128,8 +130,9 @@ const SnackNavigationBar: React.FC = () => {
             icon={<Note />}
             onClick={() => navigate("/notes")}
             sx={{
-              color: colors.text_white,
-              "&.Mui-selected": { color: colors.secondary },
+              color: colors.secondary,
+              "&.Mui-selected": { color: colors.text_white },
+
               minWidth: "auto",
               padding: "10px 0",
             }}
@@ -141,8 +144,9 @@ const SnackNavigationBar: React.FC = () => {
             icon={<ExitToApp />}
             onClick={handleLogout}
             sx={{
-              color: colors.text_white,
-              "&.Mui-selected": { color: colors.secondary },
+              color: colors.secondary,
+              "&.Mui-selected": { color: colors.text_white },
+
               minWidth: "auto",
               padding: "10px 0",
               marginTop: "auto", // Se ubica en la parte inferior de la barra

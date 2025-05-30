@@ -26,7 +26,6 @@ import {
   Badge,
 } from "@mui/material";
 import { Add, Edit, Delete } from "@mui/icons-material";
-import { useTheme } from "../../glamour/ThemeContext";
 import Avatar from "@mui/material/Avatar";
 import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
@@ -56,6 +55,8 @@ import SnackPluginTransfer from "../../snacks/ui/integral-box/plugins/SnackPlugi
 
 import FinancialSummaryPanel from "../../snacks/ui/integral-box/plugins/SnackFinancialSummaryPanel";
 
+import { useTheme } from "../../glamour/ThemeContext"; // ← tu theme personalizado
+
 // Utils.
 import SnackLottieNoData from "./utils/SnackLottieNoData";
 import SnackLottieMoney from "./utils/SnackLottieMoney";
@@ -82,6 +83,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [transactionIdToDelete, setTransactionIdToDelete] = useState<
     number | null
   >(null);
+
+  const theme = useTheme(); // accede al objeto de tema
 
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
 
@@ -428,25 +431,31 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         {/* Saldo + Botón de Transferencia */}
         <Grid item>
           <Box display="flex" alignItems="center" gap={2}>
-            {/* Saldo en caja */}
+            {/* Saldo en caja 
             <Box
               sx={{
-                backgroundColor: "#0c1c3f", // fondo azul oscuro
-                color: "#ffc107", // texto amarillo
+                backgroundColor: theme.colors.primary, // fondo oscuro definido en theme
+                color: theme.colors.secondary, // texto o acentos
                 padding: "12px 20px",
                 borderRadius: 2,
                 textAlign: "center",
                 minWidth: 160,
               }}
             >
-              <Typography fontSize="0.8rem">Saldo en caja</Typography>
-              <Typography fontWeight="bold" fontSize="1.2rem">
+              <Typography fontSize="0.8rem" color={theme.colors.text_white}>
+                Saldo en caja
+              </Typography>
+              <Typography
+                fontWeight="bold"
+                fontSize="1.2rem"
+                color={theme.colors.text_white}
+              >
                 $
                 {new Intl.NumberFormat("es-CO").format(
                   initialConfig + incomes - withdrawals - offsets
                 )}
               </Typography>
-            </Box>
+            </Box>*/}
 
             {/* Botón Transferencias (SnackPluginTransfer) */}
             {selectedCash && selectedCorrespondent && (
@@ -538,14 +547,14 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             mt: 4,
             p: 4,
             borderRadius: 3,
-            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+            backgroundColor: colors.background_grey, // Fondo gris claro
             boxShadow: 4,
           }}
         >
           <Typography
             variant="h5"
             fontFamily={fonts.heading}
-            color={colors.text_white}
+            color={colors.secondary}
             gutterBottom
             sx={{ fontWeight: "bold" }}
           >

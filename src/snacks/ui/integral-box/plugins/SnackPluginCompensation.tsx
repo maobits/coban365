@@ -313,18 +313,18 @@ const SnackPluginCompesation: React.FC<Props> = ({
         <DialogTitle
           sx={{
             fontFamily: fonts.heading,
-            backgroundColor: colors.primary, // ← cambiado
+            backgroundColor: colors.text, // ← cambiado
             color: colors.text_white,
             fontSize: "1.6rem",
             py: 2,
           }}
         >
           Compesación en el corresponsal{" "}
-          <Box component="span" fontWeight="bold" color={colors.secondary}>
+          <Box component="span" fontWeight="bold" color={colors.text_white}>
             {correspondent.name}
           </Box>{" "}
           -{" "}
-          <Box component="span" fontWeight="bold" color={colors.secondary}>
+          <Box component="span" fontWeight="bold" color={colors.text_white}>
             {cash.name}
           </Box>
         </DialogTitle>
@@ -427,52 +427,43 @@ const SnackPluginCompesation: React.FC<Props> = ({
                     <Typography
                       variant="h6"
                       fontWeight="bold"
-                      color={colors.secondary}
+                      color={colors.text_white}
                     >
-                      💵 Deuda al banco
+                      🏛️ Banco
                     </Typography>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        border: "1px solid",
-                        borderColor: colors.secondary,
-                        borderRadius: 1,
-                        p: 1,
-                      }}
+                    <Typography
+                      variant="h5"
+                      fontWeight="bold"
+                      color={colors.text_white}
                     >
-                      <Typography
-                        variant="h5"
-                        fontWeight="bold"
-                        color={colors.secondary}
-                      >
-                        ${new Intl.NumberFormat("es-CO").format(bankDebt)}
-                      </Typography>
+                      ${new Intl.NumberFormat("es-CO").format(bankDebt)}
+                    </Typography>
 
-                      <LinearProgress
-                        variant="determinate"
-                        value={debtPercentage}
-                        sx={{
-                          mt: 1,
-                          height: 8,
-                          borderRadius: 5,
-                          backgroundColor: "#ddd",
-                          "& .MuiLinearProgress-bar": {
-                            backgroundColor: colors.secondary,
-                          },
-                        }}
-                      />
-
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          mt: 1,
-                          display: "block",
-                          color: colors.text_white,
-                        }}
-                      >
-                        {debtPercentage.toFixed(1)}% del cupo usado
-                      </Typography>
-                    </Box>
+                    {/* 
+        <LinearProgress
+          variant="determinate"
+          value={debtPercentage}
+          sx={{
+            mt: 1,
+            height: 8,
+            borderRadius: 5,
+            backgroundColor: "#ddd",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: colors.secondary,
+            },
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            mt: 1,
+            display: "block",
+            color: colors.text_white,
+          }}
+        >
+          {debtPercentage.toFixed(1)}% del cupo usado
+        </Typography>
+        */}
                   </Grid>
 
                   {/* Saldo en caja */}
@@ -480,108 +471,46 @@ const SnackPluginCompesation: React.FC<Props> = ({
                     <Typography
                       variant="h6"
                       fontWeight="bold"
-                      color={colors.secondary}
+                      color={colors.text_white}
                     >
-                      💰 Saldo en caja
+                      🪙 Caja
                     </Typography>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        border: "1px solid",
-                        borderColor: colors.secondary,
-                        borderRadius: 1,
-                        p: 1,
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        fontWeight="bold"
-                        color={colors.secondary}
-                      >
-                        $
-                        {new Intl.NumberFormat("es-CO").format(
-                          initialConfig + incomes - withdrawals
-                        )}
-                      </Typography>
-
-                      <LinearProgress
-                        variant="determinate"
-                        value={cashPercentage}
-                        sx={{
-                          mt: 1,
-                          height: 8,
-                          borderRadius: 5,
-                          backgroundColor: "#ddd",
-                          "& .MuiLinearProgress-bar": {
-                            backgroundColor: colors.secondary,
-                          },
-                        }}
-                      />
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          mt: 1,
-                          display: "block",
-                          color: colors.text_white,
-                        }}
-                      >
-                        {cashPercentage.toFixed(1)}% de capacidad
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  {/* Cupo total */}
-                  <Grid item xs={12} md={3} textAlign="center">
                     <Typography
-                      variant="h6"
+                      variant="h5"
                       fontWeight="bold"
-                      color={colors.secondary}
+                      color={colors.text_white}
                     >
-                      🏦 Cupo total
+                      $
+                      {new Intl.NumberFormat("es-CO").format(
+                        initialConfig + incomes - withdrawals
+                      )}
                     </Typography>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        border: "1px solid",
-                        borderColor: colors.secondary,
-                        borderRadius: 1,
-                        p: 1,
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        fontWeight="bold"
-                        color={colors.secondary}
-                      >
-                        ${new Intl.NumberFormat("es-CO").format(creditLimit)}
-                      </Typography>
 
-                      <LinearProgress
-                        variant="determinate"
-                        value={saldoCajaPercentage}
-                        sx={{
-                          mt: 1,
-                          height: 8,
-                          borderRadius: 5,
-                          backgroundColor: "#ddd",
-                          "& .MuiLinearProgress-bar": {
-                            backgroundColor: colors.secondary,
-                          },
-                        }}
-                      />
-
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          mt: 1,
-                          display: "block",
-                          color: colors.text_white,
-                        }}
-                      >
-                        {saldoCajaPercentage.toFixed(1)}% del cupo ocupado con
-                        saldo en caja
-                      </Typography>
-                    </Box>
+                    {/* 
+        <LinearProgress
+          variant="determinate"
+          value={cashPercentage}
+          sx={{
+            mt: 1,
+            height: 8,
+            borderRadius: 5,
+            backgroundColor: "#ddd",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: colors.secondary,
+            },
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            mt: 1,
+            display: "block",
+            color: colors.text_white,
+          }}
+        >
+          {cashPercentage.toFixed(1)}% de capacidad
+        </Typography>
+        */}
                   </Grid>
 
                   {/* Cupo disponible */}
@@ -589,55 +518,46 @@ const SnackPluginCompesation: React.FC<Props> = ({
                     <Typography
                       variant="h6"
                       fontWeight="bold"
-                      color={colors.secondary}
+                      color={colors.text_white}
                     >
-                      ✅ Cupo disponible
+                      ✅ Cupo
                     </Typography>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        border: "1px solid",
-                        borderColor: colors.secondary,
-                        borderRadius: 1,
-                        p: 1,
-                      }}
+                    <Typography
+                      variant="h5"
+                      fontWeight="bold"
+                      color={colors.text_white}
                     >
-                      <Typography
-                        variant="h5"
-                        fontWeight="bold"
-                        color={colors.secondary}
-                      >
-                        $
-                        {new Intl.NumberFormat("es-CO").format(
-                          (correspondent.credit_limit || 0) - (bankDebt || 0)
-                        )}
-                      </Typography>
+                      $
+                      {new Intl.NumberFormat("es-CO").format(
+                        (correspondent.credit_limit || 0) - (bankDebt || 0)
+                      )}
+                    </Typography>
 
-                      <LinearProgress
-                        variant="determinate"
-                        value={availablePercentage}
-                        sx={{
-                          mt: 1,
-                          height: 8,
-                          borderRadius: 5,
-                          backgroundColor: "#ddd",
-                          "& .MuiLinearProgress-bar": {
-                            backgroundColor: colors.secondary,
-                          },
-                        }}
-                      />
-
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          mt: 1,
-                          display: "block",
-                          color: colors.text_white,
-                        }}
-                      >
-                        {availablePercentage.toFixed(1)}% del cupo disponible
-                      </Typography>
-                    </Box>
+                    {/* 
+        <LinearProgress
+          variant="determinate"
+          value={availablePercentage}
+          sx={{
+            mt: 1,
+            height: 8,
+            borderRadius: 5,
+            backgroundColor: "#ddd",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: colors.secondary,
+            },
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            mt: 1,
+            display: "block",
+            color: colors.text_white,
+          }}
+        >
+          {availablePercentage.toFixed(1)}% del cupo disponible
+        </Typography>
+        */}
                   </Grid>
                 </Grid>
               </Paper>
