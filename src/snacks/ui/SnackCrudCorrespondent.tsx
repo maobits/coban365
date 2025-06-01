@@ -65,6 +65,36 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<any[]>([]);
 
+  // Normalizar
+  const normalize = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Lista de transacciones por defecto:
+
+  const defaultTransactionNames = [
+    "Recaudos",
+    "Retiro",
+    "Depósito",
+    "Abono a tarjeta de crédito",
+    "Pago de crédito",
+    "Retiro con tarjeta",
+    "Retiro Nequi",
+    "Saldo",
+    "Transferencia",
+    "Ahorro ALM",
+    "Préstamo de terceros",
+    "Pago a tercero",
+    "Préstamo a tercero",
+    "Pago de tercero",
+    "Compensación",
+    "Transferir a otra caja",
+  ];
+
   useEffect(() => {
     if (!permissions.includes("manageCorrespondents")) {
       navigate("/profile");
@@ -90,6 +120,26 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
 
         if (transactionsData.success && Array.isArray(transactionsData.data)) {
           setTransactionTypes(transactionsData.data);
+
+          const normalize = (text: string) =>
+            text
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .trim();
+
+          const defaultTransactions = transactionsData.data.filter((t: any) =>
+            defaultTransactionNames.map(normalize).includes(normalize(t.name))
+          );
+
+          // 🟡 Establecer como predeterminado al crear
+          setNewCorrespondent((prev) => ({
+            ...prev,
+            transactions: defaultTransactions.map((t: any) => ({
+              id: t.id,
+              name: t.name,
+            })),
+          }));
         }
 
         if (typesData.success && Array.isArray(typesData.data)) {
@@ -117,17 +167,56 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   }, []);
 
   const handleOpenDialog = () => {
-    setOpenDialog(true);
-  };
+    const defaultTransactionNames = [
+      "Recaudos",
+      "Retiro",
+      "Depósito",
+      "Abono a tarjeta de crédito",
+      "Pago de crédito",
+      "Retiro con tarjeta",
+      "Retiro Nequi",
+      "Saldo",
+      "Transferencia",
+      "Ahorro ALM",
+      "Préstamo de terceros",
+      "Pago a tercero",
+      "Préstamo a tercero",
+      "Pago de tercero",
+      "Compensación",
+      "Transferir a otra caja",
+    ];
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
+    const defaultTransactions = transactionTypes.filter((t: any) =>
+      defaultTransactionNames.map(normalize).includes(normalize(t.name))
+    );
+
     setNewCorrespondent({
       type_id: null,
       code: "",
       operator_id: null,
       name: "",
       location: { departamento: "", ciudad: "" },
+      transactions: defaultTransactions.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+      })),
+      credit_limit: 0,
+    });
+
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+
+    setNewCorrespondent({
+      type_id: null,
+      code: "",
+      operator_id: null,
+      name: "",
+      location: { departamento: "", ciudad: "" },
+      transactions: [], // ✅ ¡Muy importante!
+      credit_limit: 0,
     });
   };
 
@@ -287,8 +376,8 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 <TableCell>Tipo</TableCell>
                 <TableCell>Operador</TableCell>
                 <TableCell>Ubicación</TableCell>
-                <TableCell>Transacciones</TableCell>
-                <TableCell>Estado</TableCell> {/* ✅ Nueva columna */}
+                <TableCell>Cupo</TableCell>
+                <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -302,10 +391,6 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                       ciudad: "No especificado",
                     };
 
-                const transactions = correspondent.transactions
-                  ? JSON.parse(correspondent.transactions)
-                  : [];
-
                 return (
                   <TableRow key={correspondent.id}>
                     <TableCell>{correspondent.code}</TableCell>
@@ -318,10 +403,17 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                     </TableCell>
                     <TableCell>{`${location.departamento}, ${location.ciudad}`}</TableCell>
                     <TableCell>
-                      {transactions.length > 0
-                        ? transactions.map((t: any) => t.name).join(", ")
-                        : "Ninguna"}
+                      {correspondent.credit_limit !== null &&
+                      correspondent.credit_limit !== undefined
+                        ? new Intl.NumberFormat("es-CO", {
+                            style: "currency",
+                            currency: "COP",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(correspondent.credit_limit)
+                        : "Sin cupo"}
                     </TableCell>
+
                     <TableCell>
                       <Switch
                         checked={correspondent.state === 1}
@@ -508,9 +600,10 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
 
           <Autocomplete
             multiple
-            options={transactionTypes}
-            getOptionLabel={(option) => option.name}
+            options={transactionTypes || []} // ✅ asegura que siempre sea un array
+            getOptionLabel={(option) => option.name || ""}
             isOptionEqualToValue={(option, value) => option.id === value.id}
+            value={newCorrespondent.transactions} // ✅ muestra seleccionados
             onChange={(_, selected) =>
               setNewCorrespondent((prev) => ({
                 ...prev,
