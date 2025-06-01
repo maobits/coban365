@@ -7,30 +7,27 @@ import {
   CardContent,
   Typography,
 } from "@mui/material";
-import SnackLogo from "../../snacks/ui/SnackLogo"; // Importa el logo
-import { useTheme } from "../../glamour/ThemeContext"; // Importa el tema global
-
-/**
- * Componente SnackLogin
- *
- * Renderiza un formulario de inicio de sesión estilizado con Material UI y el tema de la App.
- *
- * @param {Object} props - Propiedades del componente.
- * @param {(email: string, password: string) => void} props.onLogin - Función que maneja el inicio de sesión.
- * @returns {JSX.Element} Elemento JSX con el formulario de autenticación.
- */
+import SnackLogo from "../../snacks/ui/SnackLogo";
+import { useTheme } from "../../glamour/ThemeContext";
+import { recoverPassword } from "../../store/notifications/Notifications"; // Asegúrate de tener este servicio
 
 const SnackLogin: React.FC<{
   onLogin: (email: string, password: string) => void;
 }> = ({ onLogin }) => {
-  const { colors, fonts } = useTheme(); // Obtiene el tema global
-  const [email, setEmail] = useState(""); // Estado para el email
-  const [password, setPassword] = useState(""); // Estado para la contraseña
+  const { colors, fonts } = useTheme();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [message, setMessage] = useState("");
 
-  // Maneja el envío del formulario
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    onLogin(email, password); // Llama al controlador de inicio de sesión
+    if (isRecovering) {
+      const result = await recoverPassword(email);
+      setMessage(result.message);
+    } else {
+      onLogin(email, password);
+    }
   };
 
   return (
@@ -39,9 +36,8 @@ const SnackLogin: React.FC<{
       justifyContent="center"
       alignItems="center"
       minHeight="100vh"
-      bgcolor={colors.background_grey} // Fondo del formulario según el tema
+      bgcolor={colors.background_grey}
     >
-      {/* Tarjeta de inicio de sesión */}
       <Card
         sx={{
           width: 380,
@@ -52,12 +48,10 @@ const SnackLogin: React.FC<{
         }}
       >
         <CardContent>
-          {/* Logo centrado */}
           <Box display="flex" justifyContent="center" mb={2}>
             <SnackLogo width={80} height={80} />
           </Box>
 
-          {/* Título estilizado con el tema */}
           <Typography
             variant="h5"
             align="center"
@@ -66,12 +60,21 @@ const SnackLogin: React.FC<{
             fontFamily={fonts.heading}
             gutterBottom
           >
-            Iniciar Sesión
+            {isRecovering ? "Recuperar Contraseña" : "Iniciar Sesión"}
           </Typography>
 
-          {/* Formulario */}
+          {message && (
+            <Typography
+              variant="body2"
+              color="success.main"
+              align="center"
+              sx={{ mt: 1 }}
+            >
+              {message}
+            </Typography>
+          )}
+
           <Box component="form" onSubmit={handleSubmit} noValidate>
-            {/* Campo de Email */}
             <TextField
               fullWidth
               label="Correo Electrónico"
@@ -89,25 +92,25 @@ const SnackLogin: React.FC<{
               }}
             />
 
-            {/* Campo de Contraseña */}
-            <TextField
-              fullWidth
-              label="Contraseña"
-              variant="outlined"
-              margin="normal"
-              required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "& fieldset": { borderColor: colors.primary },
-                  "&:hover fieldset": { borderColor: colors.secondary },
-                },
-              }}
-            />
+            {!isRecovering && (
+              <TextField
+                fullWidth
+                label="Contraseña"
+                variant="outlined"
+                margin="normal"
+                required
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: colors.primary },
+                    "&:hover fieldset": { borderColor: colors.secondary },
+                  },
+                }}
+              />
+            )}
 
-            {/* Botón de Inicio de Sesión */}
             <Button
               fullWidth
               variant="contained"
@@ -122,8 +125,29 @@ const SnackLogin: React.FC<{
                 },
               }}
             >
-              Ingresar
+              {isRecovering ? "Enviar Enlace" : "Ingresar"}
             </Button>
+
+            <Typography
+              variant="body2"
+              align="center"
+              sx={{
+                marginTop: 2,
+                color: colors.secondary,
+                fontFamily: fonts.main,
+                cursor: "pointer",
+                textDecoration: "underline",
+                "&:hover": { color: colors.primary },
+              }}
+              onClick={() => {
+                setIsRecovering(!isRecovering);
+                setMessage("");
+              }}
+            >
+              {isRecovering
+                ? "← Volver al inicio de sesión"
+                : "¿Olvidaste tu contraseña?"}
+            </Typography>
           </Box>
         </CardContent>
       </Card>

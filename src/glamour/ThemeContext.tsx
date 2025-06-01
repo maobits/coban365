@@ -1,4 +1,4 @@
-// src/glamour/ThemeContext.tsx (o la ruta que prefieras)
+// src/glamour/ThemeContext.tsx
 
 import React, { createContext, useContext } from "react";
 
