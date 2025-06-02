@@ -55,6 +55,9 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   const [alertType, setAlertType] = useState<"success" | "error">("success");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Estado para deshabilitar en proceso de actualización del estado.
+  const [updatingStateId, setUpdatingStateId] = useState<number | null>(null);
+
   // Estado para crear nuevo tercero
   const [newOther, setNewOther] = useState({
     name: "",
@@ -67,6 +70,9 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
     state: 1,
     correspondent_id: correspondent?.id || null,
   });
+
+  // Estado de carga pendiente.
+  const [saving, setSaving] = useState(false);
 
   // Estado para tercero seleccionado (edición)
   const [selectedOther, setSelectedOther] = useState<any>(null);
@@ -125,7 +131,6 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   const handleCreateOther = async () => {
     const errors: Record<string, string> = {};
 
-    // Validación segura
     if (!newOther.name?.trim()) errors.name = "Nombre requerido.";
     if (!newOther.id_type?.trim())
       errors.id_type = "Selecciona un tipo de identificación.";
@@ -136,11 +141,13 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
     if (!newOther.address?.trim()) errors.address = "Dirección requerida.";
 
     if (Object.keys(errors).length > 0) {
-      setFormErrors(errors); // 👈 Muestra los errores visuales
+      setFormErrors(errors);
       setAlertMessage("Completa todos los campos requeridos.");
       setAlertType("error");
       return;
     }
+
+    setSaving(true); // 🔄 Iniciar carga
 
     try {
       const response = await createOther(newOther);
@@ -148,7 +155,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
         setAlertMessage("Tercero creado exitosamente.");
         setAlertType("success");
         handleCloseDialog();
-        fetchOthers(); // Recargar la tabla
+        fetchOthers();
       } else {
         setAlertMessage(response.message);
         setAlertType("error");
@@ -157,6 +164,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       console.error("❌ Error al crear tercero:", error);
       setAlertMessage("No se pudo registrar el tercero.");
       setAlertType("error");
+    } finally {
+      setSaving(false); // ✅ Finalizar carga
     }
   };
 
@@ -247,6 +256,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
    * @param {number} currentState - Estado actual (1 o 0).
    */
   const handleToggleState = async (id: number, currentState: number) => {
+    setUpdatingStateId(id); // ⏳ Marca como en proceso
     try {
       const response = await updateOtherState(id, currentState === 1 ? 0 : 1);
       if (response.success) {
@@ -261,6 +271,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       console.error("❌ Error al cambiar estado:", error);
       setAlertMessage("Error al cambiar el estado.");
       setAlertType("error");
+    } finally {
+      setUpdatingStateId(null); // ✅ Finaliza proceso
     }
   };
 
@@ -340,6 +352,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                             handleToggleState(other.id, other.state)
                           }
                           color="success"
+                          disabled={updatingStateId === other.id} // ⛔ Deshabilita si se está actualizando ese ID
                         />
                       }
                       label={other.state ? "Activo" : "Inactivo"}
@@ -523,8 +536,9 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
             onClick={handleCreateOther}
             variant="contained"
             sx={{ backgroundColor: colors.secondary }}
+            disabled={saving}
           >
-            Guardar
+            {saving ? "Guardando..." : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -48,6 +48,9 @@ const SnackCrudRate: React.FC<Props> = ({ permissions, correspondent }) => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
+  // Estado.
+  const [saving, setSaving] = useState(false);
+
   const [newRate, setNewRate] = useState({
     transaction_type_id: null,
     price: "",
@@ -117,6 +120,8 @@ const SnackCrudRate: React.FC<Props> = ({ permissions, correspondent }) => {
       return;
     }
 
+    setSaving(true); // ← Inicia la carga
+
     try {
       const response = await createRate({
         transaction_type_id: newRate.transaction_type_id,
@@ -140,6 +145,8 @@ const SnackCrudRate: React.FC<Props> = ({ permissions, correspondent }) => {
     } catch (error) {
       setAlertMessage("Error al crear tarifa.");
       setAlertType("error");
+    } finally {
+      setSaving(false); // ← Finaliza la carga
     }
   };
 
@@ -356,8 +363,9 @@ const SnackCrudRate: React.FC<Props> = ({ permissions, correspondent }) => {
             onClick={handleCreateRate}
             variant="contained"
             sx={{ backgroundColor: colors.secondary }}
+            disabled={saving}
           >
-            Guardar
+            {saving ? "Guardando..." : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>

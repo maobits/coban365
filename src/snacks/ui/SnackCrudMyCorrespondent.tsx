@@ -37,6 +37,9 @@ import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 import { Switch } from "@mui/material";
 import SnackBox from "../../snacks/ui/integral-box/SnackBox"; // ajusta la ruta si es necesario
 
+// Incluir Lottie.
+import SnackLottieNoData from "./utils/SnackLottieNoData";
+
 const SnackCrudMyCorrespondent: React.FC<{
   permissions: string[];
   userId: number;
@@ -65,6 +68,9 @@ const SnackCrudMyCorrespondent: React.FC<{
   // Lista de transacciones.
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<any[]>([]);
+
+  // Nuevo estado del corresponsal.
+  const [updatingStateId, setUpdatingStateId] = useState<number | null>(null);
 
   // Estado para el modal.
   const [openCashDialog, setOpenCashDialog] = useState(false);
@@ -285,18 +291,32 @@ const SnackCrudMyCorrespondent: React.FC<{
         Gestión de mis corresponsales
       </Typography>
 
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<Add />}
-        onClick={handleOpenDialog}
-      >
-        Nuevo corresponsal
-      </Button>
-
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
           <CircularProgress />
+        </Box>
+      ) : correspondents.length === 0 ? (
+        <Box
+          sx={{
+            mt: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <SnackLottieNoData width={250} height={250} />
+          <Typography
+            variant="h6"
+            sx={{
+              mt: 3,
+              fontSize: "1.2rem",
+              color: "text.secondary",
+              fontWeight: "medium",
+            }}
+          >
+            No tienes corresponsales registrados aún.
+          </Typography>
         </Box>
       ) : (
         <TableContainer component={Paper} sx={{ marginTop: 3 }}>
@@ -308,12 +328,11 @@ const SnackCrudMyCorrespondent: React.FC<{
                 <TableCell>Tipo</TableCell>
                 <TableCell>Operador</TableCell>
                 <TableCell>Ubicación</TableCell>
-                <TableCell>Transacciones</TableCell>
-                <TableCell>Estado</TableCell> {/* ✅ Nueva columna */}
+                <TableCell>Cupo</TableCell>
+                <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
-
             <TableBody>
               {correspondents.map((correspondent) => {
                 const location = correspondent.location
@@ -339,15 +358,24 @@ const SnackCrudMyCorrespondent: React.FC<{
                     </TableCell>
                     <TableCell>{`${location.departamento}, ${location.ciudad}`}</TableCell>
                     <TableCell>
-                      {transactions.length > 0
-                        ? transactions.map((t: any) => t.name).join(", ")
-                        : "Ninguna"}
+                      {correspondent.credit_limit !== null &&
+                      correspondent.credit_limit !== undefined
+                        ? new Intl.NumberFormat("es-CO", {
+                            style: "currency",
+                            currency: "COP",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(correspondent.credit_limit)
+                        : "Sin cupo"}
                     </TableCell>
+
                     <TableCell>
                       <Switch
                         checked={correspondent.state === 1}
+                        disabled={updatingStateId === correspondent.id} // ⛔ deshabilitado si está en proceso
                         onChange={async (e) => {
                           const newState = e.target.checked ? 1 : 0;
+                          setUpdatingStateId(correspondent.id); // ✅ activar loading para este ID
                           try {
                             const result = await updateCorrespondentState(
                               correspondent.id,
@@ -376,6 +404,8 @@ const SnackCrudMyCorrespondent: React.FC<{
                               "Error al conectar con el servidor."
                             );
                             setAlertType("error");
+                          } finally {
+                            setUpdatingStateId(null); // ✅ desactivar loading
                           }
                         }}
                         color="primary"

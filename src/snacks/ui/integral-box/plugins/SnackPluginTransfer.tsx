@@ -25,12 +25,14 @@ import { createTransferTransaction } from "../../../../store/transaction/CrudTra
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
 import { getCashByCorrespondent } from "../../../../store/crash/CrudCrash";
+import SnackPluginBillCounter from "./SnackPluginBillCounter";
 
 interface Props {
   correspondent: {
     id: number;
     name: string;
     credit_limit?: number; // ← se incluye el cupo
+    premium?: number; // 1 = Premium, 0 = Básico
   };
   cash: {
     name: string;
@@ -676,6 +678,13 @@ const SnackPluginTransfer: React.FC<Props> = ({
             Registrar
           </Button>
         </DialogActions>
+        {open && correspondent.premium === 1 && (
+          <Box sx={{ px: 4, py: 2 }}>
+            <SnackPluginBillCounter
+              amount={parseFloat(amount.replace(/\D/g, "")) || 0}
+            />
+          </Box>
+        )}
       </Dialog>
 
       {/* Dialogo para mostrar la advertencia. */}

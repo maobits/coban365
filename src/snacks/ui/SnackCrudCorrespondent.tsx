@@ -21,7 +21,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { Add, Edit, Delete } from "@mui/icons-material";
+import { Add, Edit, Delete, Star } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../glamour/ThemeContext";
 import {
@@ -35,6 +35,7 @@ import {
 import { getAdminProfiles } from "../../store/profile/Profile";
 import { getTransactionTypes } from "../../store/transaction/CrudCorrespondent";
 import { Switch } from "@mui/material";
+import { updatePremium } from "../../store/correspondent/CrudCorrespondent";
 
 const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   permissions,
@@ -64,6 +65,14 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
   // Lista de transacciones.
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<any[]>([]);
+
+  // Estado para controlar el estado de creación del corresponsal.
+  const [creating, setCreating] = useState(false);
+
+  // Estado para controlar la actualización premium del corresponsal.
+  const [premiumProcessing, setPremiumProcessing] = useState<number | null>(
+    null
+  );
 
   // Normalizar
   const normalize = (text: string) =>
@@ -222,6 +231,8 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
 
   const handleCreateCorrespondent = async () => {
     try {
+      setCreating(true); // ⬅️ activamos el estado
+
       if (
         newCorrespondent.type_id === null ||
         newCorrespondent.operator_id === null ||
@@ -242,7 +253,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         name: newCorrespondent.name,
         location: newCorrespondent.location,
         transactions: newCorrespondent.transactions,
-        credit_limit: newCorrespondent.credit_limit, // ✅ Agregado correctamente
+        credit_limit: newCorrespondent.credit_limit,
       });
 
       if (response.success) {
@@ -250,7 +261,6 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         setAlertType("success");
         handleCloseDialog();
 
-        // 🔹 Actualizar la lista de corresponsales después de crear uno nuevo
         const updatedList = await getCorrespondents();
         if (updatedList.success) {
           setCorrespondents(updatedList.data);
@@ -263,6 +273,8 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
       console.error("Error al crear corresponsal:", error);
       setAlertMessage("Error en el servidor.");
       setAlertType("error");
+    } finally {
+      setCreating(false); // ⬅️ siempre desactivar al final
     }
   };
 
@@ -377,6 +389,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 <TableCell>Operador</TableCell>
                 <TableCell>Ubicación</TableCell>
                 <TableCell>Cupo</TableCell>
+                <TableCell>Premium</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
@@ -394,7 +407,24 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 return (
                   <TableRow key={correspondent.id}>
                     <TableCell>{correspondent.code}</TableCell>
-                    <TableCell>{correspondent.name}</TableCell>
+                    <TableCell>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <b
+                          style={{
+                            color: correspondent.premium
+                              ? colors.text
+                              : "inherit",
+                          }}
+                        >
+                          {correspondent.name}
+                        </b>
+                        {correspondent.premium === 1 && (
+                          <Star sx={{ color: colors.text, fontSize: 20 }} />
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell>
                       {correspondent.type_name || "Desconocido"}
                     </TableCell>
@@ -412,6 +442,39 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                             maximumFractionDigits: 0,
                           }).format(correspondent.credit_limit)
                         : "Sin cupo"}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={correspondent.premium === 1}
+                        onChange={async () => {
+                          const newValue = correspondent.premium === 1 ? 0 : 1;
+                          setPremiumProcessing(correspondent.id);
+                          try {
+                            const res = await updatePremium(
+                              correspondent.id,
+                              newValue
+                            );
+                            if (res.success) {
+                              setAlertMessage("Estado Premium actualizado.");
+                              setAlertType("success");
+
+                              const updatedList = await getCorrespondents();
+                              if (updatedList.success)
+                                setCorrespondents(updatedList.data);
+                            } else {
+                              setAlertMessage(res.message);
+                              setAlertType("error");
+                            }
+                          } catch (error) {
+                            setAlertMessage("Error al actualizar Premium.");
+                            setAlertType("error");
+                          } finally {
+                            setPremiumProcessing(null);
+                          }
+                        }}
+                        disabled={premiumProcessing === correspondent.id}
+                        color="secondary"
+                      />
                     </TableCell>
 
                     <TableCell>
@@ -652,11 +715,12 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
             Cancelar
           </Button>
           <Button
-            onClick={handleCreateCorrespondent}
+            onClick={handleCreateCorrespondent} // ❌ Incorrecto, este es para crear, no para editar
             variant="contained"
+            disabled={creating}
             sx={{ backgroundColor: colors.secondary }}
           >
-            Guardar
+            {creating ? "Creando el corresponsal..." : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>

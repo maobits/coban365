@@ -287,3 +287,43 @@ export const getCorrespondentByCash = async (cashId: number): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Servicio para actualizar el estado de premium de un corresponsal.
+ * Envia una solicitud POST al endpoint `update_premium.php`.
+ *
+ * @param {number} id - ID del corresponsal.
+ * @param {number} premium - Nuevo valor del campo premium (1 = Premium, 0 = Básico).
+ * @returns {Promise<any>} Promesa que resuelve con la respuesta del servidor.
+ */
+export const updatePremium = async (
+  id: number,
+  premium: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/correspondent/update_premium.php`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, premium }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      console.warn("⚠️ Error en actualización de premium:", data.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error al actualizar premium:", error);
+    throw error;
+  }
+};

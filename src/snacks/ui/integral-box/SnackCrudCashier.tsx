@@ -45,6 +45,9 @@ const SnackCrudCashier: React.FC<{
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
+  // Estado de carga.
+  const [creating, setCreating] = useState(false);
+
   const [newCashier, setNewCashier] = useState({
     email: "",
     fullname: "",
@@ -94,6 +97,8 @@ const SnackCrudCashier: React.FC<{
       return;
     }
 
+    setCreating(true); // ⬅️ activar estado
+
     try {
       const res = await createCashier(newCashier);
       if (res.success) {
@@ -109,6 +114,8 @@ const SnackCrudCashier: React.FC<{
     } catch {
       setAlertMessage("Error del servidor.");
       setAlertType("error");
+    } finally {
+      setCreating(false); // ⬅️ desactivar estado
     }
   };
 
@@ -319,8 +326,13 @@ const SnackCrudCashier: React.FC<{
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} variant="contained" color="primary">
-            Guardar
+          <Button
+            onClick={handleCreate}
+            variant="contained"
+            color="primary"
+            disabled={creating}
+          >
+            {creating ? "Creando el cajero..." : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>

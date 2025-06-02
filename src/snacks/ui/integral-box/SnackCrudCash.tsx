@@ -72,6 +72,11 @@ const SnackCrudCash: React.FC<{
 
   const [selectedCash, setSelectedCash] = useState<any>(null);
 
+  // Estado cargando la caja.
+  const [loadingSwitches, setLoadingSwitches] = useState<{
+    [id: number]: boolean;
+  }>({});
+
   {
     /* Estado para manejo de errores. */
   }
@@ -218,7 +223,7 @@ const SnackCrudCash: React.FC<{
         ...newCash,
         capacity: Number(newCash.capacity),
         state: newCash.state,
-        open: newCash.open ? 1 : 0,
+        open: 0,
         last_note: newCash.last_note,
       });
 
@@ -273,6 +278,7 @@ const SnackCrudCash: React.FC<{
       const response = await updateCash({
         ...selectedCash,
         capacity: Number(selectedCash.capacity),
+        open: 0, // 🔒 Siempre cerrado al editar
       });
 
       if (response.success) {
@@ -315,9 +321,11 @@ const SnackCrudCash: React.FC<{
     }
   };
 
-  // Actualizar estado
   const handleToggleState = async (id: number, currentState: number) => {
     const newState = currentState === 1 ? 0 : 1;
+
+    // ⏳ Activar loading para este switch
+    setLoadingSwitches((prev) => ({ ...prev, [id]: true }));
 
     try {
       const result = await updateCashState(id, newState);
@@ -336,6 +344,9 @@ const SnackCrudCash: React.FC<{
     } catch (error) {
       setAlertMessage("Error al conectar con el servidor.");
       setAlertType("error");
+    } finally {
+      // ✅ Desactivar loading para este switch
+      setLoadingSwitches((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -437,6 +448,7 @@ const SnackCrudCash: React.FC<{
                       checked={cash.state === 1}
                       onChange={() => handleToggleState(cash.id, cash.state)}
                       color="primary"
+                      disabled={!!loadingSwitches[cash.id]} // 🔒 Deshabilita mientras se actualiza
                     />
                   </TableCell>
                   <TableCell>
@@ -585,23 +597,6 @@ const SnackCrudCash: React.FC<{
                 />
               }
               label="¿Caja habilitada?"
-              sx={{ color: colors.text }}
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={newCash.open}
-                  onChange={(e) =>
-                    setNewCash((prev) => ({
-                      ...prev,
-                      open: e.target.checked,
-                    }))
-                  }
-                  sx={{ color: colors.secondary }}
-                />
-              }
-              label="¿Caja en estado abierto?"
               sx={{ color: colors.text }}
             />
           </Box>
@@ -769,23 +764,6 @@ const SnackCrudCash: React.FC<{
                 />
               }
               label="¿Caja habilitada?"
-              sx={{ color: colors.text }}
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedCash?.open === 1}
-                  onChange={(e) =>
-                    setSelectedCash((prev: any) => ({
-                      ...prev,
-                      open: e.target.checked ? 1 : 0,
-                    }))
-                  }
-                  sx={{ color: colors.secondary }}
-                />
-              }
-              label="¿Caja en estado abierto?"
               sx={{ color: colors.text }}
             />
           </Box>
