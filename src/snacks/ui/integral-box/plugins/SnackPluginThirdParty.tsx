@@ -86,6 +86,8 @@ const SnackPluginDeposits: React.FC<Props> = ({
   // Estado para el balance de un tercero.
   const [thirdPartyBalance, setThirdPartyBalance] = useState<any>(null);
 
+  // Identificar prestamo de tercero para evitar limites.
+
   // Barra de progreso.
 
   const creditLimit = correspondent.credit_limit || 0;
@@ -266,31 +268,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
       setBankDebt(latestDebt);
       await loadCashSummary();
 
-      if (valorIngresado > cupoDisponible) {
-        setAlertMessage(
-          `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
-            valorIngresado
-          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
-            "es-CO"
-          ).format(cupoDisponible)}). Intenta con un monto menor.`
-        );
-        setAlertOpen(true);
-        return;
-      }
-
-      // 5. Obtener tarifa (utility)
-      const rateRes = await listRatesByCorrespondent(correspondent.id);
-      const utility =
-        rateRes?.data?.find(
-          (r: any) => r.transaction_type_id === selectedTransaction
-        )?.price || 0;
-
       // 6. Buscar el tipo seleccionado para obtener el nombre
       const selectedType = transactionTypes.find(
         (t: any) => t.id === selectedTransaction
       );
-
-      console.log("🧾 Tipo seleccionado:", selectedType?.name);
 
       // Mapeo predefinido
       const transactionNoteMap: Record<string, string> = {
@@ -316,6 +297,31 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
       // Obtener nota especial
       const third_party_note = transactionNoteMap[normalizedName] || "unknown";
+      const isLoanFromThirdParty = third_party_note === "loan_from_third_party";
+
+      if (
+        third_party_note !== "loan_from_third_party" &&
+        valorIngresado > cupoDisponible
+      ) {
+        setAlertMessage(
+          `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
+            valorIngresado
+          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
+            "es-CO"
+          ).format(cupoDisponible)}). Intenta con un monto menor.`
+        );
+        setAlertOpen(true);
+        return;
+      }
+
+      // 5. Obtener tarifa (utility)
+      const rateRes = await listRatesByCorrespondent(correspondent.id);
+      const utility =
+        rateRes?.data?.find(
+          (r: any) => r.transaction_type_id === selectedTransaction
+        )?.price || 0;
+
+      console.log("🧾 Tipo seleccionado:", selectedType?.name);
 
       // 🔄 ACTUALIZAR balance antes de registrar
       const refreshedBalance = await getThirdPartyBalance(
@@ -395,6 +401,30 @@ const SnackPluginDeposits: React.FC<Props> = ({
             )}) excede el valor que este tercero debe al corresponsal ($${new Intl.NumberFormat(
               "es-CO"
             ).format(cobrosAlTercero)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
+      // ✅ Validación para premium: que la caja no exceda su capacidad
+      if (
+        correspondent.premium === 1 &&
+        (third_party_note === "charge_to_third_party" ||
+          third_party_note === "loan_from_third_party")
+      ) {
+        const saldoCajaActual = initialConfig + incomes - withdrawals;
+        const saldoConNuevoValor = saldoCajaActual + valorIngresado;
+
+        if (saldoConNuevoValor > cashCapacity) {
+          setAlertMessage(
+            `⚠️ La caja tiene un límite de ${new Intl.NumberFormat(
+              "es-CO"
+            ).format(
+              cashCapacity
+            )}. Esta transacción de $${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )} supera ese límite.`
           );
           setAlertOpen(true);
           return;

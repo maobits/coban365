@@ -40,7 +40,11 @@ import {
 // Props del componente
 interface Props {
   permissions: string[];
-  correspondent: any;
+  correspondent: {
+    id: number;
+    name: string;
+    premium?: number; // ← importante para controlar
+  };
 }
 
 const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
@@ -103,13 +107,28 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   };
   // Función para abrir el diálogo de creación
   const handleOpenDialog = () => {
+    // Validar límite para corresponsales no premium
+    if (correspondent?.premium !== 1 && others.length >= 1) {
+      setAlertMessage(
+        "⚠️ Este corresponsal tiene un plan básico y solo puede registrar un tercero."
+      );
+      setAlertType("error");
+      return;
+    }
+
     setNewOther({
       name: "",
       credit: 0,
       state: 1,
-      correspondent_id: correspondent.id, // El corresponsal actual no se puede modificar
+      correspondent_id: correspondent.id,
+      id_type: "",
+      id_number: "",
+      email: "",
+      phone: "",
+      address: "",
     });
-    setOpenDialog(true);
+
+    setOpenDialog(true); // Solo se abre si pasa la validación
   };
 
   // Función para cerrar el diálogo

@@ -208,6 +208,26 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
+      // ✅ Validar si el depósito supera la capacidad de la caja (solo si es premium)
+      if (correspondent.premium === 1) {
+        const saldoActual = initialConfig + incomes - withdrawals;
+        const posibleNuevoSaldo = saldoActual + valorIngresado;
+
+        if (posibleNuevoSaldo > cashCapacity) {
+          setAlertMessage(
+            `⚠️ La caja tiene un límite de ${new Intl.NumberFormat(
+              "es-CO"
+            ).format(
+              cashCapacity
+            )}. Esta transacción de $${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )} supera ese límite.`
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
       // ✅ 1. Consultar deuda actualizada justo antes de registrar
       const latestDebtRes = await getDebtToBankByCorrespondent(
         correspondent.id
