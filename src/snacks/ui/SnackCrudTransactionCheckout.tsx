@@ -31,12 +31,13 @@ import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import InfoIcon from "@mui/icons-material/Info";
 import SnackPagination from "./utils/SnackPagination";
+import ShareIcon from "@mui/icons-material/Share";
 
 import {
   getTransactionsByCash,
   createTransaction,
   updateTransaction,
-  deleteTransaction,
+  createTransactionNote,
 } from "../../store/transaction/CrudTransactions";
 import { getCashByCashier } from "../../store/crash/CrudCrash";
 import { getCorrespondentByCash } from "../../store/correspondent/CrudCorrespondent";
@@ -53,9 +54,16 @@ import SnackPluginThirdParty from "../../snacks/ui/integral-box/plugins/SnackPlu
 import SnackPluginCompesation from "./integral-box/plugins/SnackPluginCompensation";
 import SnackPluginTransfer from "../../snacks/ui/integral-box/plugins/SnackPluginTransfer";
 
+// Importar turnos
+import { listShifts } from "../../store/shift/CrudShift"; // asegúrate de tenerlo importado
+
 import FinancialSummaryPanel from "../../snacks/ui/integral-box/plugins/SnackFinancialSummaryPanel";
 
 import { useTheme } from "../../glamour/ThemeContext"; // ← tu theme personalizado
+
+import { confirmShift } from "../../store/shift/CrudShift";
+
+import { rejectShift } from "../../store/shift/CrudShift";
 
 // Utils.
 import SnackLottieNoData from "./utils/SnackLottieNoData";
@@ -136,6 +144,25 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [cancelNote, setCancelNote] = useState("");
   const [transactionToCancel, setTransactionToCancel] = useState<any>(null);
 
+  // Modal para las notas.
+  const [openNoteModal, setOpenNoteModal] = useState(false);
+  const [noteType, setNoteType] = useState<"credit" | "debit" | "">("");
+  const [noteValue, setNoteValue] = useState("");
+  const [transactionToAdjust, setTransactionToAdjust] = useState<any>(null);
+  const [noteObservation, setNoteObservation] = useState("");
+
+  // Estado para los turnos.
+  const [processingShiftId, setProcessingShiftId] = useState<number | null>(
+    null
+  );
+
+  //
+  const [turnosPendientes, setTurnosPendientes] = useState<any[]>([]);
+  const [showTurnosModal, setShowTurnosModal] = useState(false);
+
+  // Estado de la transacción debito/credito.
+  const [sendingNote, setSendingNote] = useState(false);
+
   // Estado para la categoría seleccionada.
   const categories = [
     "Ingresos",
@@ -155,6 +182,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
   const fetchInitialData = async () => {
     try {
+      console.log("🚀 Iniciando carga de datos iniciales...");
       setLoading(true);
 
       const storedUser = localStorage.getItem("userSession");
@@ -162,18 +190,39 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
       const user = JSON.parse(storedUser);
       setCashier(user);
+      console.log("👤 Usuario cargado:", user);
+
       await loadCashAndTransactions(user.id);
 
       const cashRes = await getCashByCashier(user.id);
+      console.log("💵 Cajas encontradas:", cashRes);
 
       if (cashRes.success && cashRes.data.length > 0) {
         const firstCash = cashRes.data[0];
         setSelectedCash(firstCash);
+        console.log("✅ Caja seleccionada:", firstCash);
 
         const corrRes = await getCorrespondentByCash(firstCash.id);
+        console.log("🏢 Corresponsal relacionado:", corrRes);
+
         if (corrRes.success && corrRes.data) {
           setCorrespondents([corrRes.data]);
           setSelectedCorrespondent(corrRes.data);
+
+          const shiftsRes = await listShifts(corrRes.data.id, firstCash.id);
+          console.log("📦 Turnos obtenidos:", shiftsRes);
+
+          if (shiftsRes.success) {
+            const pendingShifts = (shiftsRes.data || []).filter(
+              (s) => s.state === 0
+            );
+            console.log("📝 Turnos pendientes:", pendingShifts);
+            setTurnosPendientes(pendingShifts);
+          } else {
+            console.warn("⚠️ Error al obtener turnos:", shiftsRes.message);
+          }
+        } else {
+          console.warn("⚠️ No se encontró corresponsal relacionado.");
         }
 
         // 👇 Obtener transacciones de esa caja
@@ -185,6 +234,9 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         if (transRes.success) {
           setTransactions(transRes.data.items);
           setTotalPages(transRes.data.total_pages);
+          console.log("📄 Transacciones cargadas:", transRes.data.items);
+        } else {
+          console.warn("⚠️ No se pudieron obtener transacciones.");
         }
       } else {
         console.warn("⚠️ No se encontraron cajas asignadas al cajero.");
@@ -193,7 +245,10 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       console.error("❌ Error al cargar datos iniciales:", error);
     } finally {
       setLoading(false);
+      console.log("✅ Carga de datos finalizada");
     }
+
+    await refreshShifts();
   };
 
   const handleOpenDialog = () => {
@@ -347,6 +402,14 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     }
   };
 
+  // Abrir el modal para la nota.
+  const handleOpenNoteModal = (transaction: any) => {
+    setTransactionToAdjust(transaction);
+    setNoteType("");
+    setNoteValue("");
+    setOpenNoteModal(true);
+  };
+
   // LOG.
   console.log("🔎 selectedCorrespondent:", selectedCorrespondent);
   console.log("🔎 selectedCash:", selectedCash);
@@ -399,6 +462,96 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     }
 
     setOpenCancelModal(false);
+  };
+
+  const handleConfirmShift = async (shiftId: number) => {
+    try {
+      setProcessingShiftId(shiftId);
+      const response = await confirmShift(shiftId);
+      if (response.success) {
+        setAlertMessage("✅ Turno confirmado exitosamente.");
+        setAlertType("success");
+        await fetchInitialData(); // Refresca datos
+      } else {
+        setAlertMessage(response.message || "Error al confirmar turno.");
+        setAlertType("error");
+      }
+    } catch (error) {
+      setAlertMessage("❌ Error en la solicitud.");
+      setAlertType("error");
+    } finally {
+      setProcessingShiftId(null);
+    }
+  };
+
+  const handleRejectShift = async (shiftId: number) => {
+    try {
+      setProcessingShiftId(shiftId);
+      const result = await rejectShift(shiftId);
+      if (result.success) {
+        setAlertMessage("Turno rechazado exitosamente.");
+        setAlertType("success");
+        await fetchInitialData(); // Recargar datos
+      } else {
+        setAlertMessage(result.message || "Error al rechazar el turno.");
+        setAlertType("error");
+      }
+    } catch (error) {
+      setAlertMessage("Error al procesar la solicitud.");
+      setAlertType("error");
+    } finally {
+      setProcessingShiftId(null);
+    }
+  };
+
+  // Refrescar la lista de turnos pendientes.
+  const refreshShifts = async () => {
+    if (selectedCorrespondent && selectedCash) {
+      const shiftsRes = await listShifts(
+        selectedCorrespondent.id,
+        selectedCash.id
+      );
+      if (shiftsRes.success) {
+        const pendingShifts = (shiftsRes.data || []).filter(
+          (s) => s.state === 0
+        );
+        setTurnosPendientes(pendingShifts);
+      }
+    }
+  };
+
+  const handleSendNote = async () => {
+    if (!noteType || !noteValue || !noteObservation.trim()) {
+      setAlertMessage("Todos los campos son obligatorios.");
+      setAlertType("error");
+      return;
+    }
+
+    setSendingNote(true); // ← Activar loading
+
+    try {
+      const result = await createTransactionNote(
+        transactionToAdjust.id,
+        noteType,
+        parseFloat(noteValue),
+        noteObservation.trim()
+      );
+
+      if (result.success) {
+        setAlertMessage("Nota registrada correctamente.");
+        setAlertType("success");
+        setOpenNoteModal(false);
+        fetchInitialData();
+      } else {
+        setAlertMessage(result.message || "Error al registrar nota.");
+        setAlertType("error");
+      }
+    } catch (error) {
+      setAlertMessage("Error al enviar la nota.");
+      setAlertType("error");
+    } finally {
+      setSendingNote(false); // ← Desactivar loading
+    }
   };
 
   return (
@@ -465,6 +618,22 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 onTransactionComplete={fetchInitialData}
               />
             )}
+            {selectedCorrespondent?.premium === 1 &&
+              turnosPendientes.length > 0 && (
+                <IconButton
+                  onClick={() => setShowTurnosModal(true)}
+                  sx={{
+                    backgroundColor: "#e8f5e9",
+                    border: `2px solid ${colors.success || "#4caf50"}`,
+                    ml: 1,
+                  }}
+                >
+                  <Badge badgeContent={turnosPendientes.length} color="success">
+                    <PersonIcon sx={{ color: "#2e7d32" }} />
+                  </Badge>
+                </IconButton>
+              )}
+
             {incomingTransfers.length > 0 && (
               <IconButton
                 onClick={() => setShowIncomingModal(true)}
@@ -518,29 +687,56 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       </Grid>
 
       {correspondents.length > 0 && (
-        <Autocomplete
-          options={correspondents}
-          getOptionLabel={(option) => option.name}
-          value={selectedCorrespondent}
-          onChange={async (_, value) => {
-            if (!cashier || !value) {
-              setSelectedCorrespondent(null);
-              setSelectedCash(null);
-              setTransactions([]);
-              return;
-            }
-            setSelectedCorrespondent(value);
-            await loadCashAndTransactions(cashier.id);
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Seleccionar Corresponsal"
-              sx={{ maxWidth: 400, mb: 2 }}
+        <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+          <Grid item>
+            <Autocomplete
+              options={correspondents}
+              getOptionLabel={(option) => option.name}
+              value={selectedCorrespondent}
+              onChange={async (_, value) => {
+                if (!cashier || !value) {
+                  setSelectedCorrespondent(null);
+                  setSelectedCash(null);
+                  setTransactions([]);
+                  return;
+                }
+                setSelectedCorrespondent(value);
+                await loadCashAndTransactions(cashier.id);
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Seleccionar Corresponsal"
+                  sx={{ width: 300 }}
+                />
+              )}
             />
+          </Grid>
+
+          {selectedCorrespondent && selectedCash && (
+            <Grid item>
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{ cursor: "pointer" }}
+                onClick={() => {
+                  const url = `${window.location.origin}/shifts/register/${selectedCorrespondent.id}/${selectedCash.id}`;
+                  navigator.clipboard.writeText(url);
+                  setAlertMessage("🔗 Enlace copiado al portapapeles");
+                  setAlertType("success");
+                }}
+              >
+                <ShareIcon color="primary" />
+                <Typography fontSize="0.9rem" color="text.secondary">
+                  Compartir enlace para Turno
+                </Typography>
+              </Box>
+            </Grid>
           )}
-        />
+        </Grid>
       )}
+
       {selectedCorrespondent?.state === 1 && selectedCash?.state === 1 && (
         <Box
           sx={{
@@ -627,6 +823,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 <TableCell>Tipo</TableCell>
                 <TableCell>Valor</TableCell>
                 <TableCell>Fecha</TableCell>
+                <TableCell>Nota</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -647,16 +844,25 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                     </TableCell>
 
                     <TableCell>{t.formatted_date}</TableCell>
+                    <TableCell>
+                      {["Nota crédito", "Nota débito"].includes(t.note) ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {t.cancellation_note}
+                        </Typography>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
 
                     <TableCell>
                       {t.is_transfer === 0 ? (
                         <Button
                           size="small"
                           variant="outlined"
-                          color="error"
-                          onClick={() => handleCancelTransaction(t)}
+                          color="secondary"
+                          onClick={() => handleOpenNoteModal(t)}
                         >
-                          Anular transacción
+                          Nota crédito / débito
                         </Button>
                       ) : (
                         <Chip
@@ -815,6 +1021,145 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             onClick={handleConfirmCancel}
           >
             Confirmar anulación
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={showTurnosModal}
+        onClose={() => setShowTurnosModal(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Turnos pendientes ({turnosPendientes.length})</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "#f9f9f9" }}>
+          <Grid container spacing={3}>
+            {turnosPendientes.map((turno, index) => (
+              <Grid item xs={12} key={index}>
+                <Paper elevation={3} sx={{ p: 3 }}>
+                  <Typography variant="h6" fontWeight="bold">
+                    #{index + 1} – {turno.transaction_type}
+                  </Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <Typography>
+                        <b>Valor:</b> $
+                        {new Intl.NumberFormat("es-CO").format(turno.amount)}
+                      </Typography>
+                      <Typography>
+                        <b>Convenio:</b> {turno.agreement || "—"}
+                      </Typography>
+                      <Typography>
+                        <b>Referencia:</b> {turno.reference || "—"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography>
+                        <b>Nombre:</b> {turno.full_name}
+                      </Typography>
+                      <Typography>
+                        <b>Documento:</b> {turno.document_id}
+                      </Typography>
+                      <Typography>
+                        <b>Celular:</b> {turno.phone || "—"}
+                      </Typography>
+                      <Typography>
+                        <b>Email:</b> {turno.email}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  <Box mt={2} display="flex" justifyContent="flex-end" gap={2}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      disabled={processingShiftId === turno.id}
+                      onClick={() => handleRejectShift(turno.id)}
+                    >
+                      {processingShiftId === turno.id
+                        ? "Rechazando..."
+                        : "Rechazar tarea"}
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={() => handleConfirmShift(turno.id)}
+                    >
+                      Aceptar tarea
+                    </Button>
+                  </Box>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowTurnosModal(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para la nota de debito crédito.*/}
+      <Dialog open={openNoteModal} onClose={() => setOpenNoteModal(false)}>
+        <DialogTitle>Crear Nota Crédito / Débito</DialogTitle>
+        <DialogContent>
+          <Autocomplete
+            options={[
+              { label: "Nota Crédito", value: "credit" },
+              { label: "Nota Débito", value: "debit" },
+            ]}
+            getOptionLabel={(option) => option.label}
+            value={
+              noteType
+                ? {
+                    label:
+                      noteType === "credit" ? "Nota Crédito" : "Nota Débito",
+                    value: noteType,
+                  }
+                : null
+            }
+            onChange={(_, value) => setNoteType(value?.value || "")}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tipo de Nota"
+                fullWidth
+                sx={{ mt: 2 }}
+              />
+            )}
+          />
+
+          <TextField
+            label="Nuevo valor"
+            fullWidth
+            type="number"
+            value={noteValue}
+            onChange={(e) => setNoteValue(e.target.value)}
+            InputProps={{
+              startAdornment: <Typography>$</Typography>,
+            }}
+            sx={{ mt: 2 }}
+          />
+
+          <TextField
+            label="Observación"
+            fullWidth
+            multiline
+            minRows={2}
+            value={noteObservation}
+            onChange={(e) => setNoteObservation(e.target.value)}
+            sx={{ mt: 2 }}
+            inputProps={{ maxLength: 250 }}
+            helperText={`${noteObservation.length}/250`}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenNoteModal(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSendNote}
+            disabled={!noteType || !noteValue || sendingNote}
+          >
+            {sendingNote ? "Enviando..." : "Confirmar Nota"}
           </Button>
         </DialogActions>
       </Dialog>

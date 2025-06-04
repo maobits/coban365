@@ -359,12 +359,21 @@ const SnackPluginTransfer: React.FC<Props> = ({
     <>
       <Button
         variant="contained"
-        onClick={handleOpen}
+        onClick={() => {
+          if (correspondent.premium === 1) {
+            handleOpen();
+          } else {
+            setAlertMessage(
+              "⚠️ Esta es una función premium. Solicita una mejora de plan para acceder a transferencias entre cajas."
+            );
+            setAlertOpen(true);
+          }
+        }}
         sx={{
           fontWeight: "bold",
-          fontSize: "1.2rem", // Tamaño de texto más grande
-          paddingX: 4, // Más espacio horizontal (izq/der)
-          paddingY: 2, // Más espacio vertical (arriba/abajo)
+          fontSize: "1.2rem",
+          paddingX: 4,
+          paddingY: 2,
           backgroundColor: "#fff",
           color: colors.text,
           border: `2px solid ${colors.text}`,

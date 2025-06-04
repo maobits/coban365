@@ -79,25 +79,40 @@ export const updateTransaction = async (payload: any): Promise<any> => {
 };
 
 /**
- * Elimina una transacción por ID.
- * @param transactionId - ID de la transacción a eliminar.
+ * Genera una nota crédito o débito sobre una transacción.
+ * @param originalTransactionId - ID de la transacción original.
+ * @param type - Tipo de nota: "credit" o "debit".
+ * @param newValue - Nuevo valor para la transacción ajustada.
+ * @param observation - Observación escrita por el usuario.
+ * @returns Una promesa que resuelve con el estado de la operación.
  */
-export const deleteTransaction = async (
-  transactionId: number
+export const createTransactionNote = async (
+  originalTransactionId: number,
+  type: "credit" | "debit",
+  newValue: number,
+  observation: string
 ): Promise<any> => {
   try {
-    const res = await fetch(
-      `${baseUrl}/api/transactions/utils/delete_transaction.php`,
+    const response = await fetch(
+      `${baseUrl}/api/transactions/create_transaction_note.php`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: transactionId }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          original_transaction_id: originalTransactionId,
+          type,
+          new_value: newValue,
+          observation,
+        }),
       }
     );
-    return await res.json();
+
+    return await response.json();
   } catch (error) {
-    console.error("❌ Error al eliminar transacción:", error);
-    return { success: false, message: "Error al eliminar transacción." };
+    console.error("❌ Error al crear nota crédito/débito:", error);
+    return { success: false, message: "Error al crear nota." };
   }
 };
 

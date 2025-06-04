@@ -177,80 +177,20 @@ const SnackPluginOthers: React.FC<Props> = ({
   const handleClose = () => setOpen(false);
 
   const handleRegister = async () => {
-    if (isSubmitting) return; // ✅ Evita doble clic
-    setIsSubmitting(true); // ✅ Activa estado de envío
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
-      // Validar si no se ha seleccionado un tipo de transacción
-      if (!selectedTransaction) {
-        setAlertMessage("⚠️ Debes seleccionar un tipo de transacción.");
-        setAlertOpen(true);
-        return;
-      }
+      const valorIngresado = parseFloat(amount.replace(/\D/g, "")) || 0;
 
-      // Validar si el campo de monto está vacío
-      if (!amount || amount.trim() === "") {
-        setAlertMessage("⚠️ Debes ingresar una cantidad para continuar.");
-        setAlertOpen(true);
-        amountRef.current?.focus();
-        return;
-      }
-
-      // Convertir el valor numérico (eliminar puntos, comas u otros símbolos)
-      const valorIngresado = parseFloat(amount.replace(/\D/g, ""));
-
-      // Validar si es cero o inválido
-      if (isNaN(valorIngresado)) {
-        setAlertMessage("⚠️ El valor ingresado no es válido.");
-        setAlertOpen(true);
-        amountRef.current?.focus();
-        return;
-      }
-
-      // ✅ 1. Consultar deuda actualizada justo antes de registrar
-      const latestDebtRes = await getDebtToBankByCorrespondent(
-        correspondent.id
-      );
-
-      if (!latestDebtRes.success) {
-        throw new Error("No se pudo obtener la deuda bancaria actualizada.");
-      }
-
-      const latestDebt = latestDebtRes.data.debt_to_bank || 0;
-      const creditLimit = correspondent.credit_limit || 0;
-      const cupoDisponible = creditLimit - latestDebt;
-
-      // ✅ Actualizar el estado de deuda (aunque no se registre)
-      setBankDebt(latestDebt);
-
-      // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
-      await loadCashSummary();
-
-      // ✅ Validar si el monto es mayor al saldo disponible en caja
-      if (valorIngresado > currentCash) {
-        setAlertMessage(
-          `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
-            valorIngresado
-          )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
-            "es-CO"
-          ).format(
-            currentCash
-          )}). No es posible retirar más de lo que hay disponible.`
-        );
-        setAlertOpen(true);
-        amountRef.current?.focus();
-        return;
-      }
-
-      // 3. Obtener tarifa (utility)
       const rateRes = await listRatesByCorrespondent(correspondent.id);
       const tarifa = rateRes?.data?.find(
         (r: any) => r.transaction_type_id === selectedTransaction
       );
       const utility = tarifa ? parseFloat(tarifa.price) : 0;
 
-      // 4. Registrar transacción
       const payload = {
-        id_cashier: 1, // ← Reemplazar por el ID real del cajero
+        id_cashier: 1, // ← Reemplazar por el ID real del cajero si aplica
         id_cash: cash.id,
         id_correspondent: correspondent.id,
         transaction_type_id: selectedTransaction,
@@ -263,9 +203,8 @@ const SnackPluginOthers: React.FC<Props> = ({
 
       if (res.success) {
         setSuccessOpen(true);
-
-        // Actualizar datos en el tablero.
         await loadCashSummary();
+
         const updatedDebtRes = await getDebtToBankByCorrespondent(
           correspondent.id
         );
@@ -276,10 +215,7 @@ const SnackPluginOthers: React.FC<Props> = ({
         setAmount("0");
         setSelectedTransaction("");
 
-        // ✅ Notificar al padre que se completó la transacción
-        if (onTransactionComplete) {
-          onTransactionComplete();
-        }
+        if (onTransactionComplete) onTransactionComplete();
       } else {
         setAlertMessage("❌ Error al registrar la transacción.");
         setAlertOpen(true);
@@ -289,9 +225,18 @@ const SnackPluginOthers: React.FC<Props> = ({
       setAlertMessage("❌ Ocurrió un error al procesar la transacción.");
       setAlertOpen(true);
     } finally {
-      setIsSubmitting(false); // ✅ Siempre habilita el botón al finalizar
+      setIsSubmitting(false);
     }
   };
+
+  // Tipo de transacción.
+  const selectedTransactionObject = transactionTypes.find(
+    (t: any) => t.id === selectedTransaction
+  );
+  const hideAmountField = selectedTransactionObject?.name
+    ?.toLowerCase()
+    ?.includes("saldo");
+
   return (
     <>
       <Button
@@ -375,44 +320,43 @@ const SnackPluginOthers: React.FC<Props> = ({
             </Grid>
 
             {/* Cantidad */}
-            <Grid item xs={12} md={6}>
-              <Typography
-                fontWeight="bold"
-                gutterBottom
-                sx={{ fontSize: "1.2rem", mt: 2 }}
-              >
-                Cantidad
-              </Typography>
-              <TextField
-                fullWidth
-                inputRef={amountRef}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")} // formato en tiempo real
-                onChange={(e) => {
-                  let raw = e.target.value.replace(/\D/g, "");
-
-                  // Si comienza con '0' y tiene más de un dígito, quítalo
-                  if (raw.length > 1 && raw.startsWith("0")) {
-                    raw = raw.replace(/^0+/, "");
-                  }
-
-                  // Si queda vacío, poner "0"
-                  setAmount(raw || "0");
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">COP</InputAdornment>
-                  ),
-                  sx: {
-                    fontSize: "2rem",
-                    fontWeight: "bold",
-                    textAlign: "right",
-                    height: 70,
-                  },
-                }}
-              />
-            </Grid>
+            {/* Cantidad */}
+            {!hideAmountField && (
+              <Grid item xs={12} md={6}>
+                <Typography
+                  fontWeight="bold"
+                  gutterBottom
+                  sx={{ fontSize: "1.2rem", mt: 2 }}
+                >
+                  Cantidad
+                </Typography>
+                <TextField
+                  fullWidth
+                  inputRef={amountRef}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+                  onChange={(e) => {
+                    let raw = e.target.value.replace(/\D/g, "");
+                    if (raw.length > 1 && raw.startsWith("0")) {
+                      raw = raw.replace(/^0+/, "");
+                    }
+                    setAmount(raw || "0");
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">COP</InputAdornment>
+                    ),
+                    sx: {
+                      fontSize: "2rem",
+                      fontWeight: "bold",
+                      textAlign: "right",
+                      height: 70,
+                    },
+                  }}
+                />
+              </Grid>
+            )}
 
             {/* Panel financiero */}
             <Grid item xs={12}>

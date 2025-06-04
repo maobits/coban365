@@ -9,6 +9,7 @@ import CrudMyCorrespondentScreen from "./showcase/manage_correspondent/CrudMyCor
 import CrudUsersScreen from "./showcase/manage_users/CrudUsersScreen";
 import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactionScreen";
 import CrudTransactionsCheckoutScreen from "./showcase/manage_transactions/CrudTransactionScreenCheckout";
+import ShiftsRegisterScreen from "./showcase/shifts/ShiftsScreen";
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -28,6 +29,10 @@ const App: React.FC = () => (
       <Route path="/manageTransactions" element={<CrudTransactionScreen />} />
       <Route path="/manageCash" element={<CrudTransactionsCheckoutScreen />} />
       <Route path="/manageReports" element={<HomeScreen />} />
+      <Route
+        path="/shifts/register/:correspondentId/:cashId"
+        element={<ShiftsRegisterScreen />}
+      />
     </Routes>
     <SnackNavigationBar /> {/* Barra de navegación siempre visible */}
   </BrowserRouter>
