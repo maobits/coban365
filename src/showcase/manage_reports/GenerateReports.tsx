@@ -1,5 +1,3 @@
-// src/showcase/reports/GenerateReports.tsx
-
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -15,6 +13,7 @@ import {
   Toolbar,
   IconButton as MuiIconButton,
   Slide,
+  Divider,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import InventoryIcon from "@mui/icons-material/Inventory";
@@ -25,6 +24,12 @@ import SnackGeneralReport from "../../snacks/ui/reports/SnackGeneralReport";
 import SnackReportBoxes from "../../snacks/ui/reports/SnackReportBoxes";
 import { getCorrespondents } from "../../store/correspondent/CrudCorrespondent";
 import { getCashByCorrespondent } from "../../store/crash/CrudCrash";
+import { getGeneralFigures } from "../../store/reports/Reports";
+
+import GroupsIcon from "@mui/icons-material/Groups";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -32,20 +37,20 @@ const Transition = React.forwardRef(function Transition(
 ) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
+
 const GenerateReports: React.FC = () => {
   const { colors, fonts } = useTheme();
-
   const [correspondents, setCorrespondents] = useState<any[]>([]);
   const [selectedCorrespondent, setSelectedCorrespondent] = useState<any>(null);
   const [cashOptions, setCashOptions] = useState<any[]>([]);
   const [selectedCash, setSelectedCash] = useState<any>(null);
   const [openGeneralDialog, setOpenGeneralDialog] = useState(false);
   const [openBoxDialog, setOpenBoxDialog] = useState(false);
+  const [figures, setFigures] = useState<any>(null);
 
   const session = JSON.parse(localStorage.getItem("userSession") || "{}");
   const role = session?.role;
   const userId = session?.id;
-
   useEffect(() => {
     const fetchCorrespondents = async () => {
       try {
@@ -95,6 +100,14 @@ const GenerateReports: React.FC = () => {
     };
     fetchCashOptions();
   }, [selectedCorrespondent, role, userId]);
+
+  useEffect(() => {
+    if (role === "superadmin") {
+      getGeneralFigures()
+        .then((res) => res.success && setFigures(res.data))
+        .catch((err) => console.error("Error al obtener contadores:", err));
+    }
+  }, [role]);
   return (
     <Box
       sx={{
@@ -142,8 +155,61 @@ const GenerateReports: React.FC = () => {
           </Grid>
         </Grid>
 
+        {role === "superadmin" && figures && (
+          <Grid container spacing={2} mt={3}>
+            <Grid item xs={6} md={3}>
+              <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+                <GroupsIcon fontSize="large" color="primary" />
+                <Typography variant="subtitle1" mt={1}>
+                  Corresponsales
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="primary">
+                  {figures.total_correspondents}
+                </Typography>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={6} md={3}>
+              <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+                <AccountCircleIcon fontSize="large" color="primary" />
+                <Typography variant="subtitle1" mt={1}>
+                  Usuarios
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="primary">
+                  {figures.total_users}
+                </Typography>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={6} md={3}>
+              <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+                <PersonSearchIcon fontSize="large" color="primary" />
+                <Typography variant="subtitle1" mt={1}>
+                  Terceros
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="primary">
+                  {figures.total_others}
+                </Typography>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={6} md={3}>
+              <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+                <ReceiptLongIcon fontSize="large" color="primary" />
+                <Typography variant="subtitle1" mt={1}>
+                  Transacciones
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="primary">
+                  {figures.total_transactions_active}
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+        )}
+        <Divider sx={{ my: 4 }} />
+
         {selectedCorrespondent && role !== "cajero" && (
-          <Grid container mt={3}>
+          <Grid container>
             <Grid item xs={12}>
               <Autocomplete
                 options={cashOptions}
@@ -159,7 +225,7 @@ const GenerateReports: React.FC = () => {
           </Grid>
         )}
 
-        <Grid container spacing={3} mt={4}>
+        <Grid container spacing={3} mt={2}>
           {role !== "cajero" && (
             <Grid item xs={12} md={4}>
               <Paper
