@@ -57,7 +57,7 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   // Lista de roles disponibles
-  const roles = ["admin", "superadmin", "cajero", "tercero"];
+  const roles = ["admin", "superadmin", "cajero"];
 
   // Lista de permisos disponibles
   const permissionsList = [
@@ -267,7 +267,26 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
     { value: "manageCorrespondent", label: "Gestionar su corresponsal" },
     { value: "manageAdministrators", label: "Gestionar administradores" },
     { value: "manageReports", label: "Gestionar reportes" },
+    { value: "manageCash", label: "Gestionar la caja" }, // ← nuevo
   ];
+
+  /*  Permisos por defecto*/
+  const getDefaultPermissionsByRole = (role: string): string[] => {
+    switch (role) {
+      case "admin":
+        return ["manageCorrespondent", "manageReports"];
+      case "superadmin":
+        return [
+          "manageCorrespondents",
+          "manageReports",
+          "manageAdministrators",
+        ];
+      case "cajero":
+        return ["manageCash"];
+      default:
+        return [];
+    }
+  };
 
   return (
     <Box
@@ -413,12 +432,17 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
               style: { color: colors.text },
             }}
           />
-
           <Autocomplete
-            options={["admin", "superadmin"]}
+            options={roles}
             getOptionLabel={(option) => option}
             value={newUser.role}
-            onChange={(_, value) => setNewUser({ ...newUser, role: value })}
+            onChange={(_, value) =>
+              setNewUser({
+                ...newUser,
+                role: value || "",
+                permissions: value ? getDefaultPermissionsByRole(value) : [],
+              })
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
