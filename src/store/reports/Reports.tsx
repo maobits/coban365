@@ -112,3 +112,91 @@ export const getGeneralFigures = async (): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener el estado de cuenta de todos los terceros de un corresponsal.
+ * Realiza una solicitud GET al endpoint `other_account_statement.php`.
+ *
+ * @param {number} correspondentId - ID del corresponsal
+ * @returns {Promise<any>} Una promesa con los datos de terceros y sus balances
+ */
+export const getOtherStatementByCorrespondent = async (
+  correspondentId: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/reports/other_account_statement.php?correspondent_id=${correspondentId}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(
+      "❌ Error al obtener el estado de cuenta de terceros:",
+      error
+    );
+    throw error;
+  }
+};
+
+/**
+ * Servicio para obtener el estado de cuenta de terceros.
+ * Si se proporciona `correspondentId`, obtiene todos los terceros del corresponsal.
+ * Si se proporciona `idNumber`, obtiene solo el tercero con ese documento.
+ *
+ * @param {object} params - Parámetros del servicio.
+ * @param {number} [params.correspondentId] - ID del corresponsal.
+ * @param {string} [params.idNumber] - Número de documento del tercero.
+ * @returns {Promise<any>} Una promesa con los datos del estado de cuenta.
+ */
+
+export const getThirdPartyReport = async (params: {
+  correspondentId?: number;
+  idNumber?: string;
+}): Promise<any> => {
+  try {
+    let url = `${baseUrl}/api/reports/other_account_statement.php`;
+
+    const queryParams: string[] = [];
+
+    if (params.correspondentId) {
+      queryParams.push(`correspondent_id=${params.correspondentId}`);
+    }
+
+    if (params.idNumber) {
+      queryParams.push(`id_number=${encodeURIComponent(params.idNumber)}`);
+    }
+
+    if (queryParams.length === 0) {
+      throw new Error("Se requiere al menos 'correspondentId' o 'idNumber'.");
+    }
+
+    url += `?${queryParams.join("&")}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error al obtener datos: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error en getOtherAccountStatement:", error);
+    throw error;
+  }
+};

@@ -92,14 +92,12 @@ const SnackGeneralReport: React.FC<Props> = ({ correspondentId }) => {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 10,
       body: [
-        [
-          "",
-          "Totales",
-          ingresosTotal.toLocaleString("es-CO"),
-          egresosTotal.toLocaleString("es-CO"),
-          saldoTotal.toLocaleString("es-CO"),
-        ],
+        ["", "", `Ingresos: $${ingresosTotal.toLocaleString("es-CO")}`],
+        ["", "", `Egresos: $${egresosTotal.toLocaleString("es-CO")}`],
+        ["", "", `Saldo Neto: $${saldoTotal.toLocaleString("es-CO")}`],
       ],
+      theme: "plain",
+      styles: { fontStyle: "bold" },
     });
 
     const filename = `Reporte_General_${correspondentName.replace(/\s/g, "_")}${
@@ -118,7 +116,10 @@ const SnackGeneralReport: React.FC<Props> = ({ correspondentId }) => {
         item.egresos,
         item.saldo_por_tipo,
       ]),
-      ["", "Totales", ingresosTotal, egresosTotal, saldoTotal],
+      [],
+      ["", "", `Ingresos:`, ingresosTotal],
+      ["", "", `Egresos:`, egresosTotal],
+      ["", "", `Saldo Neto:`, saldoTotal],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -273,16 +274,19 @@ const SnackGeneralReport: React.FC<Props> = ({ correspondentId }) => {
             ))}
             <TableRow>
               <TableCell colSpan={2} style={{ fontWeight: "bold" }}>
-                Totales
+                <strong>Totales Generales</strong>
               </TableCell>
               <TableCell style={{ fontWeight: "bold" }}>
-                ${new Intl.NumberFormat("es-CO").format(ingresosTotal)}
+                <span>Ingresos: </span>$
+                {new Intl.NumberFormat("es-CO").format(ingresosTotal)}
               </TableCell>
               <TableCell style={{ fontWeight: "bold" }}>
-                ${new Intl.NumberFormat("es-CO").format(egresosTotal)}
+                <span>Egresos: </span>$
+                {new Intl.NumberFormat("es-CO").format(egresosTotal)}
               </TableCell>
               <TableCell style={{ fontWeight: "bold" }}>
-                ${new Intl.NumberFormat("es-CO").format(saldoTotal)}
+                <span>Saldo Neto: </span>$
+                {new Intl.NumberFormat("es-CO").format(saldoTotal)}
               </TableCell>
             </TableRow>
           </TableBody>

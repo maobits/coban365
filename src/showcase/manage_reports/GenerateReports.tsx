@@ -31,6 +31,8 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
+import SnackReportThirdParty from "../../snacks/ui/reports/SnackReportThirdParty";
+
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
@@ -47,6 +49,7 @@ const GenerateReports: React.FC = () => {
   const [openGeneralDialog, setOpenGeneralDialog] = useState(false);
   const [openBoxDialog, setOpenBoxDialog] = useState(false);
   const [figures, setFigures] = useState<any>(null);
+  const [openThirdPartyDialog, setOpenThirdPartyDialog] = useState(false);
 
   const session = JSON.parse(localStorage.getItem("userSession") || "{}");
   const role = session?.role;
@@ -66,7 +69,13 @@ const GenerateReports: React.FC = () => {
                   c.cajas?.some((caja: any) => caja.cashier_id === userId)
                 )
               : [];
+
           setCorrespondents(filtered);
+
+          // Para cajero, asignar automáticamente el único corresponsal disponible
+          if (role === "cajero" && filtered.length === 1) {
+            setSelectedCorrespondent(filtered[0]);
+          }
         }
       } catch (error) {
         console.error("Error al cargar corresponsales:", error);
@@ -283,6 +292,37 @@ const GenerateReports: React.FC = () => {
               </Typography>
             </Paper>
           </Grid>
+
+          {(role === "admin" || role === "superadmin") && (
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={2}
+                sx={{
+                  padding: 3,
+                  textAlign: "center",
+                  cursor: selectedCorrespondent ? "pointer" : "not-allowed",
+                  opacity: selectedCorrespondent ? 1 : 0.5,
+                  "&:hover": {
+                    backgroundColor: selectedCorrespondent
+                      ? "#f3e5f5"
+                      : "inherit",
+                  },
+                }}
+                onClick={() =>
+                  selectedCorrespondent && setOpenThirdPartyDialog(true)
+                }
+              >
+                <Tooltip title="Generar Reporte de Terceros">
+                  <IconButton>
+                    <PersonSearchIcon color="primary" fontSize="large" />
+                  </IconButton>
+                </Tooltip>
+                <Typography mt={1} fontWeight="bold">
+                  Reporte de terceros
+                </Typography>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       </Paper>
 
@@ -346,6 +386,36 @@ const GenerateReports: React.FC = () => {
             correspondentId={selectedCorrespondent?.id}
             cashId={selectedCash?.id ?? null}
           />
+        </Box>
+      </Dialog>
+
+      <Dialog
+        fullScreen
+        open={openThirdPartyDialog}
+        onClose={() => setOpenThirdPartyDialog(false)}
+        TransitionComponent={Transition}
+      >
+        <AppBar sx={{ position: "relative", backgroundColor: colors.primary }}>
+          <Toolbar>
+            <MuiIconButton
+              edge="start"
+              color="inherit"
+              onClick={() => setOpenThirdPartyDialog(false)}
+            >
+              <CloseIcon />
+            </MuiIconButton>
+            <Typography
+              sx={{ ml: 2, flex: 1 }}
+              variant="h6"
+              fontFamily={fonts.heading}
+              color={colors.text_white}
+            >
+              Reporte de Terceros – {selectedCorrespondent?.name}
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        <Box sx={{ padding: 4 }}>
+          <SnackReportThirdParty correspondentId={selectedCorrespondent?.id} />
         </Box>
       </Dialog>
     </Box>
