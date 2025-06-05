@@ -25,6 +25,7 @@ import SnackGeneralReport from "../../snacks/ui/reports/SnackGeneralReport";
 import SnackReportBoxes from "../../snacks/ui/reports/SnackReportBoxes";
 import { getCorrespondents } from "../../store/correspondent/CrudCorrespondent";
 import { getCashByCorrespondent } from "../../store/crash/CrudCrash";
+
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
@@ -38,23 +39,36 @@ const GenerateReports: React.FC = () => {
   const [selectedCorrespondent, setSelectedCorrespondent] = useState<any>(null);
   const [cashOptions, setCashOptions] = useState<any[]>([]);
   const [selectedCash, setSelectedCash] = useState<any>(null);
-
   const [openGeneralDialog, setOpenGeneralDialog] = useState(false);
   const [openBoxDialog, setOpenBoxDialog] = useState(false);
+
+  const session = JSON.parse(localStorage.getItem("userSession") || "{}");
+  const role = session?.role;
+  const userId = session?.id;
 
   useEffect(() => {
     const fetchCorrespondents = async () => {
       try {
         const res = await getCorrespondents();
         if (res.success && Array.isArray(res.data)) {
-          setCorrespondents(res.data);
+          const filtered =
+            role === "superadmin"
+              ? res.data
+              : role === "admin"
+              ? res.data.filter((c: any) => c.operator_id === userId)
+              : role === "cajero"
+              ? res.data.filter((c: any) =>
+                  c.cajas?.some((caja: any) => caja.cashier_id === userId)
+                )
+              : [];
+          setCorrespondents(filtered);
         }
       } catch (error) {
         console.error("Error al cargar corresponsales:", error);
       }
     };
     fetchCorrespondents();
-  }, []);
+  }, [role, userId]);
 
   useEffect(() => {
     const fetchCashOptions = async () => {
@@ -62,7 +76,11 @@ const GenerateReports: React.FC = () => {
         try {
           const res = await getCashByCorrespondent(selectedCorrespondent.id);
           if (res.success && Array.isArray(res.data)) {
-            setCashOptions(res.data);
+            const filteredCash =
+              role === "cajero"
+                ? res.data.filter((cash: any) => cash.cashier_id === userId)
+                : res.data;
+            setCashOptions(filteredCash);
           } else {
             setCashOptions([]);
           }
@@ -75,9 +93,8 @@ const GenerateReports: React.FC = () => {
         setSelectedCash(null);
       }
     };
-
     fetchCashOptions();
-  }, [selectedCorrespondent]);
+  }, [selectedCorrespondent, role, userId]);
   return (
     <Box
       sx={{
@@ -108,7 +125,6 @@ const GenerateReports: React.FC = () => {
               Gestor de reportes
             </Typography>
           </Grid>
-
           <Grid item>
             <Autocomplete
               options={correspondents}
@@ -116,7 +132,7 @@ const GenerateReports: React.FC = () => {
               value={selectedCorrespondent}
               onChange={(_, value) => {
                 setSelectedCorrespondent(value);
-                setSelectedCash(null); // Reinicia selección de caja
+                setSelectedCash(null);
               }}
               renderInput={(params) => (
                 <TextField {...params} label="Seleccionar corresponsal" />
@@ -126,7 +142,7 @@ const GenerateReports: React.FC = () => {
           </Grid>
         </Grid>
 
-        {selectedCorrespondent && (
+        {selectedCorrespondent && role !== "cajero" && (
           <Grid container mt={3}>
             <Grid item xs={12}>
               <Autocomplete
@@ -144,34 +160,36 @@ const GenerateReports: React.FC = () => {
         )}
 
         <Grid container spacing={3} mt={4}>
-          <Grid item xs={12} md={4}>
-            <Paper
-              elevation={2}
-              sx={{
-                padding: 3,
-                textAlign: "center",
-                cursor: selectedCorrespondent ? "pointer" : "not-allowed",
-                opacity: selectedCorrespondent ? 1 : 0.5,
-                "&:hover": {
-                  backgroundColor: selectedCorrespondent
-                    ? "#e3f2fd"
-                    : "inherit",
-                },
-              }}
-              onClick={() =>
-                selectedCorrespondent && setOpenGeneralDialog(true)
-              }
-            >
-              <Tooltip title="Generar Reporte General">
-                <IconButton>
-                  <AssessmentIcon color="primary" fontSize="large" />
-                </IconButton>
-              </Tooltip>
-              <Typography mt={1} fontWeight="bold">
-                Reporte general
-              </Typography>
-            </Paper>
-          </Grid>
+          {role !== "cajero" && (
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={2}
+                sx={{
+                  padding: 3,
+                  textAlign: "center",
+                  cursor: selectedCorrespondent ? "pointer" : "not-allowed",
+                  opacity: selectedCorrespondent ? 1 : 0.5,
+                  "&:hover": {
+                    backgroundColor: selectedCorrespondent
+                      ? "#e3f2fd"
+                      : "inherit",
+                  },
+                }}
+                onClick={() =>
+                  selectedCorrespondent && setOpenGeneralDialog(true)
+                }
+              >
+                <Tooltip title="Generar Reporte General">
+                  <IconButton>
+                    <AssessmentIcon color="primary" fontSize="large" />
+                  </IconButton>
+                </Tooltip>
+                <Typography mt={1} fontWeight="bold">
+                  Reporte general
+                </Typography>
+              </Paper>
+            </Grid>
+          )}
 
           <Grid item xs={12} md={4}>
             <Paper
@@ -202,7 +220,6 @@ const GenerateReports: React.FC = () => {
         </Grid>
       </Paper>
 
-      {/* Reporte General */}
       <Dialog
         fullScreen
         open={openGeneralDialog}
@@ -233,7 +250,6 @@ const GenerateReports: React.FC = () => {
         </Box>
       </Dialog>
 
-      {/* Reporte por Cajas */}
       <Dialog
         fullScreen
         open={openBoxDialog}

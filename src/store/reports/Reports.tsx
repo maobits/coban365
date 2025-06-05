@@ -76,3 +76,39 @@ export const getBoxReport = async (
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener cifras generales del sistema.
+ * Realiza una solicitud GET al endpoint `report_general_figures.php`.
+ *
+ * Devuelve:
+ * - Total de corresponsales
+ * - Total de usuarios
+ * - Total de terceros
+ * - Total de transacciones activas
+ *
+ * @returns {Promise<any>} Una promesa con los datos del resumen general.
+ */
+
+export const getGeneralFigures = async (): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/reports/report_general_figures.php`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener cifras generales:", error);
+    throw error;
+  }
+};
