@@ -10,6 +10,7 @@ import CrudUsersScreen from "./showcase/manage_users/CrudUsersScreen";
 import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactionScreen";
 import CrudTransactionsCheckoutScreen from "./showcase/manage_transactions/CrudTransactionScreenCheckout";
 import ShiftsRegisterScreen from "./showcase/shifts/ShiftsScreen";
+import GenerateReports from "./showcase/manage_reports/GenerateReports"; // ← Agregado
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -28,7 +29,7 @@ const App: React.FC = () => (
       <Route path="/manageAdministrators" element={<CrudUsersScreen />} />
       <Route path="/manageTransactions" element={<CrudTransactionScreen />} />
       <Route path="/manageCash" element={<CrudTransactionsCheckoutScreen />} />
-      <Route path="/manageReports" element={<HomeScreen />} />
+      <Route path="/manageReports" element={<GenerateReports />} />
       <Route
         path="/shifts/register/:correspondentId/:cashId"
         element={<ShiftsRegisterScreen />}

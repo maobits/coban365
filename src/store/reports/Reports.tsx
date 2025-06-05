@@ -1,0 +1,78 @@
+import baseUrl from "../config/server"; // Importa la configuración del servidor
+
+/**
+ * Servicio para obtener el reporte general de un corresponsal.
+ * Realiza una solicitud POST al endpoint `general_report.php`.
+ *
+ * @param {number} correspondentId - ID del corresponsal.
+ * @returns {Promise<any>} Una promesa con los datos del reporte.
+ */
+export const getGeneralReport = async (
+  correspondentId: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/reports/general_report.php`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ correspondent_id: correspondentId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el reporte general:", error);
+    throw error;
+  }
+};
+
+/**
+ * Servicio para obtener el reporte por caja de un corresponsal.
+ * Realiza una solicitud POST al endpoint `box_report.php`.
+ *
+ * @param {number} correspondentId - ID del corresponsal.
+ * @param {object} filters - Filtros opcionales como cash_id, start_date y end_date.
+ * @returns {Promise<any>} Una promesa con los datos del reporte.
+ */
+export const getBoxReport = async (
+  correspondentId: number,
+  filters: {
+    cash_id?: number;
+    start_date?: string;
+    end_date?: string;
+  } = {}
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/reports/box_report.php`;
+
+    const body = {
+      correspondent_id: correspondentId,
+      ...filters,
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el reporte por caja:", error);
+    throw error;
+  }
+};
