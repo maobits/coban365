@@ -1,4 +1,4 @@
-import baseUrl from "../config/server"; // Importa la configuración del servidor
+import { baseUrl } from "../config/server"; // Importa la configuración del servidor
 
 /**
  * Servicio para obtener la lista de perfiles de usuarios.

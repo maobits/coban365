@@ -520,14 +520,14 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                       >
                         <Edit />
                       </IconButton>
-                      <IconButton
+                      {/*<IconButton
                         color="error"
                         onClick={() =>
                           handleDeleteCorrespondent(correspondent.id)
                         }
                       >
                         <Delete />
-                      </IconButton>
+                      </IconButton>*/}
                     </TableCell>
                   </TableRow>
                 );

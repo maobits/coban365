@@ -1,4 +1,4 @@
-import baseUrl from "../config/server"; // Ruta base del servidor
+import { baseUrl } from "../config/server"; // Ruta base del servidor
 
 /**
  * Servicio para registrar un nuevo cajero en el sistema.

@@ -1,4 +1,4 @@
-import baseUrl from "../config/server";
+import { baseUrl } from "../config/server";
 
 export const getTransactionTypes = async (): Promise<any> => {
   try {

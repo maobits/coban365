@@ -265,12 +265,12 @@ const SnackCrudCashier: React.FC<{
                     >
                       <Edit />
                     </IconButton>
-                    <IconButton
+                    {/*<IconButton
                       color="error"
                       onClick={() => handleDelete(user.id)}
                     >
                       <Delete />
-                    </IconButton>
+                    </IconButton>*/}
                   </TableCell>
                 </TableRow>
               ))}

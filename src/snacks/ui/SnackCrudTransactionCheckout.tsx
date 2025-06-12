@@ -32,6 +32,7 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 import InfoIcon from "@mui/icons-material/Info";
 import SnackPagination from "./utils/SnackPagination";
 import ShareIcon from "@mui/icons-material/Share";
+import { baseUrl, isDevelopment } from "../../store/config/server";
 
 import {
   getTransactionsByCash,
@@ -91,6 +92,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [transactionIdToDelete, setTransactionIdToDelete] = useState<
     number | null
   >(null);
+
+  const dynamicBaseUrl = isDevelopment ? window.location.origin : baseUrl;
 
   const theme = useTheme(); // accede al objeto de tema
 

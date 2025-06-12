@@ -384,12 +384,12 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                     >
                       <Edit />
                     </IconButton>
-                    <IconButton
+                    {/*<IconButton
                       color="error"
                       onClick={() => handleDeleteOther(other.id)}
                     >
                       <Delete />
-                    </IconButton>
+                    </IconButton>*/}
                   </TableCell>
                 </TableRow>
               ))}

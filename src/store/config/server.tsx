@@ -7,7 +7,7 @@
  */
 
 // Cambia manualmente este valor: true para desarrollo, false para producción.
-const isDevelopment = true;
+const isDevelopment = false;
 
 const baseUrl = isDevelopment
   ? "http://localhost:8080/coban365" // Ruta base para desarrollo
@@ -16,4 +16,4 @@ const baseUrl = isDevelopment
 console.log("Modo desarrollo:", isDevelopment);
 console.log("Base URL:", baseUrl);
 
-export default baseUrl;
+export { baseUrl, isDevelopment };

@@ -344,12 +344,12 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
                     >
                       <Edit />
                     </IconButton>
-                    <IconButton
+                    {/*<IconButton
                       color="error"
                       onClick={() => handleDeleteUser(user.id)}
                     >
                       <Delete />
-                    </IconButton>
+                    </IconButton>*/}
                   </TableCell>
                 </TableRow>
               ))}

@@ -424,14 +424,14 @@ const SnackCrudMyCorrespondent: React.FC<{
                       >
                         <PointOfSale />
                       </IconButton>
-                      <IconButton
+                      {/*<IconButton
                         color="error"
                         onClick={() =>
                           handleDeleteCorrespondent(correspondent.id)
                         }
                       >
                         <Delete />
-                      </IconButton>
+                      </IconButton>*/}
                     </TableCell>
                   </TableRow>
                 );

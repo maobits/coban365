@@ -175,7 +175,6 @@ const SnackGeneralReport: React.FC<Props> = ({ correspondentId }) => {
       </Box>
     );
   }
-
   return (
     <Box mt={4}>
       <Typography
@@ -255,7 +254,18 @@ const SnackGeneralReport: React.FC<Props> = ({ correspondentId }) => {
           </TableHead>
           <TableBody>
             {filteredResumen.map((item: any) => (
-              <TableRow key={item.transaction_type_id}>
+              <TableRow
+                key={item.transaction_type_id}
+                style={
+                  item.transaction_type_name === "Transferencias recibidas"
+                    ? {
+                        backgroundColor: colors.secondary,
+                        color: colors.text_white,
+                        fontWeight: "bold",
+                      }
+                    : {}
+                }
+              >
                 <TableCell>{item.transaction_type_name}</TableCell>
                 <TableCell>{item.category}</TableCell>
                 <TableCell>

@@ -1,4 +1,4 @@
-import baseUrl from "../config/server";
+import { baseUrl } from "../config/server";
 
 /**
  * Servicio para listar los terceros (others) asociados a un corresponsal específico.

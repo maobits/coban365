@@ -1,4 +1,4 @@
-import baseUrl from "../config/server"; // Importa la configuración del servidor
+import { baseUrl } from "../config/server"; // Importa la configuración del servidor
 
 /**
  * Servicio para enviar correo de recuperación de contraseña.
