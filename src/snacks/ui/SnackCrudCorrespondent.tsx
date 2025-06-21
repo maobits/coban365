@@ -239,9 +239,14 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
         newCorrespondent.code.trim() === "" ||
         newCorrespondent.name.trim() === "" ||
         newCorrespondent.location.departamento.trim() === "" ||
-        newCorrespondent.location.ciudad.trim() === ""
+        newCorrespondent.location.ciudad.trim() === "" ||
+        newCorrespondent.credit_limit <= 0
       ) {
-        setAlertMessage("Todos los campos son obligatorios.");
+        const msg =
+          newCorrespondent.credit_limit <= 0
+            ? "El cupo debe ser mayor a cero."
+            : "Todos los campos son obligatorios.";
+        setAlertMessage(msg);
         setAlertType("error");
         return;
       }
@@ -386,7 +391,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                 <TableCell>Código</TableCell>
                 <TableCell>Nombre</TableCell>
                 <TableCell>Tipo</TableCell>
-                <TableCell>Operador</TableCell>
+                <TableCell>Administrador</TableCell>
                 <TableCell>Ubicación</TableCell>
                 <TableCell>Cupo</TableCell>
                 <TableCell>Premium</TableCell>

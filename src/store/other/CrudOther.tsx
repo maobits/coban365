@@ -35,7 +35,13 @@ export const createOther = async (otherData: {
   correspondent_id: number;
   name: string;
   credit: number;
-  state?: number; // opcional
+  balance: number; // ✅ Campo obligatorio agregado
+  id_type?: string;
+  id_number?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  state?: number; // sigue siendo opcional
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/other/create_other.php`;
@@ -50,9 +56,15 @@ export const createOther = async (otherData: {
       throw new Error(`Error al crear el tercero: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || "No se pudo registrar el tercero.");
+    }
+
+    return data;
   } catch (error) {
-    console.error("Error al crear tercero:", error);
+    console.error("❌ Error al crear tercero:", error);
     throw error;
   }
 };
@@ -68,7 +80,13 @@ export const updateOther = async (otherData: {
   correspondent_id: number;
   name: string;
   credit: number;
+  balance: number; // ✅ Campo agregado
   state: number;
+  id_type?: string;
+  id_number?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/other/update_other.php`;
@@ -83,9 +101,15 @@ export const updateOther = async (otherData: {
       throw new Error(`Error al actualizar tercero: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || "No se pudo actualizar el tercero.");
+    }
+
+    return data;
   } catch (error) {
-    console.error("Error al actualizar tercero:", error);
+    console.error("❌ Error al actualizar tercero:", error);
     throw error;
   }
 };

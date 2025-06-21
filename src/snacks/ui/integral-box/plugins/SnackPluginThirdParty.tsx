@@ -383,24 +383,53 @@ const SnackPluginDeposits: React.FC<Props> = ({
       }
 
       // Si es un pago de tercero, validar que haya saldo pendiente por cobrar
-      if (third_party_note === "charge_to_third_party") {
-        const cobrosAlTercero = thirdPartyBalance?.charge_to_third_party || 0;
+      if (
+        third_party_note === "charge_to_third_party" ||
+        third_party_note === "debt_to_third_party"
+      ) {
+        const netBalance = thirdPartyBalance?.net_balance || 0;
 
-        if (cobrosAlTercero <= 0) {
+        if (third_party_note === "charge_to_third_party" && netBalance <= 0) {
           setAlertMessage(
-            "⚠️ No hay cobros pendientes a este tercero. No se puede registrar el pago."
+            `⚠️ Este tercero no tiene saldo pendiente con el corresponsal.`
           );
           setAlertOpen(true);
           return;
         }
 
-        if (valorIngresado > cobrosAlTercero) {
+        if (
+          third_party_note === "charge_to_third_party" &&
+          valorIngresado > netBalance
+        ) {
           setAlertMessage(
             `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
               valorIngresado
             )}) excede el valor que este tercero debe al corresponsal ($${new Intl.NumberFormat(
               "es-CO"
-            ).format(cobrosAlTercero)}).`
+            ).format(netBalance)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        if (third_party_note === "debt_to_third_party" && netBalance >= 0) {
+          setAlertMessage(
+            `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        if (
+          third_party_note === "debt_to_third_party" &&
+          valorIngresado > Math.abs(netBalance)
+        ) {
+          setAlertMessage(
+            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+              valorIngresado
+            )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
+              "es-CO"
+            ).format(Math.abs(netBalance))}).`
           );
           setAlertOpen(true);
           return;
@@ -532,6 +561,32 @@ const SnackPluginDeposits: React.FC<Props> = ({
       setIsSubmitting(false);
     }
   };
+
+  const netBalance = thirdPartyBalance?.net_balance || 0;
+  const nombreTercero = selectedOther?.name || "el tercero";
+
+  let saldoResumen = null;
+  if (netBalance > 0) {
+    saldoResumen = (
+      <Typography mt={1}>
+        <strong>📥 {nombreTercero} debe al corresponsal:</strong> ${" "}
+        {new Intl.NumberFormat("es-CO").format(netBalance)}
+      </Typography>
+    );
+  } else if (netBalance < 0) {
+    saldoResumen = (
+      <Typography mt={1}>
+        <strong>💸 El corresponsal debe a {nombreTercero}:</strong> ${" "}
+        {new Intl.NumberFormat("es-CO").format(Math.abs(netBalance))}
+      </Typography>
+    );
+  } else {
+    saldoResumen = (
+      <Typography mt={1}>
+        <strong>✔️ No hay saldos pendientes entre partes.</strong>
+      </Typography>
+    );
+  }
 
   return (
     <>
@@ -749,16 +804,24 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   </Typography>
 
                   <Typography mt={1}>
-                    <strong>💸 Este corresponsal debe al tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance?.debt_to_third_party || 0
+                    {netBalance > 0 && (
+                      <strong>📥 {nombreTercero} debe al corresponsal:</strong>
                     )}
-                  </Typography>
-
-                  <Typography mt={1}>
-                    <strong>📥 Este tercero debe al corresponsal:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.charge_to_third_party
+                    {netBalance < 0 && (
+                      <strong>
+                        💸 El corresponsal debe a {nombreTercero}:
+                      </strong>
+                    )}
+                    {netBalance === 0 && (
+                      <strong>✔️ No hay saldos pendientes entre partes.</strong>
+                    )}{" "}
+                    {netBalance !== 0 && (
+                      <>
+                        $
+                        {new Intl.NumberFormat("es-CO").format(
+                          Math.abs(netBalance)
+                        )}
+                      </>
                     )}
                   </Typography>
 

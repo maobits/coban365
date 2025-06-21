@@ -58,7 +58,9 @@ const SnackCrudMyCorrespondent: React.FC<{
     name: "",
     location: { departamento: "", ciudad: "" },
     transactions: [] as { id: number; name: string }[],
+    credit_limit: 0, // ✅ Agregado
   });
+
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
@@ -412,12 +414,14 @@ const SnackCrudMyCorrespondent: React.FC<{
                       />
                     </TableCell>
                     <TableCell>
+                      {/* 
                       <IconButton
                         color="primary"
                         onClick={() => handleEditCorrespondent(correspondent)}
                       >
                         <Edit />
                       </IconButton>
+                      */}
                       <IconButton
                         color="success"
                         onClick={() => handleOpenCashDialog(correspondent)}

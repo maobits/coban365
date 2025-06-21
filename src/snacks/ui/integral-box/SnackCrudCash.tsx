@@ -880,10 +880,7 @@ const SnackCrudCash: React.FC<{
             onChange={(e) => {
               const phrase = e.target.value;
               setSecurityPhrase(phrase);
-              setCanEditAmount(
-                parseFloat(initialAmountValue) === 0 ||
-                  phrase.toLowerCase() === "modificar monto"
-              );
+              setCanEditAmount(true); // permite editar siempre que haya una frase escrita
             }}
             sx={{
               backgroundColor: "#fff",
@@ -930,10 +927,7 @@ const SnackCrudCash: React.FC<{
               },
             }}
             onClick={handleSaveInitialAmount}
-            disabled={
-              parseFloat(initialAmountValue) !== 0 &&
-              securityPhrase.toLowerCase() !== "modificar monto"
-            }
+            disabled={!canEditAmount}
           >
             GUARDAR
           </Button>

@@ -65,14 +65,15 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   // Estado para crear nuevo tercero
   const [newOther, setNewOther] = useState({
     name: "",
+    credit: 0,
+    balance: 0, // ✅ nuevo campo
+    state: 1,
+    correspondent_id: correspondent?.id || null,
     id_type: "",
     id_number: "",
     email: "",
     phone: "",
     address: "",
-    credit: 0,
-    state: 1,
-    correspondent_id: correspondent?.id || null,
   });
 
   // Estado de carga pendiente.
@@ -232,6 +233,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
     setSelectedOther({
       ...other,
       credit: parseFloat(other.credit),
+      balance: parseFloat(other.balance || 0), // ✅ importante
       id_type: other.id_type || "",
       id_number: other.id_number || "",
       email: other.email || "",
@@ -347,6 +349,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                 <TableCell>Correo Electrónico</TableCell>
                 <TableCell>Celular</TableCell>
                 <TableCell>Crédito</TableCell>
+                <TableCell>Saldo Inicial</TableCell> {/* ✅ Nuevo encabezado */}
                 <TableCell>Estado</TableCell>
                 <TableCell>Acciones</TableCell>
               </TableRow>
@@ -362,6 +365,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                   <TableCell>{other.email}</TableCell>
                   <TableCell>{other.phone}</TableCell>
                   <TableCell>{formatCOP(other.credit)}</TableCell>
+                  <TableCell>{formatCOP(other.balance)}</TableCell>
+
                   <TableCell>
                     <FormControlLabel
                       control={
@@ -544,6 +549,19 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
               helperText={formErrors.credit}
               sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
+            <TextField
+              fullWidth
+              label="Saldo Inicial"
+              value={formatCOP(newOther.balance)}
+              onChange={(e) =>
+                setNewOther({
+                  ...newOther,
+                  balance:
+                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
+                })
+              }
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
+            />
           </Box>
         </DialogContent>
 
@@ -701,6 +719,23 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                 setSelectedOther((prev: any) => ({
                   ...prev,
                   credit:
+                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
+                }))
+              }
+              sx={{
+                backgroundColor: colors.background,
+                borderRadius: 1,
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Saldo Inicial"
+              value={formatCOP(selectedOther?.balance || 0)}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  balance:
                     parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
                 }))
               }

@@ -17,42 +17,43 @@ const FinancialSummaryPanel: React.FC<Props> = ({
 }) => {
   const theme = useTheme();
 
-  const debtPercentage = creditLimit ? (bankDebt / creditLimit) * 100 : 0;
-  const availablePercentage = creditLimit
-    ? ((creditLimit - bankDebt) / creditLimit) * 100
-    : 0;
-  const saldoCajaPercentage = creditLimit
-    ? (cashBalance / creditLimit) * 100
-    : 0;
-  const cajaCapacidad = cashCapacity || 1;
-  const cashPercentage = (cashBalance / cajaCapacidad) * 100;
+  const compactFont = { xs: "1rem", sm: "1.1rem", md: "1.2rem" };
+  const compactValueFont = { xs: "1.2rem", sm: "1.4rem", md: "1.6rem" };
 
   return (
     <Paper
       elevation={3}
       sx={{
-        p: 5, // Más padding general
+        p: 2,
+        mr: 2, // ✅ margen derecho agregado
         border: `1px solid ${theme.colors.secondary}`,
-        borderRadius: 4,
+        borderRadius: 3,
         backgroundColor: theme.colors.primary,
+        width: "100%",
+        overflowX: "auto",
       }}
     >
-      <Grid container spacing={6} justifyContent="center">
+      <Grid
+        container
+        spacing={2}
+        justifyContent="center"
+        alignItems="center"
+        wrap="wrap"
+      >
         {/* Banco */}
-        <Grid item xs={12} md={4}>
-          <Box textAlign="center" py={2}>
+        <Grid item xs={12} sm={4}>
+          <Box textAlign="center">
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="1.8rem"
-              gutterBottom
+              fontSize={compactFont}
             >
               🏦 Banco
             </Typography>
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="2rem"
+              fontSize={compactValueFont}
             >
               ${new Intl.NumberFormat("es-CO").format(bankDebt)}
             </Typography>
@@ -60,20 +61,19 @@ const FinancialSummaryPanel: React.FC<Props> = ({
         </Grid>
 
         {/* Caja */}
-        <Grid item xs={12} md={4}>
-          <Box textAlign="center" py={2}>
+        <Grid item xs={12} sm={4}>
+          <Box textAlign="center">
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="1.8rem"
-              gutterBottom
+              fontSize={compactFont}
             >
               🪙 Caja
             </Typography>
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="2rem"
+              fontSize={compactValueFont}
             >
               ${new Intl.NumberFormat("es-CO").format(cashBalance)}
             </Typography>
@@ -81,20 +81,19 @@ const FinancialSummaryPanel: React.FC<Props> = ({
         </Grid>
 
         {/* Cupo */}
-        <Grid item xs={12} md={4}>
-          <Box textAlign="center" py={2}>
+        <Grid item xs={12} sm={4}>
+          <Box textAlign="center">
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="1.8rem"
-              gutterBottom
+              fontSize={compactFont}
             >
               ✅ Cupo
             </Typography>
             <Typography
               fontWeight="bold"
               color={theme.colors.text_white}
-              fontSize="2rem"
+              fontSize={compactValueFont}
             >
               ${new Intl.NumberFormat("es-CO").format(creditLimit - bankDebt)}
             </Typography>
