@@ -141,6 +141,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [withdrawals, setWithdrawals] = useState(0);
   const [bankDebt, setBankDebt] = useState(0);
   const [offsets, setOffsets] = useState(0);
+  const [thirdPartyBalance, setThirdPartyBalance] = useState(0);
 
   // Cancelar transacción.
   const [openCancelModal, setOpenCancelModal] = useState(false);
@@ -345,8 +346,10 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
       // Deuda al banco (global)
       const debtRes = await getDebtToBankByCorrespondent(corrRes.data.id);
+
       if (debtRes.success) {
         setBankDebt(debtRes.data.debt_to_bank || 0);
+        setThirdPartyBalance(debtRes.data.third_party_balance_inverted || 0);
 
         const cajaActual = (debtRes.data.cashes || []).find(
           (c: any) => c.id === firstCash.id
@@ -808,6 +811,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 }
                 creditLimit={selectedCorrespondent?.credit_limit || 0}
                 cashCapacity={selectedCash?.capacity || 1}
+                thirdPartyBalanceInverted={thirdPartyBalance} // ← nuevo
               />
             </Grid>
           </Grid>

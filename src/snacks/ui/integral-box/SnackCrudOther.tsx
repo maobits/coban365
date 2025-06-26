@@ -552,14 +552,22 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
             <TextField
               fullWidth
               label="Saldo Inicial"
-              value={formatCOP(newOther.balance)}
-              onChange={(e) =>
-                setNewOther({
-                  ...newOther,
-                  balance:
-                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
-                })
-              }
+              type="text"
+              inputMode="decimal"
+              value={newOther.balance?.toString() ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                // Permitir valores negativos, positivos, vacíos y con punto decimal
+                const validNumber = /^-?\d*\.?\d*$/.test(value);
+                if (validNumber || value === "") {
+                  setNewOther((prev) => ({
+                    ...prev,
+                    balance:
+                      value === "" || value === "-" ? value : parseFloat(value),
+                  }));
+                }
+              }}
               sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
           </Box>
@@ -731,18 +739,23 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
             <TextField
               fullWidth
               label="Saldo Inicial"
-              value={formatCOP(selectedOther?.balance || 0)}
-              onChange={(e) =>
-                setSelectedOther((prev: any) => ({
-                  ...prev,
-                  balance:
-                    parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0,
-                }))
-              }
-              sx={{
-                backgroundColor: colors.background,
-                borderRadius: 1,
+              type="text"
+              inputMode="decimal"
+              value={selectedOther?.balance?.toString() ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                // Permitir: "", "-", "-123", "123", "0", etc.
+                const validNumber = /^-?\d*\.?\d*$/.test(value);
+                if (validNumber || value === "") {
+                  setSelectedOther((prev: any) => ({
+                    ...prev,
+                    balance:
+                      value === "" || value === "-" ? value : parseFloat(value),
+                  }));
+                }
               }}
+              sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
 
             <TextField

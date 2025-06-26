@@ -7,6 +7,7 @@ interface Props {
   cashBalance: number;
   creditLimit: number;
   cashCapacity: number;
+  thirdPartyBalanceInverted: number; // ← nuevo campo
 }
 
 const FinancialSummaryPanel: React.FC<Props> = ({
@@ -14,6 +15,7 @@ const FinancialSummaryPanel: React.FC<Props> = ({
   cashBalance,
   creditLimit,
   cashCapacity,
+  thirdPartyBalanceInverted,
 }) => {
   const theme = useTheme();
 
@@ -33,35 +35,9 @@ const FinancialSummaryPanel: React.FC<Props> = ({
         overflowX: "auto",
       }}
     >
-      <Grid
-        container
-        spacing={2}
-        justifyContent="center"
-        alignItems="center"
-        wrap="wrap"
-      >
-        {/* Banco */}
-        <Grid item xs={12} sm={4}>
-          <Box textAlign="center">
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactFont}
-            >
-              🏦 Banco
-            </Typography>
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactValueFont}
-            >
-              ${new Intl.NumberFormat("es-CO").format(bankDebt)}
-            </Typography>
-          </Box>
-        </Grid>
-
-        {/* Caja */}
-        <Grid item xs={12} sm={4}>
+      <Grid container spacing={2} justifyContent="center">
+        {/* Fila 1 */}
+        <Grid item xs={6}>
           <Box textAlign="center">
             <Typography
               fontWeight="bold"
@@ -80,8 +56,47 @@ const FinancialSummaryPanel: React.FC<Props> = ({
           </Box>
         </Grid>
 
-        {/* Cupo */}
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={6}>
+          <Box textAlign="center">
+            <Typography
+              fontWeight="bold"
+              color={theme.colors.text_white}
+              fontSize={compactFont}
+            >
+              📊 Terceros
+            </Typography>
+            <Typography
+              fontWeight="bold"
+              color={theme.colors.text_white}
+              fontSize={compactValueFont}
+            >
+              $
+              {new Intl.NumberFormat("es-CO").format(thirdPartyBalanceInverted)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        {/* Fila 2 */}
+        <Grid item xs={6}>
+          <Box textAlign="center">
+            <Typography
+              fontWeight="bold"
+              color={theme.colors.text_white}
+              fontSize={compactFont}
+            >
+              🏦 Banco
+            </Typography>
+            <Typography
+              fontWeight="bold"
+              color={theme.colors.text_white}
+              fontSize={compactValueFont}
+            >
+              ${new Intl.NumberFormat("es-CO").format(bankDebt)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={6}>
           <Box textAlign="center">
             <Typography
               fontWeight="bold"
