@@ -349,7 +349,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
       if (debtRes.success) {
         setBankDebt(debtRes.data.debt_to_bank || 0);
-        setThirdPartyBalance(debtRes.data.third_party_balance_inverted || 0);
+        setThirdPartyBalance(debtRes.data.third_party_balance || 0);
 
         const cajaActual = (debtRes.data.cashes || []).find(
           (c: any) => c.id === firstCash.id

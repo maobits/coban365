@@ -35,13 +35,14 @@ export const createOther = async (otherData: {
   correspondent_id: number;
   name: string;
   credit: number;
-  balance: number; // ✅ Campo obligatorio agregado
+  balance: number;
+  negative_balance: boolean; // ✅ Nuevo campo agregado
   id_type?: string;
   id_number?: string;
   email?: string;
   phone?: string;
   address?: string;
-  state?: number; // sigue siendo opcional
+  state?: number;
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/other/create_other.php`;
@@ -80,8 +81,9 @@ export const updateOther = async (otherData: {
   correspondent_id: number;
   name: string;
   credit: number;
-  balance: number; // ✅ Campo agregado
+  balance: number;
   state: number;
+  negative_balance: boolean; // ✅ Campo nuevo agregado
   id_type?: string;
   id_number?: string;
   email?: string;
@@ -94,7 +96,7 @@ export const updateOther = async (otherData: {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(otherData),
+      body: JSON.stringify(otherData), // ✅ Incluye negative_balance aquí
     });
 
     if (!response.ok) {

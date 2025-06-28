@@ -96,9 +96,8 @@ const SnackPluginDeposits: React.FC<Props> = ({
     creditLimit > 0 ? ((creditLimit - bankDebt) / creditLimit) * 100 : 0;
 
   //Cupo disponible
-  const totalCredit = selectedOther?.credit || 0;
-  const usedCredit = thirdPartyBalance?.charge_to_third_party || 0;
-  const availableCredit = totalCredit - usedCredit;
+  const availableCredit = thirdPartyBalance?.available_credit || 0;
+  const totalCredit = thirdPartyBalance?.credit_limit || 0;
   const isFullCredit = availableCredit === totalCredit;
 
   // Nota del tercero según el tipo de transacción
@@ -382,57 +381,57 @@ const SnackPluginDeposits: React.FC<Props> = ({
         }
       }
 
-      // Si es un pago de tercero, validar que haya saldo pendiente por cobrar
+      // Si es un pago entre el tercero y el corresponsal, validar saldos cruzados
       if (
         third_party_note === "charge_to_third_party" ||
         third_party_note === "debt_to_third_party"
       ) {
-        const netBalance = thirdPartyBalance?.net_balance || 0;
+        const netBalance = thirdPartyBalance?.net_balance ?? 0;
 
-        if (third_party_note === "charge_to_third_party" && netBalance <= 0) {
-          setAlertMessage(
-            `⚠️ Este tercero no tiene saldo pendiente con el corresponsal.`
-          );
-          setAlertOpen(true);
-          return;
+        // Si el tercero debe al corresponsal, netBalance debe ser > 0
+        if (third_party_note === "charge_to_third_party") {
+          if (netBalance <= 0) {
+            setAlertMessage(
+              `⚠️ El tercero no tiene deuda pendiente con el corresponsal.`
+            );
+            setAlertOpen(true);
+            return;
+          }
+
+          if (valorIngresado > netBalance) {
+            setAlertMessage(
+              `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+                valorIngresado
+              )}) excede lo que este tercero debe al corresponsal ($${new Intl.NumberFormat(
+                "es-CO"
+              ).format(netBalance)}).`
+            );
+            setAlertOpen(true);
+            return;
+          }
         }
 
-        if (
-          third_party_note === "charge_to_third_party" &&
-          valorIngresado > netBalance
-        ) {
-          setAlertMessage(
-            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )}) excede el valor que este tercero debe al corresponsal ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(netBalance)}).`
-          );
-          setAlertOpen(true);
-          return;
-        }
+        // Si el corresponsal debe al tercero, netBalance debe ser < 0
+        if (third_party_note === "debt_to_third_party") {
+          if (netBalance >= 0) {
+            setAlertMessage(
+              `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
+            );
+            setAlertOpen(true);
+            return;
+          }
 
-        if (third_party_note === "debt_to_third_party" && netBalance >= 0) {
-          setAlertMessage(
-            `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
-          );
-          setAlertOpen(true);
-          return;
-        }
-
-        if (
-          third_party_note === "debt_to_third_party" &&
-          valorIngresado > Math.abs(netBalance)
-        ) {
-          setAlertMessage(
-            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(Math.abs(netBalance))}).`
-          );
-          setAlertOpen(true);
-          return;
+          if (valorIngresado > Math.abs(netBalance)) {
+            setAlertMessage(
+              `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+                valorIngresado
+              )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
+                "es-CO"
+              ).format(Math.abs(netBalance))}).`
+            );
+            setAlertOpen(true);
+            return;
+          }
         }
       }
 
@@ -462,10 +461,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
       // Si es un préstamo al tercero, validar cupo disponible y saldo en caja
       if (third_party_note === "loan_to_third_party") {
-        const creditLimitTercero = selectedOther?.credit || 0;
-        const chargeToThirdParty =
-          thirdPartyBalance?.charge_to_third_party || 0;
-        const availableCredit = creditLimitTercero - chargeToThirdParty;
+        const availableCredit = thirdPartyBalance?.available_credit || 0;
 
         if (selectedOther?.state !== 1) {
           setAlertMessage(
@@ -562,28 +558,45 @@ const SnackPluginDeposits: React.FC<Props> = ({
     }
   };
 
-  const netBalance = thirdPartyBalance?.net_balance || 0;
   const nombreTercero = selectedOther?.name || "el tercero";
+  console.log("🧾 Nombre del tercero:", nombreTercero);
+
+  const netBalance = thirdPartyBalance?.net_balance ?? 0;
+  const action = thirdPartyBalance?.correspondent_action;
+  console.log("📊 netBalance recibido:", netBalance);
+  console.log("🎯 Acción del corresponsal (backend):", action);
 
   let saldoResumen = null;
-  if (netBalance > 0) {
-    saldoResumen = (
-      <Typography mt={1}>
-        <strong>📥 {nombreTercero} debe al corresponsal:</strong> ${" "}
-        {new Intl.NumberFormat("es-CO").format(netBalance)}
-      </Typography>
-    );
-  } else if (netBalance < 0) {
-    saldoResumen = (
-      <Typography mt={1}>
-        <strong>💸 El corresponsal debe a {nombreTercero}:</strong> ${" "}
-        {new Intl.NumberFormat("es-CO").format(Math.abs(netBalance))}
-      </Typography>
-    );
-  } else {
+
+  if (action === "sin_saldo" || netBalance === 0) {
+    console.log("✅ No hay saldos pendientes entre partes.");
     saldoResumen = (
       <Typography mt={1}>
         <strong>✔️ No hay saldos pendientes entre partes.</strong>
+      </Typography>
+    );
+  } else if (action === "cobra") {
+    const label = `📥 ${nombreTercero} debe al corresponsal:`;
+    const valorFormateado = new Intl.NumberFormat("es-CO").format(
+      Math.abs(netBalance)
+    );
+    console.log("🧾 Resultado visual:", label, "$" + valorFormateado);
+
+    saldoResumen = (
+      <Typography mt={1}>
+        <strong>{label}</strong> ${valorFormateado}
+      </Typography>
+    );
+  } else if (action === "paga") {
+    const label = `💸 El corresponsal debe a ${nombreTercero}:`;
+    const valorFormateado = new Intl.NumberFormat("es-CO").format(
+      Math.abs(netBalance)
+    );
+    console.log("🧾 Resultado visual:", label, "$" + valorFormateado);
+
+    saldoResumen = (
+      <Typography mt={1}>
+        <strong>{label}</strong> ${valorFormateado}
       </Typography>
     );
   }
@@ -785,6 +798,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   >
                     ✅ Cupo disponible del Tercero:
                   </Typography>
+
                   <Typography
                     variant="h5"
                     fontWeight="bold"
@@ -803,43 +817,32 @@ const SnackPluginDeposits: React.FC<Props> = ({
                     )}
                   </Typography>
 
+                  {/* Visualización del saldo pendiente con lógica de acción */}
                   <Typography mt={1}>
-                    {netBalance > 0 && (
-                      <strong>📥 {nombreTercero} debe al corresponsal:</strong>
-                    )}
-                    {netBalance < 0 && (
-                      <strong>
-                        💸 El corresponsal debe a {nombreTercero}:
-                      </strong>
-                    )}
-                    {netBalance === 0 && (
+                    {thirdPartyBalance.correspondent_action === "sin_saldo" ? (
                       <strong>✔️ No hay saldos pendientes entre partes.</strong>
-                    )}{" "}
-                    {netBalance !== 0 && (
+                    ) : thirdPartyBalance.correspondent_action === "cobra" ? (
                       <>
+                        <strong>
+                          📥 {nombreTercero} debe al corresponsal:
+                        </strong>{" "}
                         $
                         {new Intl.NumberFormat("es-CO").format(
-                          Math.abs(netBalance)
+                          Math.abs(thirdPartyBalance.net_balance)
                         )}
                       </>
-                    )}
+                    ) : thirdPartyBalance.correspondent_action === "paga" ? (
+                      <>
+                        <strong>
+                          💸 El corresponsal debe a {nombreTercero}:
+                        </strong>{" "}
+                        $
+                        {new Intl.NumberFormat("es-CO").format(
+                          Math.abs(thirdPartyBalance.net_balance)
+                        )}
+                      </>
+                    ) : null}
                   </Typography>
-
-                  {/* 
-                  <Typography mt={1}>
-                    <strong>🏦 Préstamos a tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.loan_to_third_party
-                    )}
-                  </Typography>
-
-                  <Typography mt={1}>
-                    <strong>🤝 Préstamos desde tercero:</strong> $
-                    {new Intl.NumberFormat("es-CO").format(
-                      thirdPartyBalance.loan_from_third_party
-                    )}
-                  </Typography>
-                  */}
                 </Paper>
               </Grid>
             )}

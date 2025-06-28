@@ -24,6 +24,8 @@ import {
   Switch,
   FormControlLabel,
   Checkbox,
+  RadioGroup,
+  Radio,
 } from "@mui/material";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import { useTheme } from "../../../glamour/ThemeContext";
@@ -67,6 +69,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
     name: "",
     credit: 0,
     balance: 0, // ✅ nuevo campo
+    negative_balance: false, // 👈 AGREGAR AQUÍ
     state: 1,
     correspondent_id: correspondent?.id || null,
     id_type: "",
@@ -85,6 +88,10 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   useEffect(() => {
     fetchOthers();
   }, [correspondent?.id]);
+
+  // Estado para el balance.
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [newBalanceError, setNewBalanceError] = useState<string | null>(null);
 
   // Función para obtener los terceros desde la API
   const fetchOthers = async () => {
@@ -167,6 +174,14 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       return;
     }
 
+    if (newOther.balance > newOther.credit) {
+      setAlertMessage(
+        "❌ El saldo inicial no puede ser mayor al crédito disponible."
+      );
+      setAlertType("error");
+      return;
+    }
+
     setSaving(true); // 🔄 Iniciar carga
 
     try {
@@ -194,6 +209,15 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
 
     if (!selectedOther.name || typeof selectedOther.credit !== "number") {
       setAlertMessage("Todos los campos son obligatorios.");
+      setAlertType("error");
+      return;
+    }
+
+    // ✅ Validar que el saldo no supere el crédito
+    if (selectedOther.balance > selectedOther.credit) {
+      setAlertMessage(
+        "❌ El saldo inicial no puede ser mayor al crédito disponible."
+      );
       setAlertType("error");
       return;
     }
@@ -234,6 +258,7 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       ...other,
       credit: parseFloat(other.credit),
       balance: parseFloat(other.balance || 0), // ✅ importante
+      negative_balance: Boolean(other.negative_balance), // ✅ AÑADIDO
       id_type: other.id_type || "",
       id_number: other.id_number || "",
       email: other.email || "",
@@ -558,18 +583,58 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
               onChange={(e) => {
                 const value = e.target.value;
 
-                // Permitir valores negativos, positivos, vacíos y con punto decimal
                 const validNumber = /^-?\d*\.?\d*$/.test(value);
                 if (validNumber || value === "") {
+                  const newBalance =
+                    value === "" || value === "-" ? value : parseFloat(value);
+
                   setNewOther((prev) => ({
                     ...prev,
-                    balance:
-                      value === "" || value === "-" ? value : parseFloat(value),
+                    balance: newBalance,
                   }));
+
+                  // ✅ Validar que el balance no supere el crédito
+                  if (
+                    typeof newBalance === "number" &&
+                    newOther?.credit !== undefined &&
+                    newBalance > newOther.credit
+                  ) {
+                    setNewBalanceError(
+                      "❌ El saldo inicial no puede ser mayor al crédito."
+                    );
+                  } else {
+                    setNewBalanceError(null);
+                  }
                 }
               }}
+              error={!!newBalanceError}
+              helperText={newBalanceError}
               sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
+
+            <RadioGroup
+              row
+              value={newOther.negative_balance ? "pagar" : "cobrar"}
+              onChange={(e) =>
+                setNewOther((prev) => ({
+                  ...prev,
+                  negative_balance: e.target.value === "pagar",
+                }))
+              }
+            >
+              <FormControlLabel
+                value="cobrar"
+                control={<Radio color="success" />}
+                label="💰 Cobrar al corresponsal"
+                sx={{ color: "black" }} // ← texto negro
+              />
+              <FormControlLabel
+                value="pagar"
+                control={<Radio color="warning" />}
+                label="📤 Pagar al corresponsal"
+                sx={{ color: "black" }} // ← texto negro
+              />
+            </RadioGroup>
           </Box>
         </DialogContent>
 
@@ -745,18 +810,65 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
               onChange={(e) => {
                 const value = e.target.value;
 
-                // Permitir: "", "-", "-123", "123", "0", etc.
+                // Validación básica
                 const validNumber = /^-?\d*\.?\d*$/.test(value);
                 if (validNumber || value === "") {
+                  const newBalance =
+                    value === "" || value === "-" ? value : parseFloat(value);
+
                   setSelectedOther((prev: any) => ({
                     ...prev,
-                    balance:
-                      value === "" || value === "-" ? value : parseFloat(value),
+                    balance: newBalance,
                   }));
+
+                  // ✅ Validar en vivo contra el crédito
+                  if (
+                    typeof newBalance === "number" &&
+                    selectedOther?.credit !== undefined &&
+                    newBalance > selectedOther.credit
+                  ) {
+                    setBalanceError(
+                      "❌ El saldo inicial no puede ser mayor al crédito."
+                    );
+                  } else {
+                    setBalanceError(null); // limpiar si es válido
+                  }
                 }
               }}
+              error={!!balanceError}
+              helperText={balanceError}
               sx={{ backgroundColor: colors.background, borderRadius: 1 }}
             />
+
+            <RadioGroup
+              row
+              value={selectedOther?.negative_balance ? "pagar" : "cobrar"}
+              onChange={(e) =>
+                setSelectedOther((prev: any) => ({
+                  ...prev,
+                  negative_balance: e.target.value === "pagar",
+                }))
+              }
+            >
+              <FormControlLabel
+                value="cobrar"
+                control={<Radio color="success" />}
+                label={
+                  <Typography sx={{ color: "#000" }}>
+                    💰 Cobrar al corresponsal
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                value="pagar"
+                control={<Radio color="warning" />}
+                label={
+                  <Typography sx={{ color: "#000" }}>
+                    📤 Pagar al corresponsal
+                  </Typography>
+                }
+              />
+            </RadioGroup>
 
             <TextField
               fullWidth
