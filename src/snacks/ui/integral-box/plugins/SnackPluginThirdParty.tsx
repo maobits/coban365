@@ -344,23 +344,21 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
       // Si es un pago al tercero, validar deuda existente y saldo suficiente en caja
       if (third_party_note === "debt_to_third_party") {
-        const deudaAlTercero = thirdPartyBalance?.debt_to_third_party || 0;
-
-        if (deudaAlTercero <= 0) {
+        if (netBalance >= 0) {
           setAlertMessage(
-            "⚠️ No existe deuda pendiente con este tercero. No se puede registrar un pago."
+            `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
           );
           setAlertOpen(true);
           return;
         }
 
-        if (valorIngresado > deudaAlTercero) {
+        if (valorIngresado > Math.abs(netBalance)) {
           setAlertMessage(
             `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
               valorIngresado
             )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
               "es-CO"
-            ).format(deudaAlTercero)}).`
+            ).format(Math.abs(netBalance))}).`
           );
           setAlertOpen(true);
           return;
