@@ -2,12 +2,17 @@ import React from "react";
 import { Grid, Paper, Typography, Box } from "@mui/material";
 import { useTheme } from "../../../../glamour/ThemeContext";
 
+// Importar íconos
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import AccountBoxIcon from "@mui/icons-material/AccountBox";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
+
 interface Props {
   bankDebt: number;
   cashBalance: number;
   creditLimit: number;
   cashCapacity: number;
-  thirdPartyBalanceInverted: number; // ← nuevo campo
+  thirdPartyBalanceInverted: number;
 }
 
 const FinancialSummaryPanel: React.FC<Props> = ({
@@ -18,104 +23,92 @@ const FinancialSummaryPanel: React.FC<Props> = ({
   thirdPartyBalanceInverted,
 }) => {
   const theme = useTheme();
-
-  const compactFont = { xs: "1rem", sm: "1.1rem", md: "1.2rem" };
-  const compactValueFont = { xs: "1.2rem", sm: "1.4rem", md: "1.6rem" };
+  const fontTitle = { xs: "1.3rem", sm: "1.6rem", md: "1.8rem" };
+  const fontValue = { xs: "1.8rem", sm: "2.2rem", md: "2.6rem" };
 
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        p: 2,
-        mr: 2, // ✅ margen derecho agregado
-        border: `1px solid ${theme.colors.secondary}`,
-        borderRadius: 3,
-        backgroundColor: theme.colors.primary,
-        width: "100%",
-        overflowX: "auto",
-      }}
-    >
-      <Grid container spacing={2} justifyContent="center">
-        {/* Fila 1 */}
-        <Grid item xs={6}>
-          <Box textAlign="center">
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactFont}
-            >
-              🪙 Caja
-            </Typography>
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactValueFont}
-            >
-              ${new Intl.NumberFormat("es-CO").format(cashBalance)}
-            </Typography>
+    <Grid container spacing={2}>
+      {/* Efectivo en Caja */}
+      <Grid item xs={12} sm={4}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            borderRadius: 3,
+            backgroundColor: "#ffffff",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={2}>
+            <AccountBoxIcon
+              sx={{ fontSize: "2.4rem", color: "#FBC02D" }} // amarillo
+            />
+            <Box>
+              <Typography fontSize={fontTitle} color="text.secondary">
+                Efectivo En Caja
+              </Typography>
+              <Typography fontWeight="bold" fontSize={fontValue}>
+                ${new Intl.NumberFormat("es-CO").format(cashBalance)}
+              </Typography>
+            </Box>
           </Box>
-        </Grid>
-
-        <Grid item xs={6}>
-          <Box textAlign="center">
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactFont}
-            >
-              📊 Terceros
-            </Typography>
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactValueFont}
-            >
-              $
-              {new Intl.NumberFormat("es-CO").format(thirdPartyBalanceInverted)}
-            </Typography>
-          </Box>
-        </Grid>
-
-        {/* Fila 2 */}
-        <Grid item xs={6}>
-          <Box textAlign="center">
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactFont}
-            >
-              🏦 Banco
-            </Typography>
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactValueFont}
-            >
-              ${new Intl.NumberFormat("es-CO").format(bankDebt)}
-            </Typography>
-          </Box>
-        </Grid>
-
-        <Grid item xs={6}>
-          <Box textAlign="center">
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactFont}
-            >
-              ✅ Cupo
-            </Typography>
-            <Typography
-              fontWeight="bold"
-              color={theme.colors.text_white}
-              fontSize={compactValueFont}
-            >
-              ${new Intl.NumberFormat("es-CO").format(creditLimit - bankDebt)}
-            </Typography>
-          </Box>
-        </Grid>
+        </Paper>
       </Grid>
-    </Paper>
+
+      {/* Banco */}
+      <Grid item xs={12} sm={4}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            borderRadius: 3,
+            backgroundColor: "#ffffff",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={2}>
+            <AccountBalanceIcon
+              sx={{ fontSize: "2.4rem", color: "#E64A19" }} // naranja/rojo
+            />
+            <Box>
+              <Typography fontSize={fontTitle} color="text.secondary">
+                Banco
+              </Typography>
+              <Typography fontWeight="bold" fontSize={fontValue}>
+                ${new Intl.NumberFormat("es-CO").format(bankDebt)}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Grid>
+
+      {/* Cupo */}
+      <Grid item xs={12} sm={4}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            borderRadius: 3,
+            backgroundColor: "#ffffff",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={2}>
+            <MonetizationOnIcon
+              sx={{ fontSize: "2.4rem", color: "#43A047" }} // verde
+            />
+            <Box>
+              <Typography fontSize={fontTitle} color="text.secondary">
+                Cupo
+              </Typography>
+              <Typography fontWeight="bold" fontSize={fontValue}>
+                ${new Intl.NumberFormat("es-CO").format(creditLimit - bankDebt)}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 

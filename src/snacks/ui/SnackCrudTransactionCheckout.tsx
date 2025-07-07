@@ -574,19 +574,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        {/* Título */}
-        <Grid item>
-          <Typography
-            variant="h4"
-            fontFamily={fonts.heading}
-            color={colors.primary}
-            gutterBottom
-          >
-            {cashier?.fullname || "—"}, administras la{" "}
-            {selectedCash?.name || "—"}
-          </Typography>
-        </Grid>
-
         {/* Saldo + Botón de Transferencia */}
         <Grid item>
           <Box display="flex" alignItems="center" gap={2}>
@@ -616,14 +603,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               </Typography>
             </Box>*/}
 
-            {/* Botón Transferencias (SnackPluginTransfer) */}
-            {selectedCash && selectedCorrespondent && (
-              <SnackPluginTransfer
-                correspondent={selectedCorrespondent}
-                cash={selectedCash}
-                onTransactionComplete={fetchInitialData}
-              />
-            )}
             {selectedCorrespondent?.premium === 1 &&
               turnosPendientes.length > 0 && (
                 <IconButton
@@ -697,7 +676,9 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           <Grid item>
             <Autocomplete
               options={correspondents}
-              getOptionLabel={(option) => option.name}
+              getOptionLabel={(option) =>
+                `${option.name}${option.code ? ` - ${option.code}` : ""}`
+              }
               value={selectedCorrespondent}
               onChange={async (_, value) => {
                 if (!cashier || !value) {
@@ -720,25 +701,101 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           </Grid>
 
           {selectedCorrespondent && selectedCash && (
-            <Grid item>
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{ cursor: "pointer" }}
-                onClick={() => {
-                  const url = `${window.location.origin}/shifts/register/${selectedCorrespondent.id}/${selectedCash.id}`;
-                  navigator.clipboard.writeText(url);
-                  setAlertMessage("🔗 Enlace copiado al portapapeles");
-                  setAlertType("success");
-                }}
-              >
-                <ShareIcon color="primary" />
-                <Typography fontSize="0.9rem" color="text.secondary">
-                  Compartir enlace para Turno
-                </Typography>
-              </Box>
-            </Grid>
+            <>
+              <Grid item>
+                <Grid
+                  container
+                  alignItems="center"
+                  justifyContent="space-between"
+                  spacing={2}
+                >
+                  {/* IZQUIERDA: Enlace y descripción */}
+                  <Grid item xs={12} md={8}>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      {/* Enlace */}
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        gap={1}
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => {
+                          const url = `${window.location.origin}/shifts/register/${selectedCorrespondent.id}/${selectedCash.id}`;
+                          navigator.clipboard.writeText(url);
+                          setAlertMessage("🔗 Enlace copiado al portapapeles");
+                          setAlertType("success");
+                        }}
+                      >
+                        <ShareIcon color="primary" />
+                        <Typography fontSize="0.9rem" color="text.secondary">
+                          Compartir enlace para Turno
+                        </Typography>
+                      </Box>
+
+                      {/* Caja administrada */}
+                      {selectedCash && (
+                        <Typography
+                          fontSize="1rem" // más pequeño que h5
+                          fontWeight="bold"
+                          fontFamily={fonts.heading}
+                          color={colors.primary}
+                          gutterBottom
+                        >
+                          {cashier?.fullname || "—"} –{" "}
+                          {selectedCash?.name || "—"}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+
+                  {/* DERECHA: Transferencias */}
+                  <Grid item xs={12} md={4}>
+                    <Box display="flex" justifyContent="flex-end">
+                      {selectedCash && selectedCorrespondent && (
+                        <SnackPluginTransfer
+                          correspondent={selectedCorrespondent}
+                          cash={selectedCash}
+                          onTransactionComplete={fetchInitialData}
+                        />
+                      )}
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Panel financiero debajo */}
+              <Grid item xs={12} sx={{ mt: 2 }}>
+                <Box
+                  sx={{
+                    backgroundColor: "#f9f9f9",
+                    borderRadius: 2,
+                    p: 2,
+                    boxShadow: 3,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="text.primary"
+                    sx={{ mb: 1 }}
+                  >
+                    Resumen financiero
+                  </Typography>
+                  <FinancialSummaryPanel
+                    bankDebt={bankDebt}
+                    cashBalance={
+                      initialConfig +
+                      incomes -
+                      withdrawals -
+                      offsets -
+                      pendingTransferAmount
+                    }
+                    creditLimit={selectedCorrespondent?.credit_limit || 0}
+                    cashCapacity={selectedCash?.capacity || 1}
+                    thirdPartyBalanceInverted={thirdPartyBalance}
+                  />
+                </Box>
+              </Grid>
+            </>
           )}
         </Grid>
       )}
@@ -758,61 +815,37 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             fontFamily={fonts.heading}
             color={colors.secondary}
             gutterBottom
-            sx={{ fontWeight: "bold" }}
+            sx={{ fontWeight: "bold", textAlign: "center" }}
           >
-            Movimientos del corresponsal{" "}
-            <Box component="span" fontWeight="bold" color={colors.secondary}>
-              {selectedCorrespondent?.name || "—"}
-            </Box>
+            Movimientos
           </Typography>
 
           <Grid container spacing={2} alignItems="center" mt={2}>
-            {/* Botones a la izquierda */}
-            <Grid item xs={12} md={7}>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                <SnackPluginDeposits
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                />
-                <SnackPluginWithdrawals
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                />
-                <SnackPluginOthers
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                />
-                <SnackPluginThirdParty
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                />
-                <SnackPluginCompesation
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                />
-              </Box>
-            </Grid>
-
-            {/* Panel financiero a la derecha */}
-            <Grid item xs={12} md={5}>
-              <FinancialSummaryPanel
-                bankDebt={bankDebt}
-                cashBalance={
-                  initialConfig +
-                  incomes -
-                  withdrawals -
-                  offsets -
-                  pendingTransferAmount
-                }
-                creditLimit={selectedCorrespondent?.credit_limit || 0}
-                cashCapacity={selectedCash?.capacity || 1}
-                thirdPartyBalanceInverted={thirdPartyBalance} // ← nuevo
-              />
+            <Grid item xs={12}>
+              <Grid
+                container
+                spacing={2}
+                justifyContent="center"
+                alignItems="stretch"
+              >
+                {[
+                  { Component: SnackPluginDeposits, key: "depositos" },
+                  { Component: SnackPluginWithdrawals, key: "retiros" },
+                  { Component: SnackPluginOthers, key: "otros" },
+                  { Component: SnackPluginThirdParty, key: "terceros" },
+                  { Component: SnackPluginCompesation, key: "compensacion" },
+                ].map(({ Component, key }) => (
+                  <Grid item xs={12} sm={6} md={2.4} key={key}>
+                    <Box sx={{ width: "100%" }}>
+                      <Component
+                        correspondent={selectedCorrespondent}
+                        cash={selectedCash}
+                        onTransactionComplete={fetchInitialData}
+                      />
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
             </Grid>
           </Grid>
         </Box>

@@ -464,14 +464,24 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                               setAlertType("success");
 
                               const updatedList = await getCorrespondents();
-                              if (updatedList.success)
+                              if (updatedList.success) {
                                 setCorrespondents(updatedList.data);
+                              }
                             } else {
-                              setAlertMessage(res.message);
+                              setAlertMessage(
+                                res.message ||
+                                  "No se pudo actualizar el estado."
+                              );
                               setAlertType("error");
                             }
                           } catch (error) {
-                            setAlertMessage("Error al actualizar Premium.");
+                            const message =
+                              error?.response?.data?.message || // axios con backend
+                              error?.message || // error común
+                              "Error desconocido al actualizar Premium.";
+                            setAlertMessage(
+                              `Error al actualizar Premium: ${message}`
+                            );
                             setAlertType("error");
                           } finally {
                             setPremiumProcessing(null);
