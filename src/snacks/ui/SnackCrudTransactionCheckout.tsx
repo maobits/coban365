@@ -75,6 +75,10 @@ import PrintIcon from "@mui/icons-material/Print";
 import { getSpecialReport } from "../../store/reports/Reports"; // servicio que creaste
 import SnackReport from "../ui/integral-box/reports/SnackReports";
 
+// Cuadre de caja.
+import CalculateIcon from "@mui/icons-material/Calculate";
+import SnackBoxSquare from "../ui/integral-box/reports/SnackBoxSquare";
+
 import {
   getCashIncomes,
   getCashWithdrawals,
@@ -189,6 +193,9 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+
+  // Estados para el cuadre de caja.
+  const [showSquareModal, setShowSquareModal] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -436,6 +443,30 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
         setTotalItems(transRes.data.total);
       }
+    }
+  };
+
+  // Controlador cuadre de caja.
+  const handleOpenSquareModal = async () => {
+    if (!selectedCash || !selectedCorrespondent) return;
+
+    setLoadingReport(true);
+    setShowSquareModal(true);
+
+    try {
+      const res = await getSpecialReport(
+        selectedCash.id,
+        selectedCorrespondent.id
+      );
+      if (res.success) {
+        setSpecialReportData(res.report);
+      } else {
+        console.error("❌ Error cargando reporte para cuadre:", res.message);
+      }
+    } catch (error) {
+      console.error("❌ Error inesperado:", error);
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -797,6 +828,16 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                             }}
                           >
                             <PrintIcon sx={{ color: colors.primary }} />
+                          </IconButton>
+                          <IconButton
+                            onClick={handleOpenSquareModal}
+                            sx={{
+                              backgroundColor: "#ede7f6",
+                              border: `2px solid ${colors.secondary}`,
+                              ml: 1,
+                            }}
+                          >
+                            <CalculateIcon sx={{ color: colors.secondary }} />
                           </IconButton>
                         </>
                       )}
@@ -1254,6 +1295,14 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             setShowReportModal(false);
             setSpecialReportData(null); // Limpiar para evitar reuso de datos obsoletos
           }}
+          reportData={specialReportData}
+        />
+      )}
+
+      {showSquareModal && (
+        <SnackBoxSquare
+          open={showSquareModal}
+          onClose={() => setShowSquareModal(false)}
           reportData={specialReportData}
         />
       )}

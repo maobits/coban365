@@ -1,5 +1,5 @@
 // src/snacks/ui/reports/SnackReport.tsx
-import React from "react";
+import React, { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -7,7 +7,6 @@ import {
   DialogActions,
   Typography,
   IconButton,
-  Grid,
   Table,
   TableHead,
   TableRow,
@@ -16,9 +15,12 @@ import {
   Button,
   CircularProgress,
   Divider,
+  Box,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import PrintIcon from "@mui/icons-material/Print";
 import { useTheme } from "../../../../glamour/ThemeContext";
+import html2pdf from "html2pdf.js";
 
 interface ReportItem {
   type: string;
@@ -50,6 +52,7 @@ interface Props {
 
 const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   const { colors } = useTheme();
+  const printRef = useRef<HTMLDivElement>(null);
 
   if (!reportData || !reportData.transactions) {
     return (
@@ -83,7 +86,7 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
     );
   }
 
-  const { summary, total, cash_balance } = reportData.transactions;
+  const { summary, cash_balance } = reportData.transactions;
   const initialBox = reportData.initial_box;
   const reportDate = reportData.report_date_pretty;
   const { correspondent, cash } = reportData;
@@ -104,10 +107,6 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   );
 
   const totalEffective = effective.reduce((acc, cur) => acc + cur.subtotal, 0);
-  const totalThirdParty = thirdParty.reduce(
-    (acc, cur) => acc + cur.subtotal,
-    0
-  );
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("es-CO", {
@@ -123,28 +122,25 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   ) => (
     <>
       <Typography
-        variant="subtitle2"
         sx={{
-          mt: 2,
-          mb: 1,
           fontWeight: "bold",
-          color: highlight ? colors.primary : "text.primary",
-          borderBottom: `2px solid ${highlight ? colors.primary : "#ccc"}`,
-          pb: 0.5,
+          textAlign: "center",
+          mt: 2,
+          color: highlight ? colors.primary : "inherit",
         }}
       >
         {title}
       </Typography>
-      <Table size="small" sx={{ minWidth: 600 }}>
+      <Table size="small" sx={{ mt: 1 }}>
         <TableHead>
-          <TableRow sx={{ backgroundColor: "#f1f1f1" }}>
-            <TableCell sx={{ width: "60%" }}>
+          <TableRow>
+            <TableCell sx={{ fontSize: 12 }}>
               <b>TIPO</b>
             </TableCell>
-            <TableCell align="center" sx={{ width: "20%" }}>
-              <b>CANTIDAD</b>
+            <TableCell align="center" sx={{ fontSize: 12 }}>
+              <b>CANT</b>
             </TableCell>
-            <TableCell align="right" sx={{ width: "20%" }}>
+            <TableCell align="right" sx={{ fontSize: 12 }}>
               <b>SUBTOTAL</b>
             </TableCell>
           </TableRow>
@@ -152,14 +148,14 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={i}>
-              <TableCell sx={{ width: "60%" }}>{r.type}</TableCell>
-              <TableCell align="center" sx={{ width: "20%" }}>
+              <TableCell sx={{ fontSize: 13 }}>{r.type}</TableCell>
+              <TableCell align="center" sx={{ fontSize: 13 }}>
                 {r.count}
               </TableCell>
               <TableCell
                 align="right"
                 sx={{
-                  width: "20%",
+                  fontSize: 13,
                   color: r.subtotal < 0 ? "red" : "inherit",
                   whiteSpace: "nowrap",
                 }}
@@ -172,6 +168,23 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
       </Table>
     </>
   );
+
+  const handleExportPDF = () => {
+    if (printRef.current) {
+      const opt = {
+        margin: 0.3,
+        filename: `reporte_caja_${cash?.id}.pdf`,
+        image: { type: "jpeg", quality: 1 },
+        html2canvas: { scale: 3 },
+        jsPDF: {
+          unit: "mm",
+          format: [100, 290],
+          orientation: "portrait",
+        },
+      };
+      html2pdf().set(opt).from(printRef.current).save();
+    }
+  };
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
@@ -190,59 +203,64 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, backgroundColor: "#fff", mt: 3 }}>
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={6}>
-            <Typography fontSize={14}>
-              <b>CORRESPONSAL:</b>{" "}
-              {reportData.correspondent
-                ? `${reportData.correspondent.code} - ${reportData.correspondent.name}`
-                : "—"}
+      <DialogContent
+        sx={{
+          maxWidth: 700,
+          mx: "auto",
+          mt: 3,
+          mb: 2,
+          backgroundColor: "#fff",
+          border: "1px dashed #999",
+          p: 3,
+          fontSize: 14,
+        }}
+      >
+        <div ref={printRef}>
+          <Typography align="center" fontWeight="bold" fontSize={15}>
+            {correspondent?.code} - {correspondent?.name}
+          </Typography>
+          <Typography align="center" fontSize={14}>
+            Caja: ID {cash?.id} - {cash?.name}
+          </Typography>
+          <Typography align="center" fontSize={13} sx={{ mb: 1 }}>
+            Fecha: {reportDate}
+          </Typography>
+
+          <Divider sx={{ my: 1 }} />
+
+          {renderSection("SALDO EFECTIVO", effective, true)}
+
+          <Box mt={1} pr={2}>
+            <Typography fontWeight="bold" align="right" sx={{ fontSize: 13 }}>
+              Total efectivo: {formatCurrency(totalEffective)}
             </Typography>
-            <Typography fontSize={14}>
-              <b>MOVIMIENTOS CAJA:</b>{" "}
-              {reportData.cash
-                ? `ID ${reportData.cash.id} - ${reportData.cash.name}`
-                : "—"}
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {renderSection("TERCEROS Y COMPENSACIONES", thirdParty)}
+
+          <Divider sx={{ my: 2 }} />
+
+          <Box textAlign="right" mt={2} pr={2}>
+            <Typography fontSize={13}>
+              Caja inicial: {formatCurrency(initialBox)}
             </Typography>
-
-            <Typography fontSize={14}>
-              <b>FECHA - HORA:</b> {reportDate}
+            <Typography fontSize={13} fontWeight="bold">
+              CAJA ACTUAL: {formatCurrency(cash_balance)}
             </Typography>
-          </Grid>
-          <Grid item xs={6} textAlign="right">
-            <Typography fontSize={15} fontWeight="bold">
-              CAJA INICIAL: {formatCurrency(initialBox)}
-            </Typography>
-          </Grid>
-        </Grid>
-
-        {renderSection("SALDO EFECTIVO", effective, true)}
-
-        <Typography
-          fontSize={14}
-          sx={{ mt: 1, fontWeight: "bold", textAlign: "left" }}
-        >
-          TOTAL SALDO EFECTIVO: {formatCurrency(totalEffective)}
-        </Typography>
-
-        <Divider sx={{ my: 2 }} />
-
-        {renderSection("TERCEROS Y COMPENSACIONES", thirdParty)}
-
-        <Divider sx={{ my: 2 }} />
-
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-          textAlign="right"
-          sx={{ mt: 2 }}
-        >
-          CAJA ACTUAL: {formatCurrency(cash_balance)}
-        </Typography>
+          </Box>
+        </div>
       </DialogContent>
 
       <DialogActions>
+        <Button
+          onClick={handleExportPDF}
+          variant="outlined"
+          startIcon={<PrintIcon />}
+        >
+          Imprimir ticket PDF
+        </Button>
         <Button onClick={onClose} variant="contained" color="primary">
           Cerrar
         </Button>
