@@ -70,6 +70,11 @@ import { rejectShift } from "../../store/shift/CrudShift";
 import SnackLottieNoData from "./utils/SnackLottieNoData";
 import SnackLottieMoney from "./utils/SnackLottieMoney";
 
+// Reporte general
+import PrintIcon from "@mui/icons-material/Print";
+import { getSpecialReport } from "../../store/reports/Reports"; // servicio que creaste
+import SnackReport from "../ui/integral-box/reports/SnackReports";
+
 import {
   getCashIncomes,
   getCashWithdrawals,
@@ -177,6 +182,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     "Transferir",
   ];
 
+  // Estados para el reporte.
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [specialReportData, setSpecialReportData] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
@@ -271,6 +281,27 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const handleCloseEditDialog = () => {
     setOpenEditDialog(false);
     setSelectedTransaction(null);
+  };
+
+  const handleOpenReport = async () => {
+    if (!selectedCash || !selectedCorrespondent) return;
+    setLoadingReport(true); // Mostrar spinner
+    setShowReportModal(true); // Abrir el modal
+    try {
+      const res = await getSpecialReport(
+        selectedCash.id,
+        selectedCorrespondent.id
+      );
+      if (res.success) {
+        setSpecialReportData(res.report);
+      } else {
+        console.error("❌ Error cargando reporte especial:", res.message);
+      }
+    } catch (error) {
+      console.error("❌ Error cargando reporte especial:", error);
+    } finally {
+      setLoadingReport(false); // Ocultar spinner
+    }
   };
 
   const handleUpdateTransaction = async () => {
@@ -751,11 +782,23 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   <Grid item xs={12} md={4}>
                     <Box display="flex" justifyContent="flex-end">
                       {selectedCash && selectedCorrespondent && (
-                        <SnackPluginTransfer
-                          correspondent={selectedCorrespondent}
-                          cash={selectedCash}
-                          onTransactionComplete={fetchInitialData}
-                        />
+                        <>
+                          <SnackPluginTransfer
+                            correspondent={selectedCorrespondent}
+                            cash={selectedCash}
+                            onTransactionComplete={fetchInitialData}
+                          />
+                          <IconButton
+                            onClick={handleOpenReport}
+                            sx={{
+                              backgroundColor: "#e3f2fd",
+                              border: `2px solid ${colors.primary}`,
+                              ml: 1,
+                            }}
+                          >
+                            <PrintIcon sx={{ color: colors.primary }} />
+                          </IconButton>
+                        </>
                       )}
                     </Box>
                   </Grid>
@@ -1203,6 +1246,17 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {showReportModal && (
+        <SnackReport
+          open={showReportModal}
+          onClose={() => {
+            setShowReportModal(false);
+            setSpecialReportData(null); // Limpiar para evitar reuso de datos obsoletos
+          }}
+          reportData={specialReportData}
+        />
+      )}
     </Box>
   );
 };

@@ -357,34 +357,45 @@ const SnackPluginTransfer: React.FC<Props> = ({
 
   return (
     <>
-      <Button
-        variant="contained"
-        onClick={() => {
-          if (correspondent.premium === 1) {
-            handleOpen();
-          } else {
-            setAlertMessage(
-              "⚠️ Esta es una función premium. Solicita una mejora de plan para acceder a transferencias entre cajas."
-            );
-            setAlertOpen(true);
-          }
-        }}
-        sx={{
-          fontWeight: "bold",
-          fontSize: "1.2rem",
-          paddingX: 4,
-          paddingY: 2,
-          backgroundColor: "#fff",
-          color: colors.text,
-          border: `2px solid ${colors.text}`,
-          borderRadius: 2,
-          "&:hover": {
-            backgroundColor: "#f4f4f4",
-          },
-        }}
-      >
-        Transferencias
-      </Button>
+      <Grid item xs={12} md={4}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: { xs: "center", md: "flex-end" },
+            mt: { xs: 2, md: 0 },
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={() => {
+              if (correspondent.premium === 1) {
+                handleOpen();
+              } else {
+                setAlertMessage(
+                  "⚠️ Esta es una función premium. Solicita una mejora de plan para acceder a transferencias entre cajas."
+                );
+                setAlertOpen(true);
+              }
+            }}
+            sx={{
+              fontWeight: "bold",
+              fontSize: { xs: "0.9rem", sm: "1rem", md: "1.2rem" },
+              px: { xs: 3, sm: 4 },
+              py: { xs: 1, sm: 1.5 },
+              color: colors.text,
+              border: `2px solid ${colors.text}`,
+              borderRadius: 2,
+              whiteSpace: "nowrap",
+              minWidth: "auto",
+              "&:hover": {
+                backgroundColor: "#f4f4f4",
+              },
+            }}
+          >
+            TRANSFERENCIAS
+          </Button>
+        </Box>
+      </Grid>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle

@@ -200,3 +200,39 @@ export const getThirdPartyReport = async (params: {
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener el reporte especial por caja y corresponsal.
+ * Realiza una solicitud POST al endpoint `special_reports.php`.
+ *
+ * @param {number} id_cash - ID de la caja.
+ * @param {number} id_correspondent - ID del corresponsal.
+ * @returns {Promise<any>} Una promesa con los datos del reporte especial.
+ */
+
+export const getSpecialReport = async (
+  id_cash: number,
+  id_correspondent: number
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/special_reports.php`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id_cash, id_correspondent }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el reporte especial:", error);
+    throw error;
+  }
+};
