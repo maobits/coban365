@@ -298,21 +298,6 @@ const SnackPluginDeposits: React.FC<Props> = ({
       const third_party_note = transactionNoteMap[normalizedName] || "unknown";
       const isLoanFromThirdParty = third_party_note === "loan_from_third_party";
 
-      if (
-        third_party_note !== "loan_from_third_party" &&
-        valorIngresado > cupoDisponible
-      ) {
-        setAlertMessage(
-          `⚠️ La cantidad $${new Intl.NumberFormat("es-CO").format(
-            valorIngresado
-          )} es mayor al cupo disponible actualizado ($${new Intl.NumberFormat(
-            "es-CO"
-          ).format(cupoDisponible)}). Intenta con un monto menor.`
-        );
-        setAlertOpen(true);
-        return;
-      }
-
       // 5. Obtener tarifa (utility)
       const rateRes = await listRatesByCorrespondent(correspondent.id);
       const utility =

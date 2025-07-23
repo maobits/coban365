@@ -21,15 +21,25 @@ export const getTransactionsByCash = async (
   id_cash: number,
   page: number = 1,
   perPage: number = 10,
-  category: string = ""
+  category: string = "",
+  date: string = ""
 ): Promise<any> => {
   try {
     const categoryParam = category
       ? `&category=${encodeURIComponent(category)}`
       : "";
-    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}${categoryParam}`;
+    const dateParam = date ? `&date=${encodeURIComponent(date)}` : "";
+
+    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}${categoryParam}${dateParam}`;
+
+    console.log("📤 URL enviada al backend:", url);
+
     const res = await fetch(url);
-    return await res.json();
+    const data = await res.json();
+
+    console.log("📥 Respuesta del backend:", data);
+
+    return data;
   } catch (error) {
     console.error("❌ Error al obtener transacciones por caja:", error);
     return { success: false, message: "Error en el servidor." };

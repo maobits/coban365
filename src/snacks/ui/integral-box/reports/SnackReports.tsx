@@ -21,6 +21,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import PrintIcon from "@mui/icons-material/Print";
 import { useTheme } from "../../../../glamour/ThemeContext";
 import html2pdf from "html2pdf.js";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import dayjs, { Dayjs } from "dayjs";
+import { baseUrl } from "../../../../store/config/server";
 
 interface ReportItem {
   type: string;
@@ -54,7 +59,10 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   const { colors } = useTheme();
   const printRef = useRef<HTMLDivElement>(null);
 
-  if (!reportData || !reportData.transactions) {
+  // Estado para las fechas.
+  const [selectedDate, setSelectedDate] = React.useState<Dayjs | null>(dayjs());
+  const [loading, setLoading] = React.useState(false);
+  if (!reportData || !reportData.transactions || loading) {
     return (
       <Dialog open={open} onClose={onClose} fullScreen>
         <DialogTitle
@@ -87,23 +95,34 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   }
 
   const { summary, cash_balance } = reportData.transactions;
+  console.log("Tipos en summary:", [...new Set(summary.map((s) => s.type))]);
+
   const initialBox = reportData.initial_box;
   const reportDate = reportData.report_date_pretty;
   const { correspondent, cash } = reportData;
 
+  // Función para normalizar nombres (acentos, espacios duplicados, etc.)
+  const normalize = (str: string) =>
+    str
+      .normalize("NFD") // elimina acentos
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ") // elimina espacios duplicados
+      .trim()
+      .toLowerCase();
+
   const thirdPartyTypes = [
-    "Préstamo a tercero",
-    "Pago de tercero",
-    "Préstamo de terceros",
-    "Pago a tercero",
-    "Compensación",
+    "prestamo a tercero",
+    "pago de tercero",
+    "prestamo de terceros",
+    "pago a tercero",
+    "compensacion",
   ];
 
   const effective = summary.filter(
-    (item) => !thirdPartyTypes.includes(item.type)
+    (item) => !thirdPartyTypes.includes(normalize(item.type))
   );
   const thirdParty = summary.filter((item) =>
-    thirdPartyTypes.includes(item.type)
+    thirdPartyTypes.includes(normalize(item.type))
   );
 
   const totalEffective = effective.reduce((acc, cur) => acc + cur.subtotal, 0);
@@ -186,6 +205,45 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
     }
   };
 
+  const handleDateChange = async (newDate: Dayjs | null) => {
+    if (!newDate || !reportData) return;
+
+    setSelectedDate(newDate);
+    setLoading(true);
+
+    const payload = {
+      id_cash: reportData.cash.id,
+      id_correspondent: reportData.correspondent.id, // ✅ CORREGIDO: usar ID numérico
+      date: newDate.format("YYYY-MM-DD"),
+    };
+
+    console.log("📤 Enviando al backend:", payload);
+
+    try {
+      const res = await fetch(
+        `${baseUrl}/api/transactions/utils/special_reports.php`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json();
+      console.log("📥 Respuesta del backend:", data);
+
+      if (data.success) {
+        reportData.transactions = data.report.transactions;
+        reportData.initial_box = data.report.initial_box;
+        reportData.report_date_pretty = data.report.report_date_pretty;
+      }
+    } catch (error) {
+      console.error("❌ Error al actualizar el reporte:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
       <DialogTitle
@@ -222,9 +280,22 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
           <Typography align="center" fontSize={14}>
             Caja: ID {cash?.id} - {cash?.name}
           </Typography>
-          <Typography align="center" fontSize={13} sx={{ mb: 1 }}>
-            Fecha: {reportDate}
-          </Typography>
+          <Box textAlign="center" mb={2} mt={1.5}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Fecha del reporte general"
+                value={selectedDate}
+                format="DD-MM-YYYY"
+                onChange={handleDateChange}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { width: 180, mx: "auto" },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </Box>
 
           <Divider sx={{ my: 1 }} />
 

@@ -129,6 +129,12 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     setNoteOpening("");
   };
 
+  // Estado para la fecha seleccionada
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // "YYYY-MM-DD"
+  });
+
   // Transferencias pendientes.
   const [pendingTransferAmount, setPendingTransferAmount] = useState(0);
   const [receivedTransfers, setReceivedTransfers] = useState<any[]>([]);
@@ -198,22 +204,34 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [showSquareModal, setShowSquareModal] = useState(false);
 
   useEffect(() => {
-    fetchInitialData();
+    const init = async () => {
+      const storedUser = localStorage.getItem("userSession");
+      if (!storedUser) return;
+
+      const user = JSON.parse(storedUser);
+      setCashier(user);
+
+      const today = new Date().toISOString().split("T")[0];
+      setSelectedDate(today); // establecer fecha inicial
+
+      await fetchInitialData(user, today); // pasar explícitamente la fecha
+    };
+
+    init();
   }, []);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (user: any, date: string) => {
     try {
       console.log("🚀 Iniciando carga de datos iniciales...");
       setLoading(true);
 
-      const storedUser = localStorage.getItem("userSession");
-      if (!storedUser) throw new Error("No hay sesión almacenada");
-
-      const user = JSON.parse(storedUser);
-      setCashier(user);
-      console.log("👤 Usuario cargado:", user);
-
-      await loadCashAndTransactions(user.id);
+      await loadCashAndTransactions(
+        user.id,
+        1,
+        rowsPerPage,
+        categoryFilter,
+        date
+      );
 
       const cashRes = await getCashByCashier(user.id);
       console.log("💵 Cajas encontradas:", cashRes);
@@ -245,20 +263,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         } else {
           console.warn("⚠️ No se encontró corresponsal relacionado.");
         }
-
-        // 👇 Obtener transacciones de esa caja
-        const transRes = await getTransactionsByCash(
-          firstCash.id,
-          currentPage,
-          itemsPerPage
-        );
-        if (transRes.success) {
-          setTransactions(transRes.data.items);
-          setTotalPages(transRes.data.total_pages);
-          console.log("📄 Transacciones cargadas:", transRes.data.items);
-        } else {
-          console.warn("⚠️ No se pudieron obtener transacciones.");
-        }
       } else {
         console.warn("⚠️ No se encontraron cajas asignadas al cajero.");
       }
@@ -267,9 +271,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     } finally {
       setLoading(false);
       console.log("✅ Carga de datos finalizada");
+      await refreshShifts();
     }
-
-    await refreshShifts();
   };
 
   const handleOpenDialog = () => {
@@ -369,7 +372,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     cashierId: number,
     page = 1,
     perPage = 10,
-    category: string = "" // 👈 nuevo parámetro opcional
+    category: string = "",
+    date: string = "" // 👈 Añadir este parámetro
   ) => {
     const cashRes = await getCashByCashier(cashierId);
     if (cashRes.success && cashRes.data.length > 0) {
@@ -415,7 +419,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         firstCash.id,
         page,
         perPage,
-        category
+        category,
+        date
       );
       if (transRes.success) {
         setTransactions(transRes.data.items);
@@ -621,6 +626,22 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       setSendingNote(false); // ← Desactivar loading
     }
   };
+
+  console.log("🟨 selectedCorrespondent:", selectedCorrespondent);
+  console.log("🟨 selectedCorrespondent?.state:", selectedCorrespondent?.state);
+  console.log("🟨 selectedCash:", selectedCash);
+  console.log("🟨 selectedCash?.state:", selectedCash?.state);
+
+  if (
+    Number(selectedCorrespondent?.state) === 1 &&
+    Number(selectedCash?.state) === 1
+  ) {
+    console.log("✅ Renderizando tabla de transacciones");
+  } else if (!selectedCorrespondent || !selectedCash) {
+    console.log("⚠️ No hay corresponsal o caja seleccionada");
+  } else {
+    console.log("🚫 Caja o corresponsal inactivos");
+  }
 
   return (
     <Box
@@ -1017,21 +1038,40 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               total={totalItems}
               currentPage={currentPage}
               rowsPerPage={rowsPerPage}
+              categoryFilter={categoryFilter}
+              selectedDate={selectedDate} // ← AÑADE ESTO
+              onDateChange={(date) => {
+                setSelectedDate(date);
+                setCurrentPage(1);
+                loadCashAndTransactions(
+                  cashier.id,
+                  1,
+                  rowsPerPage,
+                  categoryFilter,
+                  date // ← Pasa la fecha al cargar
+                );
+              }}
               onPageChange={(newPage) => {
                 setCurrentPage(newPage);
                 loadCashAndTransactions(
                   cashier.id,
                   newPage,
                   rowsPerPage,
-                  categoryFilter
+                  categoryFilter,
+                  selectedDate
                 );
               }}
               onRowsPerPageChange={(newRows) => {
                 setRowsPerPage(newRows);
                 setCurrentPage(1);
-                loadCashAndTransactions(cashier.id, 1, newRows, categoryFilter);
+                loadCashAndTransactions(
+                  cashier.id,
+                  1,
+                  newRows,
+                  categoryFilter,
+                  selectedDate
+                );
               }}
-              categoryFilter={categoryFilter}
               onCategoryChange={(newCategory) => {
                 setCategoryFilter(newCategory);
                 setCurrentPage(1);
@@ -1039,7 +1079,8 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   cashier.id,
                   1,
                   rowsPerPage,
-                  newCategory
+                  newCategory,
+                  selectedDate
                 );
               }}
             />

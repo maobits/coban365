@@ -207,22 +207,33 @@ export const getThirdPartyReport = async (params: {
  *
  * @param {number} id_cash - ID de la caja.
  * @param {number} id_correspondent - ID del corresponsal.
+ * @param {string} [date] - Fecha del reporte en formato YYYY-MM-DD (opcional).
  * @returns {Promise<any>} Una promesa con los datos del reporte especial.
  */
 
 export const getSpecialReport = async (
   id_cash: number,
-  id_correspondent: number
+  id_correspondent: number,
+  date?: string
 ): Promise<any> => {
   try {
     const url = `${baseUrl}/api/transactions/utils/special_reports.php`;
+
+    const body: Record<string, any> = {
+      id_cash,
+      id_correspondent,
+    };
+
+    if (date) {
+      body.date = date;
+    }
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ id_cash, id_correspondent }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

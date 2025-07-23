@@ -110,7 +110,7 @@ const SnackNavigationBar: React.FC = () => {
             }}
           />
 
-          {/* Botón de Calculadora */}
+          {/* Botón de Calculadora 
           <BottomNavigationAction
             label="Calculadora"
             icon={<Calculate />}
@@ -122,9 +122,9 @@ const SnackNavigationBar: React.FC = () => {
               minWidth: "auto",
               padding: "10px 0",
             }}
-          />
+          />*/}
 
-          {/* Botón de Notas */}
+          {/* Botón de Notas 
           <BottomNavigationAction
             label="Notas"
             icon={<Note />}
@@ -136,7 +136,7 @@ const SnackNavigationBar: React.FC = () => {
               minWidth: "auto",
               padding: "10px 0",
             }}
-          />
+          />*/}
 
           {/* Botón de Cerrar Sesión */}
           <BottomNavigationAction

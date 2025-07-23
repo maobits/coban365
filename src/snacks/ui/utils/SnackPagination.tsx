@@ -6,6 +6,8 @@ import {
   Select,
   MenuItem,
   useTheme,
+  Grid,
+  TextField,
 } from "@mui/material";
 import { useTheme as useCustomTheme } from "../../../glamour/ThemeContext"; // ajusta ruta si es necesario
 
@@ -20,6 +22,8 @@ interface SnackPaginationProps {
   categoryFilter?: string;
   onCategoryChange?: (category: string) => void;
   categoryOptions?: string[];
+  selectedDate?: string; // ← ✅ ya lo tienes
+  onDateChange?: (date: string) => void; // ← ✅ ya lo tienes
 }
 
 const SnackPagination: React.FC<SnackPaginationProps> = ({
@@ -40,6 +44,8 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
     "Compensación",
     "Transferir",
   ],
+  selectedDate, // ← ✅ AÑADIR ESTO AQUÍ
+  onDateChange, // ← ✅ Y ESTO TAMBIÉN
 }) => {
   const muiTheme = useTheme();
   const { colors, fonts } = useCustomTheme();
@@ -88,6 +94,17 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
             </MenuItem>
           ))}
         </Select>
+
+        <Grid item>
+          <TextField
+            label="Filtrar por fecha"
+            type="date"
+            value={selectedDate || ""}
+            onChange={(e) => onDateChange?.(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ width: 220 }}
+          />
+        </Grid>
       </Box>
 
       {/* Paginación y control de filas por página */}
