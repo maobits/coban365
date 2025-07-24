@@ -220,7 +220,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
     init();
   }, []);
 
-  const fetchInitialData = async (user: any, date: string) => {
+  const fetchInitialData = async (user = cashier, date = selectedDate) => {
     try {
       console.log("🚀 Iniciando carga de datos iniciales...");
       setLoading(true);

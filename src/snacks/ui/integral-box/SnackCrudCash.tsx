@@ -42,6 +42,10 @@ import { createInitialBoxConfiguration } from "../../../store/crash/CrudCrash"; 
 import { InputAdornment } from "@mui/material";
 import { getInitialCashConfiguration } from "../../../store/transaction/CrudTransactions";
 
+// Impresión de reporte.
+import PrintIcon from "@mui/icons-material/Print";
+import SnackReportBoxes from "../../../snacks/ui/integral-box/reports/SnackReportsBoxes"; // ajusta el path si es diferente
+
 const SnackCrudCash: React.FC<{
   permissions: string[];
   correspondent: any; // o define una interfaz si quieres más precisión
@@ -69,6 +73,9 @@ const SnackCrudCash: React.FC<{
     open: false, // ✅ agregar si lo estás usando
     last_note: "", // ✅ agregar si lo estás usando
   });
+
+  // Modal del reporte.
+  const [openBoxesReport, setOpenBoxesReport] = useState(false);
 
   const [selectedCash, setSelectedCash] = useState<any>(null);
 
@@ -403,14 +410,29 @@ const SnackCrudCash: React.FC<{
         minHeight: "100vh",
       }}
     >
-      <Typography
-        variant="h4"
-        fontFamily={fonts.heading}
-        color={colors.primary}
-        gutterBottom
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
       >
-        Gestión de Cajas
-      </Typography>
+        <Typography
+          variant="h4"
+          fontFamily={fonts.heading}
+          color={colors.primary}
+        >
+          Gestión de Cajas
+        </Typography>
+
+        <IconButton
+          onClick={() => setOpenBoxesReport(true)}
+          color="primary"
+          title="Ver reporte por cajas"
+          sx={{ backgroundColor: colors.primary_light }}
+        >
+          <PrintIcon />
+        </IconButton>
+      </Box>
 
       <Button
         variant="contained"
@@ -949,6 +971,13 @@ const SnackCrudCash: React.FC<{
           {alertMessage}
         </Alert>
       </Snackbar>
+
+      {/* Modal de reporte por cajas */}
+      <SnackReportBoxes
+        open={openBoxesReport}
+        onClose={() => setOpenBoxesReport(false)}
+        correspondentId={correspondent?.id}
+      />
     </Box>
   );
 };

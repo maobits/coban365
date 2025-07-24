@@ -247,3 +247,85 @@ export const getSpecialReport = async (
     throw error;
   }
 };
+
+/**
+ * Servicio para obtener el reporte especial por todas las cajas de un corresponsal.
+ * Realiza una solicitud POST al endpoint `special_report_boxes.php`.
+ *
+ * @param {number} id_correspondent - ID del corresponsal.
+ * @param {string} [date] - Fecha del reporte en formato YYYY-MM-DD (opcional).
+ * @returns {Promise<any>} Una promesa con los datos del reporte por cajas.
+ */
+export const getSpecialReportBoxes = async (
+  id_correspondent: number,
+  date?: string
+): Promise<any> => {
+  try {
+    const url = `${baseUrl}/api/transactions/utils/special_report_boxes.php`;
+
+    const body: Record<string, any> = {
+      id_correspondent,
+    };
+
+    if (date) {
+      body.date = date;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el reporte especial por cajas:", error);
+    throw error;
+  }
+};
+
+/**
+ * Servicio para obtener el balance general de todos los terceros de un corresponsal,
+ * agrupados como si cada tercero fuera una caja.
+ * Realiza una solicitud GET al endpoint `third_party_balance_sheet.php`.
+ *
+ * @param {number} correspondentId - ID del corresponsal.
+ * @param {string} [date] - (Opcional) Fecha en formato YYYY-MM-DD para filtrar las transacciones.
+ * @returns {Promise<any>} Una promesa con los datos del balance por terceros.
+ */
+export const getThirdPartyBalanceSheet = async (
+  correspondentId: number,
+  date?: string
+): Promise<any> => {
+  try {
+    let url = `${baseUrl}/api/transactions/utils/third_special_report.php?correspondent_id=${correspondentId}`;
+
+    if (date) {
+      url += `&date=${date}`;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("❌ Error al obtener el balance de terceros:", error);
+    throw error;
+  }
+};

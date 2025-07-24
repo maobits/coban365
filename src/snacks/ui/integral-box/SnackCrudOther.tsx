@@ -39,6 +39,10 @@ import {
   updateOtherState,
 } from "../../..//store/other/CrudOther";
 
+// Importaciones para el reporte.
+import PrintIcon from "@mui/icons-material/Print";
+import SnackReportThird from "../../../snacks/ui/integral-box/reports/SnackReportThird"; // ajusta el path si es necesario
+
 // Props del componente
 interface Props {
   permissions: string[];
@@ -60,6 +64,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // Estado para el modal del reporte.
+  const [openReportThird, setOpenReportThird] = useState(false);
 
   // Estado para deshabilitar en proceso de actualización del estado.
   const [updatingStateId, setUpdatingStateId] = useState<number | null>(null);
@@ -342,14 +348,29 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
         minHeight: "100vh",
       }}
     >
-      <Typography
-        variant="h4"
-        fontFamily={fonts.heading}
-        color={colors.primary}
-        gutterBottom
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
       >
-        Gestión de Terceros
-      </Typography>
+        <Typography
+          variant="h4"
+          fontFamily={fonts.heading}
+          color={colors.primary}
+        >
+          Gestión de Terceros
+        </Typography>
+
+        <IconButton
+          onClick={() => setOpenReportThird(true)}
+          color="primary"
+          title="Ver reporte de terceros"
+          sx={{ backgroundColor: colors.primary_light }}
+        >
+          <PrintIcon />
+        </IconButton>
+      </Box>
 
       <Button
         variant="contained"
@@ -375,8 +396,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                 <TableCell>Celular</TableCell>
                 <TableCell>Crédito</TableCell>
                 <TableCell>Saldo Inicial</TableCell> {/* ✅ Nuevo encabezado */}
+                <TableCell>Relación</TableCell>
                 <TableCell>Estado</TableCell>
-                <TableCell>Acciones</TableCell>
               </TableRow>
             </TableHead>
 
@@ -390,7 +411,18 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
                   <TableCell>{other.email}</TableCell>
                   <TableCell>{other.phone}</TableCell>
                   <TableCell>{formatCOP(other.credit)}</TableCell>
-                  <TableCell>{formatCOP(other.balance)}</TableCell>
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        color: other.negative_balance ? "red" : "green",
+                        fontWeight: "bold",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {other.negative_balance ? "-" : "+"}{" "}
+                      {formatCOP(other.balance)}
+                    </Typography>
+                  </TableCell>
 
                   <TableCell>
                     <FormControlLabel
@@ -915,6 +947,11 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
           {alertMessage}
         </Alert>
       </Snackbar>
+      <SnackReportThird
+        open={openReportThird}
+        onClose={() => setOpenReportThird(false)}
+        correspondentId={correspondent.id}
+      />
     </Box>
   );
 };
