@@ -211,9 +211,16 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       const user = JSON.parse(storedUser);
       setCashier(user);
 
-      const today = new Date().toISOString().split("T")[0];
-      setSelectedDate(today); // establecer fecha inicial
+      // ✅ Obtener fecha local en formato YYYY-MM-DD
+      const today = (() => {
+        const localDate = new Date();
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, "0");
+        const day = String(localDate.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      })();
 
+      setSelectedDate(today); // establecer fecha local correctamente
       await fetchInitialData(user, today); // pasar explícitamente la fecha
     };
 
@@ -721,28 +728,29 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
             <Box
               sx={{
                 backgroundColor: "#fff3e0",
-                border: `2px solid ${colors.warning || "#ffa726"}`,
-                borderRadius: 2,
-                padding: "10px 16px",
-                marginTop: 2,
+                border: `1.5px solid ${colors.warning || "#ffa726"}`,
+                borderRadius: 1.5,
+                padding: "6px 12px", // 👈 más compacto
+                mt: 1, // 👈 menor margen superior
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
               }}
             >
-              <CreditCardIcon sx={{ color: "#f57c00" }} />
+              <CreditCardIcon sx={{ color: "#f57c00", fontSize: 18 }} />{" "}
+              {/* 👈 ícono más pequeño */}
               <Typography
                 sx={{
                   color: "#f57c00",
                   fontWeight: "bold",
-                  fontSize: "1rem",
+                  fontSize: "0.8rem", // 👈 más pequeño
                 }}
               >
                 Transferencia pendiente de ser aceptada:
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "1.2rem",
+                  fontSize: "1rem", // 👈 reducido de 1.2rem
                   fontWeight: "bold",
                   color: "#e65100",
                 }}
@@ -773,11 +781,27 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                 setSelectedCorrespondent(value);
                 await loadCashAndTransactions(cashier.id);
               }}
+              size="small"
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Seleccionar Corresponsal"
-                  sx={{ width: 300 }}
+                  label="Corresponsal"
+                  size="small"
+                  sx={{
+                    width: 180, // 🟢 más angosto
+                    "& .MuiInputBase-root": {
+                      fontSize: "0.7rem", // 🟢 fuente más chica
+                      height: 32, // 🟢 menos alto
+                      paddingY: 0.5,
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontSize: "0.7rem",
+                      top: "-4px",
+                    },
+                    "& .MuiSvgIcon-root": {
+                      fontSize: "1rem", // ícono más pequeño
+                    },
+                  }}
                 />
               )}
             />
@@ -785,12 +809,12 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
           {selectedCorrespondent && selectedCash && (
             <>
-              <Grid item>
+              <Grid item sx={{ mb: 0.1 }}>
                 <Grid
                   container
                   alignItems="center"
                   justifyContent="space-between"
-                  spacing={2}
+                  spacing={0.5}
                 >
                   {/* IZQUIERDA: Enlace y descripción */}
                   <Grid item xs={12} md={8}>
@@ -810,18 +834,22 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                       >
                         <ShareIcon color="primary" />
                         <Typography fontSize="0.9rem" color="text.secondary">
-                          Compartir enlace para Turno
+                          Compartir
                         </Typography>
                       </Box>
 
                       {/* Caja administrada */}
                       {selectedCash && (
                         <Typography
-                          fontSize="1rem" // más pequeño que h5
+                          fontSize="0.80rem"
                           fontWeight="bold"
                           fontFamily={fonts.heading}
                           color={colors.primary}
                           gutterBottom
+                          sx={{
+                            display: "inline",
+                            whiteSpace: "nowrap",
+                          }}
                         >
                           {cashier?.fullname || "—"} –{" "}
                           {selectedCash?.name || "—"}
@@ -831,34 +859,40 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   </Grid>
 
                   {/* DERECHA: Transferencias */}
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={0.5}>
                     <Box display="flex" justifyContent="flex-end">
                       {selectedCash && selectedCorrespondent && (
                         <>
-                          <SnackPluginTransfer
-                            correspondent={selectedCorrespondent}
-                            cash={selectedCash}
-                            onTransactionComplete={fetchInitialData}
-                          />
                           <IconButton
                             onClick={handleOpenReport}
                             sx={{
                               backgroundColor: "#e3f2fd",
                               border: `2px solid ${colors.primary}`,
                               ml: 1,
+                              p: 0.5,
+                              width: 32,
+                              height: 32,
                             }}
                           >
-                            <PrintIcon sx={{ color: colors.primary }} />
+                            <PrintIcon
+                              sx={{ color: colors.primary, fontSize: 18 }}
+                            />
                           </IconButton>
+
                           <IconButton
                             onClick={handleOpenSquareModal}
                             sx={{
                               backgroundColor: "#ede7f6",
                               border: `2px solid ${colors.secondary}`,
                               ml: 1,
+                              p: 0.5,
+                              width: 32,
+                              height: 32,
                             }}
                           >
-                            <CalculateIcon sx={{ color: colors.secondary }} />
+                            <CalculateIcon
+                              sx={{ color: colors.secondary, fontSize: 18 }}
+                            />
                           </IconButton>
                         </>
                       )}
@@ -868,37 +902,20 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               </Grid>
 
               {/* Panel financiero debajo */}
-              <Grid item xs={12} sx={{ mt: 2 }}>
-                <Box
-                  sx={{
-                    backgroundColor: "#f9f9f9",
-                    borderRadius: 2,
-                    p: 2,
-                    boxShadow: 3,
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color="text.primary"
-                    sx={{ mb: 1 }}
-                  >
-                    Resumen financiero
-                  </Typography>
-                  <FinancialSummaryPanel
-                    bankDebt={bankDebt}
-                    cashBalance={
-                      initialConfig +
-                      incomes -
-                      withdrawals -
-                      offsets -
-                      pendingTransferAmount
-                    }
-                    creditLimit={selectedCorrespondent?.credit_limit || 0}
-                    cashCapacity={selectedCash?.capacity || 1}
-                    thirdPartyBalanceInverted={thirdPartyBalance}
-                  />
-                </Box>
+              <Grid item xs={12} sx={{ mt: 0.5 }}>
+                <FinancialSummaryPanel
+                  bankDebt={bankDebt}
+                  cashBalance={
+                    initialConfig +
+                    incomes -
+                    withdrawals -
+                    offsets -
+                    pendingTransferAmount
+                  }
+                  creditLimit={selectedCorrespondent?.credit_limit || 0}
+                  cashCapacity={selectedCash?.capacity || 1}
+                  thirdPartyBalanceInverted={thirdPartyBalance}
+                />
               </Grid>
             </>
           )}
@@ -908,50 +925,42 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       {selectedCorrespondent?.state === 1 && selectedCash?.state === 1 && (
         <Box
           sx={{
-            mt: 4,
-            p: 4,
-            borderRadius: 3,
-            backgroundColor: colors.background_grey, // Fondo gris claro
-            boxShadow: 4,
+            mt: 0.0,
+            p: 1,
+            borderRadius: 2,
+            backgroundColor: "#f4f4f4",
+            boxShadow: 1,
           }}
         >
           <Typography
-            variant="h5"
+            variant="h6"
+            fontSize="1rem" // 👈 igual que el panel financiero
             fontFamily={fonts.heading}
             color={colors.secondary}
-            gutterBottom
-            sx={{ fontWeight: "bold", textAlign: "center" }}
+            textAlign="left"
+            sx={{ fontWeight: "bold", mb: 2 }}
           >
             Movimientos
           </Typography>
 
-          <Grid container spacing={2} alignItems="center" mt={2}>
-            <Grid item xs={12}>
-              <Grid
-                container
-                spacing={2}
-                justifyContent="center"
-                alignItems="stretch"
-              >
-                {[
-                  { Component: SnackPluginDeposits, key: "depositos" },
-                  { Component: SnackPluginWithdrawals, key: "retiros" },
-                  { Component: SnackPluginOthers, key: "otros" },
-                  { Component: SnackPluginThirdParty, key: "terceros" },
-                  { Component: SnackPluginCompesation, key: "compensacion" },
-                ].map(({ Component, key }) => (
-                  <Grid item xs={12} sm={6} md={2.4} key={key}>
-                    <Box sx={{ width: "100%" }}>
-                      <Component
-                        correspondent={selectedCorrespondent}
-                        cash={selectedCash}
-                        onTransactionComplete={fetchInitialData}
-                      />
-                    </Box>
-                  </Grid>
-                ))}
+          <Grid container spacing={1} justifyContent="center">
+            {[
+              { Component: SnackPluginDeposits, key: "depositos" },
+              { Component: SnackPluginWithdrawals, key: "retiros" },
+              { Component: SnackPluginOthers, key: "otros" },
+              { Component: SnackPluginThirdParty, key: "terceros" },
+              { Component: SnackPluginCompesation, key: "compensacion" },
+              { Component: SnackPluginTransfer, key: "transferencias" }, // ✅ Agregado al mismo grupo
+            ].map(({ Component, key }) => (
+              <Grid item xs={9} sm={6} md={2} key={key}>
+                <Component
+                  correspondent={selectedCorrespondent}
+                  cash={selectedCash}
+                  onTransactionComplete={fetchInitialData}
+                  size="small"
+                />
               </Grid>
-            </Grid>
+            ))}
           </Grid>
         </Box>
       )}
@@ -961,85 +970,130 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           <CircularProgress />
         </Box>
       ) : selectedCorrespondent?.state === 1 && selectedCash?.state === 1 ? (
-        <TableContainer component={Paper} sx={{ marginTop: 3 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Tipo</TableCell>
-                <TableCell>Valor</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Nota</TableCell>
-                <TableCell>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Array.isArray(transactions) && transactions.length > 0 ? (
-                transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{t.transaction_type_name}</TableCell>
-                    <TableCell>
-                      <Typography fontWeight="bold">
-                        {new Intl.NumberFormat("es-CO", {
-                          style: "currency",
-                          currency: "COP",
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(Number(t.cost))}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>{t.formatted_date}</TableCell>
-                    <TableCell>
-                      {["Nota crédito", "Nota débito"].includes(t.note) ? (
-                        <Typography variant="body2" color="text.secondary">
-                          {t.cancellation_note}
-                        </Typography>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {t.is_transfer === 0 ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          onClick={() => handleOpenNoteModal(t)}
-                        >
-                          Nota crédito / débito
-                        </Button>
-                      ) : (
-                        <Chip
-                          label="No anulable"
-                          color="warning"
-                          variant="outlined"
-                          sx={{ fontWeight: "bold" }}
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+        <Box>
+          {/* Tabla con scroll y encabezado fijo */}
+          <TableContainer
+            component={Paper}
+            sx={{
+              maxHeight: "360px", // Altura máxima visible
+              overflowY: "auto", // Scroll solo en cuerpo
+              borderRadius: 2,
+              border: `1px solid ${colors.primary}`,
+            }}
+          >
+            <Table stickyHeader size="small">
+              {" "}
+              {/* 👈 stickyHeader */}
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    No hay transacciones disponibles.
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Fecha
+                  </TableCell>
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Tipo
+                  </TableCell>
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Valor
+                  </TableCell>
+
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Nota
+                  </TableCell>
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Acciones
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          <TableContainer component={Paper} sx={{ marginTop: 3 }}>
-            <Table>{/* ... tu tabla */}</Table>
+              </TableHead>
+              <TableBody>
+                {Array.isArray(transactions) && transactions.length > 0 ? (
+                  transactions.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell sx={{ fontSize: "0.80rem" }}>
+                        {t.formatted_date}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.80rem" }}>
+                        {t.transaction_type_name}
+                      </TableCell>
+                      <TableCell>
+                        <Typography fontWeight="bold" fontSize="0.85rem">
+                          {new Intl.NumberFormat("es-CO", {
+                            style: "currency",
+                            currency: "COP",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(Number(t.cost))}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell sx={{ fontSize: "0.80rem" }}>
+                        {["Nota crédito", "Nota débito"].includes(t.note) ? (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            fontSize="0.75rem"
+                          >
+                            {t.cancellation_note}
+                          </Typography>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {t.is_transfer === 0 ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={<Delete />}
+                            onClick={() => handleCancelTransaction(t)}
+                            sx={{ fontSize: "0.70rem", px: 1.2 }}
+                          >
+                            Eliminar
+                          </Button>
+                        ) : (
+                          <Chip
+                            label="No anulable"
+                            color="warning"
+                            variant="outlined"
+                            sx={{ fontSize: "0.70rem", fontWeight: "bold" }}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      align="center"
+                      sx={{ fontSize: "0.85rem" }}
+                    >
+                      No hay transacciones disponibles.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </TableContainer>
 
-          <Box mt={3}>
+          {/* Paginación fuera del scroll */}
+          <Box mt={1.5}>
             <SnackPagination
               total={totalItems}
               currentPage={currentPage}
               rowsPerPage={rowsPerPage}
               categoryFilter={categoryFilter}
-              selectedDate={selectedDate} // ← AÑADE ESTO
+              selectedDate={selectedDate}
               onDateChange={(date) => {
                 setSelectedDate(date);
                 setCurrentPage(1);
@@ -1048,7 +1102,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   1,
                   rowsPerPage,
                   categoryFilter,
-                  date // ← Pasa la fecha al cargar
+                  date
                 );
               }}
               onPageChange={(newPage) => {
@@ -1085,7 +1139,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
               }}
             />
           </Box>
-        </TableContainer>
+        </Box>
       ) : selectedCash?.state === 0 ? (
         <Box sx={{ mt: 8, textAlign: "center" }}>
           <SnackLottieMoney width={250} height={250} />

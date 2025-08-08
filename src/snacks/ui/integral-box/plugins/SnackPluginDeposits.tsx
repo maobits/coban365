@@ -316,19 +316,26 @@ const SnackPluginDeposits: React.FC<Props> = ({
   return (
     <>
       <Button
-        variant="contained"
+        variant="outlined"
         onClick={handleOpen}
+        size="small"
         sx={{
           fontWeight: "bold",
-          fontSize: "1.2rem", // Tamaño de texto más grande
-          paddingX: 4, // Más espacio horizontal (izq/der)
-          paddingY: 2, // Más espacio vertical (arriba/abajo)
-          backgroundColor: "#fff",
-          color: colors.text,
-          border: `2px solid ${colors.text}`,
-          borderRadius: 2,
+          fontSize: "0.85rem",
+          width: "100%",
+          minWidth: 130,
+          maxWidth: 160,
+          height: 44,
+          borderRadius: 6,
+          borderWidth: 2,
+          borderColor: colors.secondary,
+          color: colors.secondary,
+          backgroundColor: "#ffffff",
+          boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.08)",
+          textTransform: "none",
           "&:hover": {
-            backgroundColor: "#f4f4f4",
+            backgroundColor: "#f5f5f5",
+            borderColor: colors.secondary,
           },
         }}
       >

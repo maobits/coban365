@@ -345,45 +345,41 @@ const SnackPluginTransfer: React.FC<Props> = ({
 
   return (
     <>
-      <Grid item xs={12} md={4}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: { xs: "center", md: "flex-end" },
-            mt: { xs: 2, md: 0 },
-          }}
-        >
-          <Button
-            variant="outlined"
-            onClick={() => {
-              if (correspondent.premium === 1) {
-                handleOpen();
-              } else {
-                setAlertMessage(
-                  "⚠️ Esta es una función premium. Solicita una mejora de plan para acceder a transferencias entre cajas."
-                );
-                setAlertOpen(true);
-              }
-            }}
-            sx={{
-              fontWeight: "bold",
-              fontSize: { xs: "0.9rem", sm: "1rem", md: "1.2rem" },
-              px: { xs: 3, sm: 4 },
-              py: { xs: 1, sm: 1.5 },
-              color: colors.text,
-              border: `2px solid ${colors.text}`,
-              borderRadius: 2,
-              whiteSpace: "nowrap",
-              minWidth: "auto",
-              "&:hover": {
-                backgroundColor: "#f4f4f4",
-              },
-            }}
-          >
-            TRANSFERENCIAS
-          </Button>
-        </Box>
-      </Grid>
+      <Button
+        variant="outlined"
+        onClick={() => {
+          if (correspondent.premium === 1) {
+            handleOpen();
+          } else {
+            setAlertMessage(
+              "⚠️ Esta es una función premium. Solicita una mejora de plan para acceder a transferencias entre cajas."
+            );
+            setAlertOpen(true);
+          }
+        }}
+        size="small"
+        sx={{
+          fontWeight: "bold",
+          fontSize: "0.85rem",
+          width: "100%",
+          minWidth: 130,
+          maxWidth: 160,
+          height: 44,
+          borderRadius: 6,
+          borderWidth: 2,
+          textTransform: "none",
+          borderColor: colors.secondary,
+          color: colors.secondary,
+          backgroundColor: "#ffffff",
+          boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.08)",
+          "&:hover": {
+            backgroundColor: "#f5f5f5",
+            borderColor: colors.secondary,
+          },
+        }}
+      >
+        Transferencias
+      </Button>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle

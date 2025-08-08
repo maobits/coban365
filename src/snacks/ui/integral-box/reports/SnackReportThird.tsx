@@ -10,6 +10,7 @@ import {
   Table,
   TableBody,
   TableRow,
+  TableHead,
   TableCell,
   Button,
   CircularProgress,
@@ -22,6 +23,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import html2pdf from "html2pdf.js";
 import { useTheme } from "../../../../glamour/ThemeContext";
 import { getThirdPartyBalanceSheet } from "../../../../store/reports/Reports";
+import InfoIcon from "@mui/icons-material/Info";
 
 interface Props {
   open: boolean;
@@ -41,6 +43,21 @@ const SnackReportThird: React.FC<Props> = ({
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
+
+  // Estado para el modal de detalle.
+  const [openDetail, setOpenDetail] = useState(false);
+  const [selectedThird, setSelectedThird] = useState<any>(null);
+
+  // Estados para paginacion
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Función para abrir el modal.
+  const handleOpenDetail = (third: any) => {
+    setSelectedThird(third);
+    setOpenDetail(true);
+  };
 
   const loadReport = async () => {
     try {
@@ -84,6 +101,23 @@ const SnackReportThird: React.FC<Props> = ({
       html2pdf().set(opt).from(printRef.current).save();
     }
   };
+
+  const filteredMovements =
+    selectedThird?.movements?.filter(
+      (m: any) =>
+        m.transaction_type_name
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        m.note?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
+
+  const paginatedMovements = filteredMovements.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
       <DialogTitle
@@ -155,17 +189,35 @@ const SnackReportThird: React.FC<Props> = ({
                 <Table size="small">
                   <TableBody>
                     <TableRow>
-                      <TableCell>Saldo actual</TableCell>
+                      {/*<TableCell>Saldo actual</TableCell>
                       <TableCell align="right">
-                        {formatCurrency(t.balance)}
-                      </TableCell>
+                        {formatCurrency(
+                          t.negative_balance ? t.balance * -1 : t.balance
+                        )}
+                      </TableCell>*/}
                     </TableRow>
                     <TableRow>
                       <TableCell>Saldo neto</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.net_balance)}
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            (t.negative_balance
+                              ? t.net_balance * -1
+                              : t.net_balance) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {formatCurrency(
+                          t.negative_balance
+                            ? t.net_balance * -1
+                            : t.net_balance
+                        )}
                       </TableCell>
                     </TableRow>
+
                     <TableRow>
                       <TableCell>Cupo disponible</TableCell>
                       <TableCell align="right">
@@ -198,6 +250,15 @@ const SnackReportThird: React.FC<Props> = ({
                     </TableRow>
                   </TableBody>
                 </Table>
+
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleOpenDetail(t)}
+                  startIcon={<InfoIcon />}
+                >
+                  Ver detalle
+                </Button>
 
                 <Divider sx={{ my: 2 }} />
               </Box>
@@ -284,6 +345,120 @@ const SnackReportThird: React.FC<Props> = ({
           Cerrar
         </Button>
       </DialogActions>
+
+      {openDetail && (
+        <Dialog
+          open={openDetail}
+          onClose={() => setOpenDetail(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Detalle del tercero</DialogTitle>
+          <DialogContent>
+            {selectedThird && (
+              <>
+                <Typography fontWeight="bold" gutterBottom>
+                  {selectedThird.name} (ID: {selectedThird.id})
+                </Typography>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Cupo asignado</TableCell>
+                      <TableCell align="right">
+                        {formatCurrency(selectedThird.credit_limit)}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      {/*<TableCell>Saldo actual</TableCell>
+                      <TableCell align="right">
+                        {formatCurrency(
+                          selectedThird.negative_balance
+                            ? selectedThird.balance * -1
+                            : selectedThird.balance
+                        )}
+                      </TableCell>*/}
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Saldo neto</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            (selectedThird.negative_balance
+                              ? selectedThird.net_balance * -1
+                              : selectedThird.net_balance) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {formatCurrency(
+                          selectedThird.negative_balance
+                            ? selectedThird.net_balance * -1
+                            : selectedThird.net_balance
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+
+                <Divider sx={{ my: 2 }} />
+                <TextField
+                  label="Filtrar movimientos"
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+
+                <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Fecha</TableCell>
+                        <TableCell>Tipo</TableCell>
+
+                        <TableCell align="right">Valor</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paginatedMovements.map((m: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            {new Date(m.created_at).toLocaleString("es-CO", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                              hour12: true,
+                            })}
+                          </TableCell>
+                          <TableCell>{m.transaction_type_name}</TableCell>
+
+                          <TableCell align="right">
+                            {formatCurrency(parseFloat(m.cost))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setOpenDetail(false)}
+              color="primary"
+              variant="contained"
+            >
+              Cerrar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Dialog>
   );
 };

@@ -9,7 +9,7 @@ import {
   Grid,
   TextField,
 } from "@mui/material";
-import { useTheme as useCustomTheme } from "../../../glamour/ThemeContext"; // ajusta ruta si es necesario
+import { useTheme as useCustomTheme } from "../../../glamour/ThemeContext";
 
 interface SnackPaginationProps {
   total: number;
@@ -22,8 +22,8 @@ interface SnackPaginationProps {
   categoryFilter?: string;
   onCategoryChange?: (category: string) => void;
   categoryOptions?: string[];
-  selectedDate?: string; // ← ✅ ya lo tienes
-  onDateChange?: (date: string) => void; // ← ✅ ya lo tienes
+  selectedDate?: string;
+  onDateChange?: (date: string) => void;
 }
 
 const SnackPagination: React.FC<SnackPaginationProps> = ({
@@ -44,8 +44,8 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
     "Compensación",
     "Transferir",
   ],
-  selectedDate, // ← ✅ AÑADIR ESTO AQUÍ
-  onDateChange, // ← ✅ Y ESTO TAMBIÉN
+  selectedDate,
+  onDateChange,
 }) => {
   const muiTheme = useTheme();
   const { colors, fonts } = useCustomTheme();
@@ -61,25 +61,26 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
           alignItems: "center",
           justifyContent: "flex-start",
           flexWrap: "wrap",
-          gap: 2,
-          mb: 2,
-          px: 3,
+          gap: 1.5,
+          mb: 1.5,
+          px: 2,
         }}
       >
         <Typography
-          variant="h6"
           fontWeight="bold"
-          sx={{ color: colors.primary }}
+          sx={{ color: colors.primary, fontSize: "0.85rem" }}
         >
           Filtrar por categoría:
         </Typography>
+
         <Select
-          size="medium"
+          size="small"
           value={categoryFilter}
           onChange={(e) => onCategoryChange?.(e.target.value)}
           displayEmpty
           sx={{
-            minWidth: 200,
+            minWidth: 160,
+            fontSize: "0.80rem",
             backgroundColor: "#fff",
             color: colors.primary,
             "& .MuiSelect-icon": {
@@ -87,9 +88,11 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
             },
           }}
         >
-          <MenuItem value="">Todas las categorías</MenuItem>
+          <MenuItem value="" sx={{ fontSize: "0.80rem" }}>
+            Todas las categorías
+          </MenuItem>
           {categoryOptions.map((option) => (
-            <MenuItem key={option} value={option}>
+            <MenuItem key={option} value={option} sx={{ fontSize: "0.80rem" }}>
               {option}
             </MenuItem>
           ))}
@@ -97,12 +100,13 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
 
         <Grid item>
           <TextField
+            size="small"
             label="Filtrar por fecha"
             type="date"
             value={selectedDate || ""}
             onChange={(e) => onDateChange?.(e.target.value)}
             InputLabelProps={{ shrink: true }}
-            sx={{ width: 220 }}
+            sx={{ width: 180, fontSize: "0.80rem" }}
           />
         </Grid>
       </Box>
@@ -113,34 +117,33 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mt: 3,
-          px: 3,
-          py: 2,
+          mt: 2,
+          px: 2,
+          py: 1.2,
           borderRadius: 2,
           flexWrap: "wrap",
-          gap: 2,
+          gap: 1.5,
           background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
           color: colors.text_white,
           fontFamily: fonts.base,
-          boxShadow: 3,
+          boxShadow: 2,
         }}
       >
+        {/* Selector de filas por página */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography
-            variant="h6"
             fontWeight="bold"
-            sx={{ color: colors.text_white }}
+            sx={{ color: colors.text_white, fontSize: "0.85rem" }}
           >
             {label}:
           </Typography>
           <Select
-            size="medium"
+            size="small"
             value={rowsPerPage}
             onChange={(e) => onRowsPerPageChange?.(parseInt(e.target.value))}
             sx={{
+              fontSize: "0.80rem",
               color: colors.text_white,
-              fontSize: "1rem",
-              borderColor: colors.text_white,
               backgroundColor: "rgba(255,255,255,0.1)",
               "& .MuiSelect-icon": {
                 color: colors.text_white,
@@ -148,13 +151,18 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
             }}
           >
             {rowsPerPageOptions.map((option) => (
-              <MenuItem key={option} value={option} sx={{ fontSize: "1rem" }}>
+              <MenuItem
+                key={option}
+                value={option}
+                sx={{ fontSize: "0.80rem" }}
+              >
                 {option}
               </MenuItem>
             ))}
           </Select>
         </Box>
 
+        {/* Control de paginación */}
         <Pagination
           count={pageCount}
           page={currentPage}
@@ -165,16 +173,17 @@ const SnackPagination: React.FC<SnackPaginationProps> = ({
             "& .MuiPaginationItem-root": {
               color: colors.text_white,
               fontWeight: "bold",
-              fontSize: "1rem",
+              fontSize: "0.80rem",
             },
           }}
         />
 
+        {/* Indicador de rango */}
         <Typography
-          variant="h6"
           sx={{
             color: colors.text_white,
             fontWeight: 500,
+            fontSize: "0.80rem",
           }}
         >
           Mostrando {(currentPage - 1) * rowsPerPage + 1} -{" "}

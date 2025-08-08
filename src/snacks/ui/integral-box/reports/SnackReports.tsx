@@ -116,6 +116,7 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
     "prestamo de terceros",
     "pago a tercero",
     "compensacion",
+    "transferir a otra caja", // ✅ añadido aquí
   ];
 
   const effective = summary.filter(
@@ -167,7 +168,14 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={i}>
-              <TableCell sx={{ fontSize: 13 }}>{r.type}</TableCell>
+              <TableCell sx={{ fontSize: 13 }}>
+                {r.type === "Transferir a otra caja"
+                  ? r.subtotal < 0
+                    ? "Transferencia de efectivo"
+                    : "Entrada de efectivo"
+                  : r.type}
+              </TableCell>
+
               <TableCell align="center" sx={{ fontSize: 13 }}>
                 {r.count}
               </TableCell>

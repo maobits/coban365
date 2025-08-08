@@ -266,7 +266,6 @@ const SnackCrudUser: React.FC<{ permissions: string[] }> = ({
     { value: "manageCorrespondents", label: "Gestionar corresponsales" },
     { value: "manageCorrespondent", label: "Gestionar su corresponsal" },
     { value: "manageAdministrators", label: "Gestionar administradores" },
-    { value: "manageReports", label: "Gestionar reportes" },
     { value: "manageCash", label: "Gestionar la caja" }, // ← nuevo
   ];
 
