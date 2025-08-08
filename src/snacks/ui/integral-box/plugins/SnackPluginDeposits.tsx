@@ -92,7 +92,12 @@ const SnackPluginDeposits: React.FC<Props> = ({
   {
     /* Función para cargar el valor en caja. */
   }
-  const loadCashSummary = async () => {
+  const loadCashSummary = async (): Promise<{
+    initial: number;
+    inc: number;
+    wdraw: number;
+    saldoActual: number;
+  }> => {
     try {
       const [confRes, incomeRes, withdrawalRes] = await Promise.all([
         getInitialCashConfiguration(cash.id),
@@ -100,25 +105,32 @@ const SnackPluginDeposits: React.FC<Props> = ({
         getCashWithdrawals(cash.id),
       ]);
 
-      if (confRes.success) {
-        setInitialConfig(confRes.data.initial_amount || 0);
-        console.log(
-          "⚙️ Configuración inicial en caja:",
-          confRes.data.initial_amount || 0
-        );
-      }
+      const initial = confRes?.success
+        ? Number(confRes.data?.initial_amount || 0)
+        : 0;
+      const inc = incomeRes?.success ? Number(incomeRes.total || 0) : 0;
+      const wdraw = withdrawalRes?.success
+        ? Number(withdrawalRes.total || 0)
+        : 0;
 
-      if (incomeRes.success) {
-        setIncomes(incomeRes.total || 0);
-        console.log("💰 Ingresos en caja:", incomeRes.total || 0);
-      }
+      // ✅ Mantiene tus estados como antes
+      setInitialConfig(initial);
+      setIncomes(inc);
+      setWithdrawals(wdraw);
 
-      if (withdrawalRes.success) {
-        setWithdrawals(withdrawalRes.total || 0);
-        console.log("💸 Egresos en caja:", withdrawalRes.total || 0);
-      }
+      console.log("⚙️ Configuración inicial en caja:", initial);
+      console.log("💰 Ingresos en caja:", inc);
+      console.log("💸 Egresos en caja:", wdraw);
+
+      const saldoActual = initial + inc - wdraw; // ← saldo vigente antes del depósito
+
+      // ✅ Devuelve los valores para usarlos al calcular cash_tag
+      return { initial, inc, wdraw, saldoActual };
     } catch (error) {
       console.error("❌ Error al cargar resumen financiero:", error);
+      // También puedes resetear el estado si quieres:
+      // setInitialConfig(0); setIncomes(0); setWithdrawals(0);
+      return { initial: 0, inc: 0, wdraw: 0, saldoActual: 0 };
     }
   };
 
@@ -247,6 +259,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
       // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
+      //  Capturar saldo actual.
+      const { saldoActual } = await loadCashSummary();
+      const cashTag = saldoActual + valorIngresado; // 🆕 saldo resultante a guardar
+
       // ✅ 2. Validar contra el cupo disponible actualizado
       if (valorIngresado > cupoDisponible) {
         setAlertMessage(
@@ -278,6 +294,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         polarity: true,
         cost: valorIngresado,
         utility,
+        cash_tag: cashTag, // 🆕
       };
 
       const res = await createTransaction(payload);

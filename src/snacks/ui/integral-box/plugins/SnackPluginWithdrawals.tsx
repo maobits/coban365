@@ -90,7 +90,12 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
   {
     /* Función para cargar el valor en caja. */
   }
-  const loadCashSummary = async () => {
+  const loadCashSummary = async (): Promise<{
+    initial: number;
+    inc: number;
+    wdraw: number;
+    saldoActual: number;
+  }> => {
     try {
       const [confRes, incomeRes, withdrawalRes] = await Promise.all([
         getInitialCashConfiguration(cash.id),
@@ -98,25 +103,28 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
         getCashWithdrawals(cash.id),
       ]);
 
-      if (confRes.success) {
-        setInitialConfig(confRes.data.initial_amount || 0);
-        console.log(
-          "⚙️ Configuración inicial en caja:",
-          confRes.data.initial_amount || 0
-        );
-      }
+      const initial = confRes?.success
+        ? Number(confRes.data?.initial_amount || 0)
+        : 0;
+      const inc = incomeRes?.success ? Number(incomeRes.total || 0) : 0;
+      const wdraw = withdrawalRes?.success
+        ? Number(withdrawalRes.total || 0)
+        : 0;
 
-      if (incomeRes.success) {
-        setIncomes(incomeRes.total || 0);
-        console.log("💰 Ingresos en caja:", incomeRes.total || 0);
-      }
+      // Mantén los estados como antes
+      setInitialConfig(initial);
+      setIncomes(inc);
+      setWithdrawals(wdraw);
 
-      if (withdrawalRes.success) {
-        setWithdrawals(withdrawalRes.total || 0);
-        console.log("💸 Egresos en caja:", withdrawalRes.total || 0);
-      }
+      console.log("⚙️ Configuración inicial en caja:", initial);
+      console.log("💰 Ingresos en caja:", inc);
+      console.log("💸 Egresos en caja:", wdraw);
+
+      const saldoActual = initial + inc - wdraw; // saldo vigente antes del retiro
+      return { initial, inc, wdraw, saldoActual };
     } catch (error) {
       console.error("❌ Error al cargar resumen financiero:", error);
+      return { initial: 0, inc: 0, wdraw: 0, saldoActual: 0 };
     }
   };
 
@@ -225,6 +233,9 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
       // ✅ Recargar ingresos/egresos de la caja (aunque no se registre)
       await loadCashSummary();
 
+      // ✅ 2. Refrescar resumen de caja y USAR su retorno (evita usar state desfasado)
+      const { saldoActual } = await loadCashSummary();
+
       // ✅ Validar si el monto es mayor al saldo disponible en caja
       if (valorIngresado > currentCash) {
         setAlertMessage(
@@ -240,6 +251,13 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
         amountRef.current?.focus();
         return;
       }
+
+      // 🧮 3. Calcular cash_tag (saldo resultante después del retiro)
+      const cashTag = saldoActual - valorIngresado;
+      console.log(
+        "💾 cash_tag (saldo post-retiro):",
+        cashTag.toLocaleString("es-CO")
+      );
 
       // 3. Obtener tarifa (utility)
       const rateRes = await listRatesByCorrespondent(correspondent.id);
@@ -257,6 +275,7 @@ const SnackPluginWithdrawals: React.FC<Props> = ({
         polarity: false,
         cost: valorIngresado,
         utility,
+        cash_tag: cashTag,
       };
 
       const res = await createTransaction(payload);

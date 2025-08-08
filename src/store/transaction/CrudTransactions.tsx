@@ -439,15 +439,16 @@ export const createClearingTransaction = async (payload: {
 
 export const createTransferTransaction = async (payload: {
   id_cashier: number;
-  id_cash: number;
+  id_cash: number; // caja ORIGEN
   id_correspondent: number;
   transaction_type_id: number;
-  polarity: boolean;
+  polarity: boolean; // en transfer de salida, suele ser false
   cost: number;
-  box_reference: number;
+  box_reference: number; // caja DESTINO
   utility?: number;
   is_transfer?: boolean;
   transfer_status?: boolean;
+  cash_tag?: number; // 👈 NUEVO: saldo resultante de la caja ORIGEN
 }): Promise<any> => {
   try {
     const url = `${baseUrl}/api/transactions/utils/new_transfer_transaction.php`;
@@ -455,13 +456,12 @@ export const createTransferTransaction = async (payload: {
 
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...payload,
-        is_transfer: true,
-        transfer_status: false,
+        is_transfer: true, // forzado como antes
+        transfer_status: false, // forzado como antes
+        // cash_tag va incluido si vino en payload
       }),
     });
 

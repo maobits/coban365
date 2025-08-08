@@ -90,7 +90,7 @@ const SnackPluginCompesation: React.FC<Props> = ({
   {
     /* Función para cargar el valor en caja. */
   }
-  const loadCashSummary = async () => {
+  const loadCashSummary = async (): Promise<{ saldoActual: number }> => {
     try {
       const [confRes, incomeRes, withdrawalRes] = await Promise.all([
         getInitialCashConfiguration(cash.id),
@@ -98,25 +98,23 @@ const SnackPluginCompesation: React.FC<Props> = ({
         getCashWithdrawals(cash.id),
       ]);
 
-      if (confRes.success) {
-        setInitialConfig(confRes.data.initial_amount || 0);
-        console.log(
-          "⚙️ Configuración inicial en caja:",
-          confRes.data.initial_amount || 0
-        );
-      }
+      const initial = confRes?.success
+        ? Number(confRes.data?.initial_amount || 0)
+        : 0;
+      const inc = incomeRes?.success ? Number(incomeRes.total || 0) : 0;
+      const wdraw = withdrawalRes?.success
+        ? Number(withdrawalRes.total || 0)
+        : 0;
 
-      if (incomeRes.success) {
-        setIncomes(incomeRes.total || 0);
-        console.log("💰 Ingresos en caja:", incomeRes.total || 0);
-      }
+      setInitialConfig(initial);
+      setIncomes(inc);
+      setWithdrawals(wdraw);
 
-      if (withdrawalRes.success) {
-        setWithdrawals(withdrawalRes.total || 0);
-        console.log("💸 Egresos en caja:", withdrawalRes.total || 0);
-      }
-    } catch (error) {
-      console.error("❌ Error al cargar resumen financiero:", error);
+      const saldoActual = initial + inc - wdraw; // saldo vigente antes de compensar
+      return { saldoActual };
+    } catch (e) {
+      console.error("❌ Error al cargar resumen financiero:", e);
+      return { saldoActual: 0 };
     }
   };
 
@@ -245,6 +243,16 @@ const SnackPluginCompesation: React.FC<Props> = ({
       );
       const utility = tarifa ? parseFloat(tarifa.price) : 0;
 
+      // ✅ lee saldo actual recién calculado (no uses state que puede estar desfasado)
+      const { saldoActual } = await loadCashSummary();
+
+      // Compensación = egreso de caja
+      const cashTag = saldoActual - valorIngresado;
+      console.log(
+        "💾 cash_tag (saldo post-compensación):",
+        cashTag.toLocaleString("es-CO")
+      );
+
       // 4. Registrar transacción
       const payload = {
         id_cashier: 1, // ← Reemplazar por el ID real del cajero
@@ -254,6 +262,7 @@ const SnackPluginCompesation: React.FC<Props> = ({
         polarity: false,
         cost: valorIngresado,
         utility,
+        cash_tag: cashTag,
       };
 
       const res = await createClearingTransaction(payload);

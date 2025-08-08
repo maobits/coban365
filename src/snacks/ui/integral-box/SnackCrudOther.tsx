@@ -142,6 +142,8 @@ const SnackCrudOther: React.FC<Props> = ({ permissions, correspondent }) => {
       address: "",
     });
 
+    setFormErrors({}); // 👈 limpiar errores aquí
+    setNewBalanceError(null); // (si lo usas)
     setOpenDialog(true); // Solo se abre si pasa la validación
   };
 

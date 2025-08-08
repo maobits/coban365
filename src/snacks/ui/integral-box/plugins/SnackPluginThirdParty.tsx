@@ -122,7 +122,12 @@ const SnackPluginDeposits: React.FC<Props> = ({
   {
     /* Función para cargar el valor en caja. */
   }
-  const loadCashSummary = async () => {
+  const loadCashSummary = async (): Promise<{
+    initial: number;
+    inc: number;
+    wdraw: number;
+    saldoActual: number;
+  }> => {
     try {
       const [confRes, incomeRes, withdrawalRes] = await Promise.all([
         getInitialCashConfiguration(cash.id),
@@ -130,25 +135,27 @@ const SnackPluginDeposits: React.FC<Props> = ({
         getCashWithdrawals(cash.id),
       ]);
 
-      if (confRes.success) {
-        setInitialConfig(confRes.data.initial_amount || 0);
-        console.log(
-          "⚙️ Configuración inicial en caja:",
-          confRes.data.initial_amount || 0
-        );
-      }
+      const initial = confRes?.success
+        ? Number(confRes.data?.initial_amount || 0)
+        : 0;
+      const inc = incomeRes?.success ? Number(incomeRes.total || 0) : 0;
+      const wdraw = withdrawalRes?.success
+        ? Number(withdrawalRes.total || 0)
+        : 0;
 
-      if (incomeRes.success) {
-        setIncomes(incomeRes.total || 0);
-        console.log("💰 Ingresos en caja:", incomeRes.total || 0);
-      }
+      setInitialConfig(initial);
+      setIncomes(inc);
+      setWithdrawals(wdraw);
 
-      if (withdrawalRes.success) {
-        setWithdrawals(withdrawalRes.total || 0);
-        console.log("💸 Egresos en caja:", withdrawalRes.total || 0);
-      }
+      console.log("⚙️ Configuración inicial en caja:", initial);
+      console.log("💰 Ingresos en caja:", inc);
+      console.log("💸 Egresos en caja:", wdraw);
+
+      const saldoActual = initial + inc - wdraw; // saldo vigente antes de la transacción
+      return { initial, inc, wdraw, saldoActual };
     } catch (error) {
       console.error("❌ Error al cargar resumen financiero:", error);
+      return { initial: 0, inc: 0, wdraw: 0, saldoActual: 0 };
     }
   };
 
@@ -481,6 +488,30 @@ const SnackPluginDeposits: React.FC<Props> = ({
         }
       }
 
+      // ✅ Lee saldo actual recién calculado (evita usar state desfasado)
+      const { saldoActual } = await loadCashSummary();
+
+      // Determina si la transacción suma o resta caja
+      const sumaCaja = [
+        "charge_to_third_party",
+        "loan_from_third_party",
+      ].includes(third_party_note);
+      const restaCaja = ["debt_to_third_party", "loan_to_third_party"].includes(
+        third_party_note
+      );
+
+      // Calcula cash_tag (saldo resultante)
+      const cashTag = sumaCaja
+        ? saldoActual + valorIngresado
+        : restaCaja
+        ? saldoActual - valorIngresado
+        : saldoActual; // fallback si no se reconoce el tipo
+
+      console.log(
+        "💾 cash_tag (saldo resultante post-tercero):",
+        cashTag.toLocaleString("es-CO")
+      );
+
       // 7. Construir payload con ID real y nota especial
       const payload = {
         id_cashier: 1, // ← reemplazar por el ID real si aplica
@@ -492,6 +523,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         utility: parseFloat(utility),
         client_reference: selectedOther.id,
         third_party_note,
+        cash_tag: cashTag,
       };
 
       console.log("📤 Registrando transacción con tercero:", payload);

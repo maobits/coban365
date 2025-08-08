@@ -1001,6 +1001,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   >
                     Valor
                   </TableCell>
+                  <TableCell
+                    sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
+                  >
+                    Efectivo
+                  </TableCell>
 
                   <TableCell
                     sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
@@ -1035,19 +1040,35 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                         </Typography>
                       </TableCell>
 
+                      <TableCell>
+                        <Typography fontWeight="bold" fontSize="0.85rem">
+                          {t.transaction_type_name ===
+                            "Transferir a otra caja" &&
+                          Number(t.box_reference) === Number(selectedCash?.id)
+                            ? "-" // solo ocultar en la caja DESTINO
+                            : new Intl.NumberFormat("es-CO", {
+                                style: "currency",
+                                currency: "COP",
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Number(t.cash_tag || 0))}
+                        </Typography>
+                      </TableCell>
+
                       <TableCell sx={{ fontSize: "0.80rem" }}>
-                        {["Nota crédito", "Nota débito"].includes(t.note) ? (
+                        {t.transaction_type_name === "Compensación" ? (
+                          "—"
+                        ) : (
                           <Typography
                             variant="body2"
                             color="text.secondary"
                             fontSize="0.75rem"
                           >
-                            {t.cancellation_note}
+                            {t.note}
                           </Typography>
-                        ) : (
-                          "—"
                         )}
                       </TableCell>
+
                       <TableCell>
                         {t.is_transfer === 0 ? (
                           <Button

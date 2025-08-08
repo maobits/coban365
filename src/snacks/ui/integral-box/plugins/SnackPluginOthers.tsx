@@ -90,7 +90,12 @@ const SnackPluginOthers: React.FC<Props> = ({
   {
     /* Función para cargar el valor en caja. */
   }
-  const loadCashSummary = async () => {
+  const loadCashSummary = async (): Promise<{
+    initial: number;
+    inc: number;
+    wdraw: number;
+    saldoActual: number;
+  }> => {
     try {
       const [confRes, incomeRes, withdrawalRes] = await Promise.all([
         getInitialCashConfiguration(cash.id),
@@ -98,25 +103,27 @@ const SnackPluginOthers: React.FC<Props> = ({
         getCashWithdrawals(cash.id),
       ]);
 
-      if (confRes.success) {
-        setInitialConfig(confRes.data.initial_amount || 0);
-        console.log(
-          "⚙️ Configuración inicial en caja:",
-          confRes.data.initial_amount || 0
-        );
-      }
+      const initial = confRes?.success
+        ? Number(confRes.data?.initial_amount || 0)
+        : 0;
+      const inc = incomeRes?.success ? Number(incomeRes.total || 0) : 0;
+      const wdraw = withdrawalRes?.success
+        ? Number(withdrawalRes.total || 0)
+        : 0;
 
-      if (incomeRes.success) {
-        setIncomes(incomeRes.total || 0);
-        console.log("💰 Ingresos en caja:", incomeRes.total || 0);
-      }
+      setInitialConfig(initial);
+      setIncomes(inc);
+      setWithdrawals(wdraw);
 
-      if (withdrawalRes.success) {
-        setWithdrawals(withdrawalRes.total || 0);
-        console.log("💸 Egresos en caja:", withdrawalRes.total || 0);
-      }
+      console.log("⚙️ Configuración inicial en caja:", initial);
+      console.log("💰 Ingresos en caja:", inc);
+      console.log("💸 Egresos en caja:", wdraw);
+
+      const saldoActual = initial + inc - wdraw;
+      return { initial, inc, wdraw, saldoActual };
     } catch (error) {
       console.error("❌ Error al cargar resumen financiero:", error);
+      return { initial: 0, inc: 0, wdraw: 0, saldoActual: 0 };
     }
   };
 
@@ -189,6 +196,18 @@ const SnackPluginOthers: React.FC<Props> = ({
       );
       const utility = tarifa ? parseFloat(tarifa.price) : 0;
 
+      // ✅ Obtener saldo actual
+      const { saldoActual } = await loadCashSummary();
+
+      // Determinar si es ingreso o egreso
+      const esIngreso = true; // 🔹 si en este caso siempre será ingreso, pon true
+      // o si viene desde el tipo de transacción:
+      // const esIngreso = selectedTransactionObject?.polarity === true;
+
+      const cashTag = esIngreso ? saldoActual : saldoActual;
+
+      console.log("💾 cash_tag calculado:", cashTag);
+
       const payload = {
         id_cashier: 1, // ← Reemplazar por el ID real del cajero si aplica
         id_cash: cash.id,
@@ -197,6 +216,7 @@ const SnackPluginOthers: React.FC<Props> = ({
         polarity: false,
         cost: valorIngresado,
         utility,
+        cash_tag: cashTag,
       };
 
       const res = await createTransaction(payload);
