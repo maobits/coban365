@@ -84,6 +84,12 @@ import {
   getCashWithdrawals,
 } from "../../store/transaction/CrudTransactions";
 
+// Icono para terceros
+import GroupIcon from "@mui/icons-material/Group";
+
+// Componente de tirilla de terceros
+import ThirdPartySummaryReport from "../ui/reports/ThirdPartySummaryReport";
+
 interface Props {
   permissions: string[];
 }
@@ -202,6 +208,11 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
   // Estados para el cuadre de caja.
   const [showSquareModal, setShowSquareModal] = useState(false);
+
+  // Estado para el resumen del modal.
+  const [showThirdModal, setShowThirdModal] = useState(false);
+
+  // Consulta min 6 max
 
   useEffect(() => {
     const init = async () => {
@@ -894,6 +905,29 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                               sx={{ color: colors.secondary, fontSize: 18 }}
                             />
                           </IconButton>
+
+                          {/* 👉 Nuevo: botón Terceros (a la derecha del de Cuadre) */}
+                          <IconButton
+                            onClick={() => setShowThirdModal(true)}
+                            sx={{
+                              backgroundColor: "#e8f5e9",
+                              border: `2px solid ${
+                                colors.success || "#2e7d32"
+                              }`,
+                              ml: 1,
+                              p: 0.5,
+                              width: 32,
+                              height: 32,
+                            }}
+                            title="Terceros"
+                          >
+                            <GroupIcon
+                              sx={{
+                                color: colors.success || "#2e7d32",
+                                fontSize: 18,
+                              }}
+                            />
+                          </IconButton>
                         </>
                       )}
                     </Box>
@@ -1401,6 +1435,30 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           >
             {sendingNote ? "Enviando..." : "Confirmar Nota"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={showThirdModal}
+        onClose={() => setShowThirdModal(false)}
+        maxWidth="md" // ancho moderado
+        fullWidth
+      >
+        <DialogTitle>Terceros del corresponsal</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "#fafafa" }}>
+          {selectedCorrespondent ? (
+            <ThirdPartySummaryReport
+              correspondentId={selectedCorrespondent.id}
+              date={selectedDate} // opcional: filtra por la fecha seleccionada
+            />
+          ) : (
+            <Typography color="text.secondary">
+              Selecciona un corresponsal para ver el resumen.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowThirdModal(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
 

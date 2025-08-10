@@ -17,20 +17,25 @@ export const getTransactions = async (id_cashier?: number): Promise<any> => {
   }
 };
 
+// ✅ añade los dos params al service
 export const getTransactionsByCash = async (
   id_cash: number,
   page: number = 1,
   perPage: number = 10,
   category: string = "",
-  date: string = ""
+  date: string = "",
+  minValue: number | null = null,
+  maxValue: number | null = null
 ): Promise<any> => {
   try {
     const categoryParam = category
       ? `&category=${encodeURIComponent(category)}`
       : "";
     const dateParam = date ? `&date=${encodeURIComponent(date)}` : "";
+    const minParam = minValue != null ? `&min_value=${minValue}` : "";
+    const maxParam = maxValue != null ? `&max_value=${maxValue}` : "";
 
-    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}${categoryParam}${dateParam}`;
+    const url = `${baseUrl}/api/transactions/utils/get_transactions_by_cash.php?id_cash=${id_cash}&page=${page}&per_page=${perPage}${categoryParam}${dateParam}${minParam}${maxParam}`;
 
     console.log("📤 URL enviada al backend:", url);
 
@@ -38,7 +43,6 @@ export const getTransactionsByCash = async (
     const data = await res.json();
 
     console.log("📥 Respuesta del backend:", data);
-
     return data;
   } catch (error) {
     console.error("❌ Error al obtener transacciones por caja:", error);

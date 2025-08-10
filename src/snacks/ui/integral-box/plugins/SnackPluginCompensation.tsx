@@ -440,6 +440,53 @@ const SnackPluginCompesation: React.FC<Props> = ({
                 }}
               >
                 <Grid container spacing={3} justifyContent="center">
+                  {/* Saldo en caja */}
+                  <Grid item xs={12} md={3} textAlign="center">
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      color={colors.text_white}
+                    >
+                      🪙 En caja
+                    </Typography>
+                    <Typography
+                      variant="h5"
+                      fontWeight="bold"
+                      color={colors.text_white}
+                    >
+                      $
+                      {new Intl.NumberFormat("es-CO").format(
+                        initialConfig + incomes - withdrawals
+                      )}
+                    </Typography>
+
+                    {/* 
+        <LinearProgress
+          variant="determinate"
+          value={cashPercentage}
+          sx={{
+            mt: 1,
+            height: 8,
+            borderRadius: 5,
+            backgroundColor: "#ddd",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: colors.secondary,
+            },
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            mt: 1,
+            display: "block",
+            color: colors.text_white,
+          }}
+        >
+          {cashPercentage.toFixed(1)}% de capacidad
+        </Typography>
+        */}
+                  </Grid>
+
                   {/* Deuda al banco */}
                   <Grid item xs={12} md={3} textAlign="center">
                     <Typography
@@ -480,53 +527,6 @@ const SnackPluginCompesation: React.FC<Props> = ({
           }}
         >
           {debtPercentage.toFixed(1)}% del cupo usado
-        </Typography>
-        */}
-                  </Grid>
-
-                  {/* Saldo en caja */}
-                  <Grid item xs={12} md={3} textAlign="center">
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      color={colors.text_white}
-                    >
-                      🪙 Caja
-                    </Typography>
-                    <Typography
-                      variant="h5"
-                      fontWeight="bold"
-                      color={colors.text_white}
-                    >
-                      $
-                      {new Intl.NumberFormat("es-CO").format(
-                        initialConfig + incomes - withdrawals
-                      )}
-                    </Typography>
-
-                    {/* 
-        <LinearProgress
-          variant="determinate"
-          value={cashPercentage}
-          sx={{
-            mt: 1,
-            height: 8,
-            borderRadius: 5,
-            backgroundColor: "#ddd",
-            "& .MuiLinearProgress-bar": {
-              backgroundColor: colors.secondary,
-            },
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{
-            mt: 1,
-            display: "block",
-            color: colors.text_white,
-          }}
-        >
-          {cashPercentage.toFixed(1)}% de capacidad
         </Typography>
         */}
                   </Grid>
