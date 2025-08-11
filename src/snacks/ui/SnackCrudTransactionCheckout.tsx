@@ -90,6 +90,9 @@ import GroupIcon from "@mui/icons-material/Group";
 // Componente de tirilla de terceros
 import ThirdPartySummaryReport from "../ui/reports/ThirdPartySummaryReport";
 
+// Abrir caja.
+import { openBox } from "../../store/reports/Reports";
+
 interface Props {
   permissions: string[];
 }
@@ -176,6 +179,9 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   const [transactionToAdjust, setTransactionToAdjust] = useState<any>(null);
   const [noteObservation, setNoteObservation] = useState("");
 
+  // Estado si la transacción está cerrada
+  const [isClosed, setIsClosed] = useState(false);
+
   // Estado para los turnos.
   const [processingShiftId, setProcessingShiftId] = useState<number | null>(
     null
@@ -212,7 +218,13 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
   // Estado para el resumen del modal.
   const [showThirdModal, setShowThirdModal] = useState(false);
 
-  // Consulta min 6 max
+  // Estado para abrir caja.
+  const [openingCash, setOpeningCash] = useState(false);
+
+  // Caja está abierta.
+  const isCashOpen =
+    selectedCash &&
+    (selectedCash.open === true || Number(selectedCash.open) === 1);
 
   useEffect(() => {
     const init = async () => {
@@ -442,6 +454,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
       );
       if (transRes.success) {
         setTransactions(transRes.data.items);
+        setIsClosed(!!transRes.data.is_closed); // 👈 aquí
 
         const pendingTransfers = (transRes.data.items || []).filter(
           (t: any) =>
@@ -466,6 +479,36 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
 
         setTotalItems(transRes.data.total);
       }
+    }
+  };
+
+  const handleOpenCashNow = async () => {
+    if (!selectedCash?.id || openingCash) return;
+    try {
+      setOpeningCash(true);
+
+      // (Opcional) Optimista: marcar abierta antes de llamar
+      // setSelectedCash((prev: any) => prev ? { ...prev, open: 1 } : prev);
+
+      const res = await openBox({ id_cash: selectedCash.id });
+
+      if (res?.success) {
+        setAlertMessage("Caja abierta correctamente.");
+        setAlertType("success");
+        await fetchInitialData(); // refresca todo (estado open, totales, etc.)
+      } else {
+        setAlertMessage(res?.message || "No se pudo abrir la caja.");
+        setAlertType("error");
+        // (Opcional) revertir optimismo si lo usaste
+        // setSelectedCash((prev: any) => prev ? { ...prev, open: 0 } : prev);
+      }
+    } catch (e: any) {
+      setAlertMessage(e?.message || "Error de red o servidor.");
+      setAlertType("error");
+      // (Opcional) revertir optimismo
+      // setSelectedCash((prev: any) => prev ? { ...prev, open: 0 } : prev);
+    } finally {
+      setOpeningCash(false);
     }
   };
 
@@ -956,52 +999,77 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
         </Grid>
       )}
 
-      {selectedCorrespondent?.state === 1 && selectedCash?.state === 1 && (
-        <Box
-          sx={{
-            mt: 0.0,
-            p: 1,
-            borderRadius: 2,
-            backgroundColor: "#f4f4f4",
-            boxShadow: 1,
-          }}
-        >
-          <Typography
-            variant="h6"
-            fontSize="1rem" // 👈 igual que el panel financiero
-            fontFamily={fonts.heading}
-            color={colors.secondary}
-            textAlign="left"
-            sx={{ fontWeight: "bold", mb: 2 }}
+      {selectedCorrespondent?.state === 1 &&
+        selectedCash?.state === 1 &&
+        isCashOpen && (
+          <Box
+            sx={{
+              mt: 0.0,
+              p: 1,
+              borderRadius: 2,
+              backgroundColor: "#f4f4f4",
+              boxShadow: 1,
+            }}
           >
-            Movimientos
-          </Typography>
+            <Typography
+              variant="h6"
+              fontSize="1rem" // 👈 igual que el panel financiero
+              fontFamily={fonts.heading}
+              color={colors.secondary}
+              textAlign="left"
+              sx={{ fontWeight: "bold", mb: 2 }}
+            >
+              Movimientos
+            </Typography>
 
-          <Grid container spacing={1} justifyContent="center">
-            {[
-              { Component: SnackPluginDeposits, key: "depositos" },
-              { Component: SnackPluginWithdrawals, key: "retiros" },
-              { Component: SnackPluginOthers, key: "otros" },
-              { Component: SnackPluginThirdParty, key: "terceros" },
-              { Component: SnackPluginCompesation, key: "compensacion" },
-              { Component: SnackPluginTransfer, key: "transferencias" }, // ✅ Agregado al mismo grupo
-            ].map(({ Component, key }) => (
-              <Grid item xs={9} sm={6} md={2} key={key}>
-                <Component
-                  correspondent={selectedCorrespondent}
-                  cash={selectedCash}
-                  onTransactionComplete={fetchInitialData}
-                  size="small"
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      )}
+            <Grid container spacing={1} justifyContent="center">
+              {[
+                { Component: SnackPluginDeposits, key: "depositos" },
+                { Component: SnackPluginWithdrawals, key: "retiros" },
+                { Component: SnackPluginOthers, key: "otros" },
+                { Component: SnackPluginThirdParty, key: "terceros" },
+                { Component: SnackPluginCompesation, key: "compensacion" },
+                { Component: SnackPluginTransfer, key: "transferencias" }, // ✅ Agregado al mismo grupo
+              ].map(({ Component, key }) => (
+                <Grid item xs={9} sm={6} md={2} key={key}>
+                  <Component
+                    correspondent={selectedCorrespondent}
+                    cash={selectedCash}
+                    onTransactionComplete={fetchInitialData}
+                    size="small"
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
           <CircularProgress />
+        </Box>
+      ) : selectedCorrespondent?.state === 1 &&
+        selectedCash?.state === 1 &&
+        !isCashOpen ? (
+        // 👉 Caja cerrada: solo mensaje + botón abrir
+        <Box sx={{ mt: 8, textAlign: "center" }}>
+          <SnackLottieMoney width={220} height={220} />
+          <Typography
+            variant="h6"
+            sx={{ mt: 2, fontSize: "1.1rem", color: "text.secondary" }}
+          >
+            La caja está cerrada. Debes abrirla para registrar y ver
+            movimientos.
+          </Typography>
+
+          <Button
+            sx={{ mt: 2 }}
+            variant="contained"
+            onClick={handleOpenCashNow}
+            disabled={openingCash || !selectedCash?.id}
+          >
+            {openingCash ? "Abriendo..." : "Abrir caja"}
+          </Button>
         </Box>
       ) : selectedCorrespondent?.state === 1 && selectedCash?.state === 1 ? (
         <Box>
@@ -1009,15 +1077,13 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
           <TableContainer
             component={Paper}
             sx={{
-              maxHeight: "360px", // Altura máxima visible
-              overflowY: "auto", // Scroll solo en cuerpo
+              maxHeight: "360px",
+              overflowY: "auto",
               borderRadius: 2,
               border: `1px solid ${colors.primary}`,
             }}
           >
             <Table stickyHeader size="small">
-              {" "}
-              {/* 👈 stickyHeader */}
               <TableHead>
                 <TableRow>
                   <TableCell
@@ -1040,7 +1106,6 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   >
                     Efectivo
                   </TableCell>
-
                   <TableCell
                     sx={{ fontSize: "0.80rem", backgroundColor: "#fafafa" }}
                   >
@@ -1079,7 +1144,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                           {t.transaction_type_name ===
                             "Transferir a otra caja" &&
                           Number(t.box_reference) === Number(selectedCash?.id)
-                            ? "-" // solo ocultar en la caja DESTINO
+                            ? "-"
                             : new Intl.NumberFormat("es-CO", {
                                 style: "currency",
                                 currency: "COP",
@@ -1104,7 +1169,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                       </TableCell>
 
                       <TableCell>
-                        {t.is_transfer === 0 ? (
+                        {t.is_transfer === 0 && !isClosed ? (
                           <Button
                             size="small"
                             variant="outlined"
@@ -1117,7 +1182,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                           </Button>
                         ) : (
                           <Chip
-                            label="No anulable"
+                            label={isClosed ? "Caja cerrada" : "No anulable"}
                             color="warning"
                             variant="outlined"
                             sx={{ fontSize: "0.70rem", fontWeight: "bold" }}
@@ -1128,6 +1193,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                   ))
                 ) : (
                   <TableRow>
+                    {/* TIP: tu header tiene 6 columnas; podrías usar colSpan={6} */}
                     <TableCell
                       colSpan={5}
                       align="center"
