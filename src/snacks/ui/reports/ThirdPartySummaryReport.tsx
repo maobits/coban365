@@ -209,10 +209,11 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
                     style={{
                       fontWeight: 800,
                       fontSize: "0.95rem",
-                      color: Number(third.balance) >= 0 ? "green" : "red",
+                      color:
+                        Number(third.total_net_balance) >= 0 ? "green" : "red",
                     }}
                   >
-                    ${formatCOP(Number(third.balance) || 0)}
+                    ${formatCOP(Number(third.net_balance) || 0)}
                   </span>
                 </Typography>
 

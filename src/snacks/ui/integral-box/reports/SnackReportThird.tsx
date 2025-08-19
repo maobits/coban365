@@ -29,19 +29,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
   correspondentId: number;
+  thirdCedula?: string; // ⬅️ NUEVO
 }
-
 const SnackReportThird: React.FC<Props> = ({
   open,
   onClose,
   correspondentId,
+  thirdCedula, // ⬅️ NUEVO
 }) => {
   const { colors } = useTheme();
   const printRef = useRef<HTMLDivElement>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
+    todayLocalYYYYMMDD()
   );
 
   // Estado para el modal de detalle.
@@ -103,13 +104,14 @@ const SnackReportThird: React.FC<Props> = ({
   };
 
   const filteredMovements =
-    selectedThird?.movements?.filter(
-      (m: any) =>
-        m.transaction_type_name
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        m.note?.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+    selectedThird?.movements?.filter((m: any) => {
+      const txt = (searchTerm || "").toLowerCase();
+      return (
+        (m.transaction_type_name || "").toLowerCase().includes(txt) ||
+        (m.note || "").toLowerCase().includes(txt) ||
+        (m.type_of_movement || "").toLowerCase().includes(txt) // 👈 nuevo
+      );
+    }) || [];
 
   const paginatedMovements = filteredMovements.slice(
     (currentPage - 1) * itemsPerPage,
@@ -117,6 +119,22 @@ const SnackReportThird: React.FC<Props> = ({
   );
 
   const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+
+  // Estilos para polaridad negattiva.
+  // helpers
+  const isNegative = (p: any) => Number(p) === 0; // tu regla actual
+  const isPositive = (p: any) => Number(p) === 1; // positivo
+
+  // estilos
+  const negCellSx = { color: "error.main", fontWeight: 700 } as const; // rojo
+  const posCellSx = { color: "success.main", fontWeight: 700 } as const; // verde
+
+  // Helpers (deben ir antes de usarse)
+  function todayLocalYYYYMMDD(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
@@ -172,14 +190,13 @@ const SnackReportThird: React.FC<Props> = ({
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 inputProps={{
-                  max: new Date().toISOString().slice(0, 10),
+                  max: todayLocalYYYYMMDD(),
                 }}
                 sx={{ mt: 1 }}
               />
             </Box>
 
             <Divider sx={{ my: 2 }} />
-
             {reportData.third_party_summary.map((t: any, idx: number) => (
               <Box key={idx} mb={3}>
                 <Typography fontWeight="bold" fontSize={14} mb={1}>
@@ -188,64 +205,123 @@ const SnackReportThird: React.FC<Props> = ({
 
                 <Table size="small">
                   <TableBody>
+                    {/* Saldo inicial */}
                     <TableRow>
-                      {/*<TableCell>Saldo actual</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(
-                          t.negative_balance ? t.balance * -1 : t.balance
-                        )}
-                      </TableCell>*/}
+                      <TableCell>Saldo inicial</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color: Number(t.balance) >= 0 ? "green" : "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {formatCurrency(Number(t.balance))}
+                      </TableCell>
                     </TableRow>
+
+                    {/* Cupo disponible */}
+                    <TableRow>
+                      <TableCell>Cupo disponible</TableCell>
+                      <TableCell align="right">
+                        {formatCurrency(Number(t.available_credit))}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Movimientos agregados (colores por signo real) */}
+                    <TableRow>
+                      <TableCell>Préstamos a tercero</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            Number(t.loan_to_third_party) < 0 ? "red" : "green",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatCurrency(Number(t.loan_to_third_party || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell>Pagos de tercero</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            Number(t.charge_to_third_party) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatCurrency(Number(t.charge_to_third_party || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell>Préstamos de tercero</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            Number(t.loan_from_third_party) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatCurrency(Number(t.loan_from_third_party || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell>Pagos a tercero</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            Number(t.debt_to_third_party) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatCurrency(Number(t.debt_to_third_party || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Deudas (según regla: tercero = negativa siempre, corresponsal = positiva) */}
+                    <TableRow>
+                      <TableCell>Deuda de terceros</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ color: "red", fontWeight: 700 }}
+                      >
+                        {formatCurrency(-Number(t.third_party_debt || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell>Deuda del corresponsal</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ color: "green", fontWeight: 700 }}
+                      >
+                        {formatCurrency(Number(t.correspondent_debt || 0))}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Saldo neto al final */}
                     <TableRow>
                       <TableCell>Saldo neto</TableCell>
                       <TableCell
                         align="right"
                         sx={{
-                          color:
-                            (t.negative_balance
-                              ? t.net_balance * -1
-                              : t.net_balance) >= 0
-                              ? "green"
-                              : "red",
+                          color: Number(t.net_balance) >= 0 ? "green" : "red",
                           fontWeight: "bold",
                         }}
                       >
-                        {formatCurrency(
-                          t.negative_balance
-                            ? t.net_balance * -1
-                            : t.net_balance
-                        )}
-                      </TableCell>
-                    </TableRow>
-
-                    <TableRow>
-                      <TableCell>Cupo disponible</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.available_credit)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Préstamos a tercero</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.loan_to_third_party)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Pagos de tercero</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.charge_to_third_party)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Préstamos de tercero</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.loan_from_third_party)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Pagos a tercero</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(t.debt_to_third_party)}
+                        {formatCurrency(Number(t.net_balance))}
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -268,28 +344,14 @@ const SnackReportThird: React.FC<Props> = ({
               <Typography fontSize={13}>
                 Deuda de terceros:{" "}
                 {formatCurrency(
-                  reportData.third_party_summary.reduce(
-                    (acc: number, t: any) => {
-                      let deuda = 0;
-
-                      // Si el tercero tiene saldo negativo (debe al corresponsal)
-                      if (t.balance < 0 && t.negative_balance === true) {
-                        deuda += Math.abs(t.balance);
-                      }
-
-                      // Préstamos otorgados al tercero
-                      if (t.loan_to_third_party > 0) {
-                        deuda += t.loan_to_third_party;
-                      }
-
-                      // Pagos que el tercero ya ha hecho (restan deuda)
-                      if (t.charge_to_third_party > 0) {
-                        deuda -= t.charge_to_third_party;
-                      }
-
-                      return acc + (deuda > 0 ? deuda : 0); // evitar deuda negativa
-                    },
-                    0
+                  Number(
+                    reportData?.total_third_party_debt ??
+                      reportData?.third_party_summary?.reduce(
+                        (acc: number, t: any) =>
+                          acc + Number(t?.third_party_debt || 0),
+                        0
+                      ) ??
+                      0
                   )
                 )}
               </Typography>
@@ -297,24 +359,14 @@ const SnackReportThird: React.FC<Props> = ({
               <Typography fontSize={13}>
                 Deuda del corresponsal:{" "}
                 {formatCurrency(
-                  reportData.third_party_summary.reduce(
-                    (acc: number, t: any) => {
-                      let deuda = 0;
-
-                      // Deuda por saldo positivo (sin saldo negativo)
-                      if (t.balance > 0 && t.negative_balance === false) {
-                        deuda += t.balance;
-                      }
-
-                      // Deuda por préstamo recibido del tercero
-                      deuda += t.loan_from_third_party || 0;
-
-                      // Resta pagos hechos al tercero
-                      deuda -= t.debt_to_third_party || 0;
-
-                      return acc + deuda;
-                    },
-                    0
+                  Number(
+                    reportData?.total_correspondent_debt ??
+                      reportData?.third_party_summary?.reduce(
+                        (acc: number, t: any) =>
+                          acc + Number(t?.correspondent_debt || 0),
+                        0
+                      ) ??
+                      0
                   )
                 )}
               </Typography>
@@ -323,10 +375,14 @@ const SnackReportThird: React.FC<Props> = ({
                 fontSize={13}
                 fontWeight="bold"
                 sx={{
-                  color: reportData.total_net_balance < 0 ? "red" : "green",
+                  color:
+                    Number(reportData?.total_net_balance || 0) < 0
+                      ? "red"
+                      : "green",
                 }}
               >
-                Total neto: {formatCurrency(reportData.total_net_balance)}
+                Total neto:{" "}
+                {formatCurrency(Number(reportData?.total_net_balance || 0))}
               </Typography>
             </Box>
           </Box>
@@ -368,35 +424,37 @@ const SnackReportThird: React.FC<Props> = ({
                         {formatCurrency(selectedThird.credit_limit)}
                       </TableCell>
                     </TableRow>
+
+                    {/* ⬇️ NUEVO: Saldo inicial debajo de cupo asignado */}
                     <TableRow>
-                      {/*<TableCell>Saldo actual</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(
-                          selectedThird.negative_balance
-                            ? selectedThird.balance * -1
-                            : selectedThird.balance
-                        )}
-                      </TableCell>*/}
+                      <TableCell>Saldo inicial</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          color:
+                            Number(selectedThird.balance) >= 0
+                              ? "green"
+                              : "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {formatCurrency(Number(selectedThird.balance))}
+                      </TableCell>
                     </TableRow>
+
                     <TableRow>
                       <TableCell>Saldo neto</TableCell>
                       <TableCell
                         align="right"
                         sx={{
                           color:
-                            (selectedThird.negative_balance
-                              ? selectedThird.net_balance * -1
-                              : selectedThird.net_balance) >= 0
+                            Number(selectedThird.net_balance) >= 0
                               ? "green"
                               : "red",
                           fontWeight: "bold",
                         }}
                       >
-                        {formatCurrency(
-                          selectedThird.negative_balance
-                            ? selectedThird.net_balance * -1
-                            : selectedThird.net_balance
-                        )}
+                        {formatCurrency(Number(selectedThird.net_balance))}
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -421,27 +479,48 @@ const SnackReportThird: React.FC<Props> = ({
                       <TableRow>
                         <TableCell>Fecha</TableCell>
                         <TableCell>Tipo</TableCell>
+                        <TableCell>Detalle</TableCell>
 
                         <TableCell align="right">Valor</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {paginatedMovements.map((m: any, idx: number) => (
-                        <TableRow key={idx}>
-                          <TableCell>
-                            {new Date(m.created_at).toLocaleString("es-CO", {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                              hour12: true,
-                            })}
-                          </TableCell>
-                          <TableCell>{m.transaction_type_name}</TableCell>
+                      {paginatedMovements.map((m: any, idx: number) => {
+                        const neg = isNegative(m.polarity);
+                        const pos = !neg && isPositive(m.polarity);
+                        const cellSx = neg
+                          ? negCellSx
+                          : pos
+                          ? posCellSx
+                          : undefined;
 
-                          <TableCell align="right">
-                            {formatCurrency(parseFloat(m.cost))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              {new Date(m.created_at).toLocaleString("es-CO", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                                hour12: true,
+                              })}
+                            </TableCell>
+
+                            {/* Tipo */}
+                            <TableCell sx={cellSx}>
+                              {m.transaction_type_name}
+                            </TableCell>
+
+                            {/* Detalle */}
+                            <TableCell sx={cellSx}>
+                              {m.type_of_movement ?? "—"}
+                            </TableCell>
+
+                            {/* Valor */}
+                            <TableCell align="right" sx={cellSx}>
+                              {formatCurrency(parseFloat(m.cost))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </Box>

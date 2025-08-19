@@ -24,6 +24,8 @@ import { getDebtToBankByCorrespondent } from "../../../../store/transaction/Crud
 import { createTransaction } from "../../../../store/transaction/CrudTransactions";
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { IconButton } from "@mui/material";
 
 // Plugin contador de billetes.
 import SnackPluginBillCounter from "./SnackPluginBillCounter";
@@ -36,6 +38,7 @@ interface Props {
     premium?: number; // 1 = Premium, 0 = Básico
   };
   cash: {
+    id: number;
     name: string;
   };
   onTransactionComplete?: () => void; // ← nuevo
@@ -133,6 +136,19 @@ const SnackPluginDeposits: React.FC<Props> = ({
       return { initial: 0, inc: 0, wdraw: 0, saldoActual: 0 };
     }
   };
+
+  // Estado para el modal.
+  const [openCounter, setOpenCounter] = useState(false);
+
+  // Lee el cajero de la sesión (si existe)
+  const session = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("userSession") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const cashierId = Number(session?.id) || 0;
 
   const handleOpen = async () => {
     try {
@@ -363,21 +379,45 @@ const SnackPluginDeposits: React.FC<Props> = ({
         <DialogTitle
           sx={{
             fontFamily: fonts.heading,
-            backgroundColor: colors.primary, // ← cambiado
+            backgroundColor: colors.primary,
             color: colors.text_white,
-            fontSize: "1.6rem",
-            py: 2,
+            fontSize: "1.1rem", // título más pequeño
+            py: 1.2, // menos padding
+            display: "flex", // para alinear título y botón
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          Depósitos en el corresponsal{" "}
-          <Box component="span" fontWeight="bold" color={colors.text_white}>
-            {correspondent.name}
-          </Box>{" "}
-          -{" "}
-          <Box component="span" fontWeight="bold" color={colors.text_white}>
-            {cash.name}
+          <Box>
+            Depósitos en el corresponsal{" "}
+            <Box
+              component="span"
+              fontWeight="bold"
+              color={colors.text_white}
+              sx={{ fontSize: "1rem" }}
+            >
+              {correspondent.name}
+            </Box>{" "}
+            -{" "}
+            <Box
+              component="span"
+              fontWeight="bold"
+              color={colors.text_white}
+              sx={{ fontSize: "1rem" }}
+            >
+              {cash.name}
+            </Box>
           </Box>
+
+          {/* Botón cerrar */}
+          <IconButton
+            onClick={handleClose} // ahora usando tu función existente
+            sx={{ color: colors.text_white }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
+
         <DialogContent
           sx={{
             backgroundColor: "#fff", // Fondo blanco general
@@ -613,13 +653,19 @@ const SnackPluginDeposits: React.FC<Props> = ({
             </Grid>
           </Grid>
         </DialogContent>
-
         <DialogActions
           sx={{ backgroundColor: colors.background, px: 4, py: 3 }}
         >
-          <Button onClick={handleClose} variant="outlined" color="secondary">
-            Cerrar
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => setOpenCounter(true)}
+          >
+            Calculadora Pos
           </Button>
+
+          <Box flex={1} />
+
           <Button
             onClick={handleRegister}
             variant="contained"
@@ -628,15 +674,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
           >
             Registrar
           </Button>
+          <Button onClick={handleClose} variant="outlined" color="secondary">
+            Cerrar
+          </Button>
         </DialogActions>
-
-        {open && correspondent.premium === 1 && (
-          <Box sx={{ position: "absolute", bottom: 16, left: 16 }}>
-            <SnackPluginBillCounter
-              amount={parseFloat(amount.replace(/\D/g, "")) || 0}
-            />
-          </Box>
-        )}
       </Dialog>
 
       {/* Dialogo para mostrar la advertencia. */}
@@ -752,6 +793,44 @@ const SnackPluginDeposits: React.FC<Props> = ({
           >
             ENTENDIDO
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openCounter}
+        onClose={() => setOpenCounter(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            fontFamily: fonts.heading,
+            backgroundColor: colors.primary,
+            color: colors.text_white,
+            fontSize: "1.05rem",
+            py: 1,
+          }}
+        >
+          Contador de billetes
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 1.5 }}>
+          <SnackPluginBillCounter
+            cashId={cash.id}
+            correspondentId={correspondent.id}
+            cashierId={cashierId}
+            defaultPackageName="Paquete 1"
+            defaultAmount={parseFloat(amount.replace(/\D/g, "")) || 0}
+            onSaved={async () => {
+              // Si quieres, cierra y refresca al guardar en el contador
+              setOpenCounter(false);
+              await loadCashSummary();
+            }}
+          />
+        </DialogContent>
+
+        <DialogActions sx={{ px: 2, py: 1 }}>
+          <Button onClick={() => setOpenCounter(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </>

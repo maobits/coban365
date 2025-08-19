@@ -11,7 +11,8 @@ import CrudTransactionScreen from "./showcase/manage_transactions/CrudTransactio
 import CrudTransactionsCheckoutScreen from "./showcase/manage_transactions/CrudTransactionScreenCheckout";
 import ShiftsRegisterScreen from "./showcase/shifts/ShiftsScreen";
 import GenerateReports from "./showcase/manage_reports/GenerateReports";
-import SnackReportThirdParty from "./snacks/ui/reports/SnackReportThirdParty"; // ✅ Importación del reporte de terceros
+import SnackReportThirdParty from "./snacks/ui/reports/SnackReportThirdParty"; // ✅ Reporte de terceros
+import ConsultThirdBalance from "./showcase/manage_reports/consultThirdBalance"; // ✅ Nueva importación
 
 const App: React.FC = () => (
   <BrowserRouter>
@@ -34,11 +35,9 @@ const App: React.FC = () => (
       <Route path="/manageCash" element={<CrudTransactionsCheckoutScreen />} />
       {/* Gestión de reportes */}
       <Route path="/manageReports" element={<GenerateReports />} />
-      <Route
-        path="/reportThirdParty"
-        element={<SnackReportThirdParty />}
-      />{" "}
-      {/* ✅ Nueva ruta */}
+      <Route path="/reportThirdParty" element={<SnackReportThirdParty />} />
+      {/* ✅ Nueva ruta sin props */}
+      <Route path="/consultThirdBalance" element={<ConsultThirdBalance />} />
       {/* Turnos */}
       <Route
         path="/shifts/register/:correspondentId/:cashId"

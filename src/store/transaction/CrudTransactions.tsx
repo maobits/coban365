@@ -339,6 +339,7 @@ export const getThirdPartyBalance = async (
  * @param {number} payload.cost - Monto de la transacción.
  * @param {number|string} payload.client_reference - ID del tercero asociado.
  * @param {string} payload.third_party_note - Código especial de transacción (ej. "debt-to-third-party").
+ * @param {string} [payload.type_of_movement] - Tipo de movimiento (ej. "préstamo", "pago", "transferencia").
  * @param {number} [payload.utility] - Utilidad opcional.
  * @returns {Promise<any>} Resultado de la operación.
  */
@@ -351,6 +352,7 @@ export const createThirdPartyTransaction = async (payload: {
   cost: number;
   client_reference: number | string;
   third_party_note: string;
+  type_of_movement?: string; // 🆕 Nuevo campo
   utility?: number;
 }): Promise<any> => {
   try {
@@ -362,7 +364,7 @@ export const createThirdPartyTransaction = async (payload: {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload), // Ya incluye type_of_movement si está definido
     });
 
     const data = await response.json();
@@ -553,5 +555,197 @@ export const cancelTransactionById = async (
       success: false,
       message: "Error al cancelar la transacción.",
     };
+  }
+};
+
+/** ===== Tipos ===== */
+export type PosCalcItem = {
+  name: string;
+  qty: number;
+  price: number;
+  // opcionalmente: subtotal?: number;
+};
+
+export type PosCalcCreatePayload = {
+  cash_id: number; // o id_cash
+  correspondent_id: number; // o id_correspondent
+  cashier_id?: number; // o id_cashier
+  customer_name?: string;
+  customer_phone?: string;
+  subtotal?: number | string; // el backend limpia separadores
+  discount?: number | string;
+  fee?: number | string;
+  total?: number | string;
+  note?: string;
+  items?: PosCalcItem[] | string; // arreglo o string JSON
+};
+
+export type PosCalcUpdatePayload = Partial<PosCalcCreatePayload> & {
+  id: number;
+};
+
+export type PosCalcRecord = {
+  id: number;
+  cash_id: number;
+  correspondent_id: number;
+  cashier_id: number | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  subtotal: number;
+  discount: number;
+  fee: number;
+  total: number;
+  note: string | null;
+  items_json: string | null;
+  items?: PosCalcItem[]; // el backend lo “inyecta” si puede
+  created_at: string;
+  updated_at: string;
+};
+
+/** ===== Util ===== */
+const ENDPOINT = `${baseUrl}/api/transactions/utils/pos_calculator.php`;
+
+const toQuery = (params: Record<string, any>) =>
+  Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(
+      ([k, v]) =>
+        `${encodeURIComponent(k)}=${encodeURIComponent(
+          typeof v === "string" ? v : String(v)
+        )}`
+    )
+    .join("&");
+
+async function safeJson(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return { success: false, message: "Respuesta inválida del servidor." };
+  }
+}
+
+/** ===== CRUD ===== */
+
+/**
+ * Crea un registro del POS Calculator.
+ */
+export const posCalcCreate = async (
+  payload: PosCalcCreatePayload
+): Promise<{ success: boolean; id?: number; message?: string }> => {
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create", ...payload }),
+    });
+    const data = await safeJson(res);
+    console.log("🧾 posCalcCreate >", data);
+    return data;
+  } catch (e) {
+    console.error("❌ posCalcCreate error:", e);
+    return { success: false, message: "Error creando registro POS." };
+  }
+};
+
+/**
+ * Actualiza un registro del POS Calculator.
+ */
+export const posCalcUpdate = async (
+  payload: PosCalcUpdatePayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update", ...payload }),
+    });
+    const data = await safeJson(res);
+    console.log("🧾 posCalcUpdate >", data);
+    return data;
+  } catch (e) {
+    console.error("❌ posCalcUpdate error:", e);
+    return { success: false, message: "Error actualizando registro POS." };
+  }
+};
+
+/**
+ * Elimina un registro del POS Calculator por id.
+ * Usa DELETE ?id=..., y si no está permitido, hace fallback a POST {action:'delete'}.
+ */
+export const posCalcDelete = async (
+  id: number
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // intento con DELETE
+    const url = `${ENDPOINT}?${toQuery({ id })}`;
+    let res = await fetch(url, { method: "DELETE" });
+    if (res.status === 405) {
+      // fallback a POST action delete
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      });
+    }
+    const data = await safeJson(res);
+    console.log("🧾 posCalcDelete >", data);
+    return data;
+  } catch (e) {
+    console.error("❌ posCalcDelete error:", e);
+    return { success: false, message: "Error eliminando registro POS." };
+  }
+};
+
+/**
+ * Obtiene un registro por id.
+ */
+export const posCalcGet = async (
+  id: number
+): Promise<{ success: boolean; data?: PosCalcRecord; message?: string }> => {
+  try {
+    const url = `${ENDPOINT}?${toQuery({ id })}`;
+    const res = await fetch(url);
+    const data = await safeJson(res);
+    console.log("🧾 posCalcGet >", data);
+    return data;
+  } catch (e) {
+    console.error("❌ posCalcGet error:", e);
+    return { success: false, message: "Error consultando registro POS." };
+  }
+};
+
+/**
+ * Lista registros por caja y opcional rango de fechas + paginación.
+ * from / to en formato YYYY-MM-DD
+ */
+export const posCalcList = async (params: {
+  cash_id: number;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{
+  success: boolean;
+  total?: number;
+  items?: PosCalcRecord[];
+  page?: number;
+  limit?: number;
+  message?: string;
+}> => {
+  try {
+    const url = `${ENDPOINT}?${toQuery({
+      cash_id: params.cash_id,
+      from: params.from,
+      to: params.to,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    })}`;
+    const res = await fetch(url);
+    const data = await safeJson(res);
+    console.log("🧾 posCalcList >", data);
+    return data;
+  } catch (e) {
+    console.error("❌ posCalcList error:", e);
+    return { success: false, message: "Error listando registros POS." };
   }
 };

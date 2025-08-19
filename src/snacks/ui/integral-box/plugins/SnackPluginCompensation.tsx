@@ -12,6 +12,7 @@ import {
   Paper,
   InputAdornment,
   MenuItem,
+  IconButton,
 } from "@mui/material";
 import { useTheme } from "../../../../glamour/ThemeContext";
 import { getTransactionTypesByCorrespondent } from "../../../../store/transaction/CrudTransactions";
@@ -25,6 +26,7 @@ import { createClearingTransaction } from "../../../../store/transaction/CrudTra
 import { listRatesByCorrespondent } from "../../../../store/rate/CrudRate";
 import { LinearProgress } from "@mui/material";
 import SnackPluginBillCounter from "./SnackPluginBillCounter";
+import CloseIcon from "@mui/icons-material/Close";
 
 interface Props {
   correspondent: {
@@ -331,20 +333,43 @@ const SnackPluginCompesation: React.FC<Props> = ({
         <DialogTitle
           sx={{
             fontFamily: fonts.heading,
-            backgroundColor: colors.text, // ← cambiado
+            backgroundColor: colors.text,
             color: colors.text_white,
-            fontSize: "1.6rem",
-            py: 2,
+            fontSize: "1.1rem", // más pequeño
+            py: 1.2, // menos alto
+            display: "flex", // para alinear el botón
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          Compesación en el corresponsal{" "}
-          <Box component="span" fontWeight="bold" color={colors.text_white}>
-            {correspondent.name}
-          </Box>{" "}
-          -{" "}
-          <Box component="span" fontWeight="bold" color={colors.text_white}>
-            {cash.name}
+          <Box>
+            Compensación en el corresponsal{" "}
+            <Box
+              component="span"
+              fontWeight="bold"
+              color={colors.text_white}
+              sx={{ fontSize: "1rem" }}
+            >
+              {correspondent.name}
+            </Box>{" "}
+            -{" "}
+            <Box
+              component="span"
+              fontWeight="bold"
+              color={colors.text_white}
+              sx={{ fontSize: "1rem" }}
+            >
+              {cash.name}
+            </Box>
           </Box>
+
+          {/* Botón cerrar */}
+          <IconButton
+            onClick={handleClose} // tu función para cerrar el modal
+            sx={{ color: colors.text_white }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent
           sx={{
@@ -586,9 +611,6 @@ const SnackPluginCompesation: React.FC<Props> = ({
         <DialogActions
           sx={{ backgroundColor: colors.background, px: 4, py: 3 }}
         >
-          <Button onClick={handleClose} variant="outlined" color="secondary">
-            Cerrar
-          </Button>
           <Button
             onClick={handleRegister}
             variant="contained"
@@ -597,15 +619,10 @@ const SnackPluginCompesation: React.FC<Props> = ({
           >
             Registrar
           </Button>
+          <Button onClick={handleClose} variant="outlined" color="secondary">
+            Cerrar
+          </Button>
         </DialogActions>
-
-        {open && correspondent.premium === 1 && (
-          <Box sx={{ px: 4, py: 2 }}>
-            <SnackPluginBillCounter
-              amount={parseFloat(amount.replace(/\D/g, "")) || 0}
-            />
-          </Box>
-        )}
       </Dialog>
 
       {/* Dialogo para mostrar la advertencia. */}

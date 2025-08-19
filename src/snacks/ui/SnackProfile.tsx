@@ -10,7 +10,6 @@ import {
   Avatar,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { GetUserProfile } from "../../store/profile/GetUserProfile";
 import { useTheme } from "../../glamour/ThemeContext";
 
 // Importa los iconos de los permisos
@@ -26,6 +25,7 @@ import adminAvatar from "../../ingredients/icons/roles/admin.png";
 import superadminAvatar from "../../ingredients/icons/roles/superadmin.png";
 import cajeroAvatar from "../../ingredients/icons/roles/cajero.png";
 import terceroAvatar from "../../ingredients/icons/roles/tercero.png";
+import { GetUserProfile } from "../../store/profile/GetUserProfile";
 
 /**
  * Componente SnackProfile
