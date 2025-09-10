@@ -543,3 +543,147 @@ export const getCashBalance = async (
     throw error;
   }
 };
+/** ===== Tipos de respuesta ===== */
+export type RangeKey = "leq80" | "between" | "gte800";
+
+export interface CommissionRangeRow {
+  transactions: number;
+  total_amount: number;
+  tariff: { min: number | null; pct: string | null; cap: number | null };
+  total_commission: number;
+}
+
+export interface CategorySummary {
+  ranges: Record<RangeKey, CommissionRangeRow>;
+  totals: { count: number; total_amount: number; total_commission: number };
+}
+
+export interface CommissionsResponse {
+  success: boolean;
+  filters: {
+    id_cash: number | null;
+    id_correspondent?: number | null;
+    date: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  };
+  tariffs: {
+    Ingresos: Record<
+      RangeKey,
+      {
+        min: number | null;
+        pct: number | null;
+        cap: number | null;
+        label: string;
+      }
+    >;
+    Retiros: Record<
+      RangeKey,
+      {
+        min: number | null;
+        pct: number | null;
+        cap: number | null;
+        label: string;
+      }
+    >;
+  };
+  summary: {
+    Ingresos: CategorySummary;
+    Retiros: CategorySummary;
+  };
+  grand_total: {
+    detail: Array<{ label: string; movements: number; commission: number }>;
+    totals: { movements: number; commission: number };
+  };
+  /** presente solo si se pidió per_correspondent=1 */
+  per_correspondent?: Record<
+    "Ingresos" | "Retiros",
+    Record<
+      string,
+      { count: number; total_amount: number; total_commission: number }
+    >
+  >;
+}
+
+/** ===== Opciones del servicio ===== */
+export type GetCommissionsOpts = {
+  /**
+   * Día exacto YYYY-MM-DD (tiene prioridad sobre start/end).
+   * Si lo envías, el backend ignora start_date / end_date.
+   */
+  date?: string;
+  /** Rango desde YYYY-MM-DD (opcional, usar con endDate). */
+  startDate?: string;
+  /** Rango hasta YYYY-MM-DD (opcional, usar con startDate). */
+  endDate?: string;
+  /** Si true, agrega desglose por corresponsal (opcional) */
+  perCorrespondent?: boolean;
+};
+
+import { baseUrl } from "../config/server";
+
+/**
+ * Servicio: Comisiones por rangos (Ingresos/Retiros).
+ * Backend: /api/transactions/utils/commissions.php
+ *
+ * Puedes llamar con:
+ *  - getCommissions({ idCash: 24 }, { date: "2025-09-07" })
+ *  - getCommissions({ idCorrespondent: 23 }, { startDate: "2025-09-01", endDate: "2025-09-07" })
+ */
+export const getCommissions = async (
+  ids:
+    | { idCash: number; idCorrespondent?: never }
+    | { idCorrespondent: number; idCash?: never },
+  opts: GetCommissionsOpts = {}
+): Promise<CommissionsResponse> => {
+  const params = new URLSearchParams();
+
+  // Identificador requerido
+  if ("idCash" in ids && typeof ids.idCash === "number") {
+    params.set("id_cash", String(ids.idCash));
+  } else if (
+    "idCorrespondent" in ids &&
+    typeof ids.idCorrespondent === "number"
+  ) {
+    params.set("id_correspondent", String(ids.idCorrespondent));
+  } else {
+    throw new Error("Debes enviar 'idCash' o 'idCorrespondent'.");
+  }
+
+  // Fechas (date tiene prioridad sobre start/end)
+  if (opts.date) {
+    params.set("date", opts.date);
+  } else {
+    if (opts.startDate) params.set("start_date", opts.startDate);
+    if (opts.endDate) params.set("end_date", opts.endDate);
+  }
+
+  if (opts.perCorrespondent) params.set("per_correspondent", "1");
+
+  const url = `${baseUrl}/api/transactions/utils/commissions.php?${params.toString()}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    // backend no devolvió JSON válido
+  }
+
+  if (!res.ok || !json?.success) {
+    const message =
+      json?.message || `Error en la solicitud: ${res.status} ${res.statusText}`;
+    const err: any = new Error(message);
+    err.isApiError = true;
+    err.status = res.status;
+    err.payload = json;
+    throw err;
+  }
+
+  return json as CommissionsResponse;
+};

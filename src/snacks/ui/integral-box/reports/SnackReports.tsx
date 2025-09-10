@@ -125,12 +125,17 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
     "entrada de efectivo",
   ];
 
-  // Orden fijo para EFECTIVO (solo se muestran si count>0 o subtotal!=0)
+  // 1) Orden fijo para EFECTIVO (añadí los que llegan en tu JSON)
   const effectiveOrder = [
     "retiro",
     "retiro nequi",
+    "retiro con tarjeta",
     "deposito",
+    "recaudos", // ← plural
+    "pago de crédito", // ← coincide con JSON
+    "abono a tarjeta de crédito", // ← coincide con JSON
     "recarga nequi",
+    // conserva los tuyos si quieres compatibilidad:
     "recaudo",
     "pago t. credito",
     "pago cartera",
@@ -167,24 +172,48 @@ const SnackReport: React.FC<Props> = ({ open, onClose, reportData }) => {
   // Para render con orden fijo: buscamos por nombre, o 0 si no existe
   const effectiveRowsOrdered: ReportItem[] = effectiveOrder
     .map((name) => {
-      const row = findRow(name, []);
-      // si no está, tal vez viene con acentos distintos, probamos equivalencias comunes
-      if (row) return row;
-
-      // equivalencias básicas
+      // tabla de equivalencias (alias)
       const eq: Record<string, string[]> = {
         "retiro nequi": ["retiro nequi", "retiro - nequi"],
         "recarga nequi": ["recarga nequi", "recarga - nequi"],
-        "pago t. credito": [
+
+        // depósitos
+        deposito: ["depósito"],
+
+        // recaudos plural/singular
+        recaudos: ["recaudo", "recaudos"],
+
+        // pagos de crédito
+        "pago de crédito": [
+          "pago de credito",
           "pago t. credito",
           "pago tarjeta de credito",
           "pago tarjeta crédito",
         ],
+
+        // abonos a tarjeta
+        "abono a tarjeta de crédito": [
+          "abono a tarjeta de credito",
+          "pago cartera",
+          "abono tarjeta",
+        ],
+
+        // retiros con tarjeta
+        "retiro con tarjeta": ["retiro con tarjeta", "retiro tarjeta"],
       };
+
+      // buscar coincidencia directa
+      const row = findRow(name, []);
+      if (row) return row;
+
+      // buscar por alias si existe
       const aliases = eq[name] || [];
       const row2 = aliases.length ? findRow(name, aliases) : null;
+
+      // si nada coincide, devolvemos fila vacía
       return row2 || { type: name, count: 0, subtotal: 0 };
     })
+    // filtramos solo las que tienen datos
     .filter((r) => r.count > 0 || r.subtotal !== 0);
 
   const totalEffectiveCount = effectiveRowsOrdered.reduce(

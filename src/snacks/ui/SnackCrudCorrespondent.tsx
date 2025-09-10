@@ -425,7 +425,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
                         >
                           {correspondent.name}
                         </b>
-                        {correspondent.premium === 1 && (
+                        {Number(correspondent.premium) === 1 && (
                           <Star sx={{ color: colors.text, fontSize: 20 }} />
                         )}
                       </Box>
@@ -494,7 +494,7 @@ const SnackCrudCorrespondent: React.FC<{ permissions: string[] }> = ({
 
                     <TableCell>
                       <Switch
-                        checked={correspondent.state === 1}
+                        checked={Number(correspondent.state) === 1}
                         onChange={async (e) => {
                           const newState = e.target.checked ? 1 : 0;
                           try {

@@ -1,159 +1,147 @@
 import React, { useState } from "react";
 import {
-  BottomNavigation,
-  BottomNavigationAction,
-  Paper,
   IconButton,
+  Menu as MuiMenu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  PaperProps,
 } from "@mui/material";
 import {
   Home,
   Calculate,
   Note,
-  Menu,
-  Close,
+  Menu as MenuIcon,
   ExitToApp,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../glamour/ThemeContext";
 
 /**
- * Componente SnackNavigationBar
- *
- * Barra de navegación fija en la parte izquierda de la pantalla con opción de ocultar/mostrar.
- * Contiene accesos rápidos a:
- *  - Inicio ("/")
- *  - Calculadora ("/calculator")
- *  - Notas ("/notes")
- *  - Cerrar Sesión (Elimina la sesión y redirige a "/login")
- *
- * Usa Material UI y el tema de la app para mantener la coherencia visual.
- *
- * @returns {JSX.Element} Elemento JSX que representa la barra de navegación lateral.
+ * SnackNavigationBar
+ * Menú tipo hamburguesa con lista vertical de enlaces (dropdown).
+ * Colores: usa el tema actual (botón = primary/secondary; lista = background.paper, texto = colors.text).
  */
-
 const SnackNavigationBar: React.FC = () => {
-  const { colors } = useTheme(); // Obtiene los colores del tema
-  const navigate = useNavigate(); // Hook para la navegación
-  const [value, setValue] = useState(0); // Estado para manejar la selección de pestañas
-  const [open, setOpen] = useState(true); // Estado para mostrar/ocultar la barra
+  const { colors } = useTheme();
+  const navigate = useNavigate();
 
-  /**
-   * Maneja el cierre de sesión eliminando la sesión del usuario en localStorage
-   * y redirigiendo a la pantalla de login.
-   */
+  // Ancla del menú
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const toggleMenu = (e: React.MouseEvent<HTMLElement>) =>
+    setAnchorEl(open ? null : e.currentTarget);
+  const closeMenu = () => setAnchorEl(null);
+
   const handleLogout = () => {
-    console.log("🚪 Cerrando sesión...");
-    localStorage.removeItem("userSession"); // Elimina la sesión
-    navigate("/login"); // Redirige a la pantalla de inicio de sesión
+    localStorage.removeItem("userSession");
+    navigate("/login");
+  };
+
+  // Estilo del contenedor del menú para que se parezca a la imagen
+  const paperProps: Partial<PaperProps> = {
+    elevation: 8,
+    sx: {
+      mt: 5, // 👈 antes estaba en 1, ahora baja el menú
+      ml: 0.5,
+      width: 220,
+      bgcolor: "background.paper",
+      color: colors.text,
+      borderRadius: 1.2,
+      boxShadow: 6,
+      "& .MuiMenuItem-root": {
+        py: 1.2,
+        borderBottom: "1px solid",
+        borderColor: "divider",
+      },
+      "& .MuiMenuItem-root:last-of-type": {
+        borderBottom: "none",
+      },
+    },
   };
 
   return (
     <>
-      {/* Botón de menú para mostrar/ocultar la barra */}
+      {/* Botón hamburguesa fijo arriba-izquierda */}
       <IconButton
-        onClick={() => setOpen(!open)}
+        aria-label="abrir menú"
+        onClick={toggleMenu}
         sx={{
           position: "fixed",
-          top: 20,
-          left: open ? 90 : 10, // Se mueve dependiendo del estado
+          top: 16,
+          left: 16,
+          zIndex: 1300,
           backgroundColor: colors.primary,
           color: colors.text_white,
-          zIndex: 1100, // Asegura que esté visible
           "&:hover": { backgroundColor: colors.secondary },
         }}
       >
-        {open ? <Close /> : <Menu />}
+        <MenuIcon />
       </IconButton>
 
-      {/* Barra de navegación lateral */}
-      <Paper
-        sx={{
-          position: "fixed",
-          top: 0,
-          left: open ? 0 : "-100px", // Oculta la barra cuando está cerrada
-          bottom: 0,
-          zIndex: 1000,
-          backgroundColor: colors.primary,
-          width: open ? 80 : 0, // Ocupa espacio solo cuando está abierta
-          display: open ? "flex" : "none",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          paddingTop: "10px",
-          transition: "left 0.3s ease-in-out, width 0.3s ease-in-out",
-        }}
-        elevation={10}
+      {/* Menú desplegable tipo lista */}
+      <MuiMenu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={closeMenu}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        PaperProps={paperProps}
+        MenuListProps={{ sx: { p: 0 } }}
       >
-        <BottomNavigation
-          value={value}
-          onChange={(_, newValue) => setValue(newValue)}
-          sx={{
-            backgroundColor: colors.primary,
-            color: colors.text_white,
-            flexDirection: "column",
-            height: "100%",
-            alignItems: "center",
+        <MenuItem
+          onClick={() => {
+            navigate("/");
+            closeMenu();
           }}
-          showLabels
         >
-          {/* Botón de Inicio */}
-          <BottomNavigationAction
-            label="Inicio"
-            icon={<Home />}
-            onClick={() => navigate("/")}
-            sx={{
-              color: colors.secondary,
-              "&.Mui-selected": { color: colors.text_white },
+          <ListItemIcon>
+            <Home fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Inicio" />
+        </MenuItem>
 
-              minWidth: "auto",
-              padding: "10px 0",
-            }}
-          />
+        {/* Activa estos si quieres más enlaces */}
+        {/* <MenuItem
+          onClick={() => {
+            navigate("/calculator");
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <Calculate fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Calculadora" />
+        </MenuItem>
 
-          {/* Botón de Calculadora 
-          <BottomNavigationAction
-            label="Calculadora"
-            icon={<Calculate />}
-            onClick={() => navigate("/calculator")}
-            sx={{
-              color: colors.secondary,
-              "&.Mui-selected": { color: colors.text_white },
+        <MenuItem
+          onClick={() => {
+            navigate("/notes");
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <Note fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Notas" />
+        </MenuItem> */}
 
-              minWidth: "auto",
-              padding: "10px 0",
-            }}
-          />*/}
+        <Divider />
 
-          {/* Botón de Notas 
-          <BottomNavigationAction
-            label="Notas"
-            icon={<Note />}
-            onClick={() => navigate("/notes")}
-            sx={{
-              color: colors.secondary,
-              "&.Mui-selected": { color: colors.text_white },
-
-              minWidth: "auto",
-              padding: "10px 0",
-            }}
-          />*/}
-
-          {/* Botón de Cerrar Sesión */}
-          <BottomNavigationAction
-            label="Cerrar Sesión"
-            icon={<ExitToApp />}
-            onClick={handleLogout}
-            sx={{
-              color: colors.secondary,
-              "&.Mui-selected": { color: colors.text_white },
-
-              minWidth: "auto",
-              padding: "10px 0",
-              marginTop: "auto", // Se ubica en la parte inferior de la barra
-            }}
-          />
-        </BottomNavigation>
-      </Paper>
+        <MenuItem
+          onClick={() => {
+            handleLogout();
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <ExitToApp fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Cerrar Sesión" />
+        </MenuItem>
+      </MuiMenu>
     </>
   );
 };

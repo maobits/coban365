@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   List,
@@ -9,7 +9,14 @@ import {
   Typography,
   Divider,
   Paper,
+  Dialog,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Slide,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { TransitionProps } from "@mui/material/transitions";
 import { useTheme } from "../../../glamour/ThemeContext";
 import {
   AccountBalanceWallet,
@@ -21,34 +28,61 @@ import SnackCrudCashier from "./SnackCrudCashier";
 import SnackCrudRate from "./SnackCrudRate";
 import SnackCrudOther from "./SnackCrudOther";
 
-// Asegúrate de tener esto en la parte superior
+// 👇 Reporte de comisiones (acepta idCash o idCorrespondent)
+import SnackReportComission from "../reports/SnackReportComission";
+
 interface Props {
   correspondent: any;
   permissions: string[];
 }
 
+// Transición del modal
+const Transition = React.forwardRef(function Transition(
+  props: TransitionProps & { children: React.ReactElement<any, any> },
+  ref: React.Ref<unknown>
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
+
 const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
   const { colors, fonts } = useTheme();
   const [selected, setSelected] = useState("misCajas");
+  const [openCommissions, setOpenCommissions] = useState(false);
 
-  // 🔍 Logs de depuración
-  console.log("✅ Permisos recibidos:", permissions);
-  console.log("✅ Corresponsal recibido:", correspondent);
+  // ✅ Resolver ID del corresponsal desde el objeto recibido
+  const resolvedCorrespondentId = useMemo<number | undefined>(() => {
+    const c = correspondent || {};
+    const candidates = [c.id, c.correspondent_id, c.id_correspondent].filter(
+      (v) => typeof v === "number" && !Number.isNaN(v)
+    );
+    return candidates.length ? (candidates[0] as number) : undefined;
+  }, [correspondent]);
+
+  const handleOpenCommissions = () => {
+    //setSelected("misTarifas");
+    setOpenCommissions(true);
+  };
+  const handleCloseCommissions = () => setOpenCommissions(false);
+
+  // 🔍 Logs rápidos
+  console.log("✅ Permisos:", permissions);
+  console.log("✅ Corresponsal:", correspondent);
+  console.log("✅ resolvedCorrespondentId:", resolvedCorrespondentId);
 
   return (
     <Box
       sx={{
         display: "flex",
         height: "100vh",
-        backgroundColor: colors.background, // Fondo general del componente
+        backgroundColor: colors.background,
       }}
     >
-      {/* Menú lateral izquierdo */}
+      {/* Menú lateral */}
       <Paper
-        elevation={10} // Elevación coherente con la barra lateral
+        elevation={10}
         sx={{
           width: 240,
-          backgroundColor: colors.primary, // Mismo color que SnackNavigationBar
+          backgroundColor: colors.primary,
           color: colors.text_white,
           zIndex: 1000,
         }}
@@ -66,7 +100,6 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
         </Typography>
         <Divider sx={{ borderColor: colors.secondary }} />
         <List>
-          {/* Mis Cajas */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misCajas"}
@@ -75,12 +108,8 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
                   color: colors.text_white,
-                  "& .MuiListItemIcon-root": {
-                    color: colors.text_white,
-                  },
-                  "& .MuiTypography-root": {
-                    color: colors.text_white,
-                  },
+                  "& .MuiListItemIcon-root": { color: colors.text_white },
+                  "& .MuiTypography-root": { color: colors.text_white },
                 },
               }}
             >
@@ -89,15 +118,11 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               </ListItemIcon>
               <ListItemText
                 primary="Mis Cajas"
-                primaryTypographyProps={{
-                  fontFamily: fonts.main,
-                  color: colors.text_white,
-                }}
+                primaryTypographyProps={{ fontFamily: fonts.main }}
               />
             </ListItemButton>
           </ListItem>
 
-          {/* Mis Cajeros */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misCajeros"}
@@ -106,12 +131,8 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
                   color: colors.text_white,
-                  "& .MuiListItemIcon-root": {
-                    color: colors.text_white,
-                  },
-                  "& .MuiTypography-root": {
-                    color: colors.text_white,
-                  },
+                  "& .MuiListItemIcon-root": { color: colors.text_white },
+                  "& .MuiTypography-root": { color: colors.text_white },
                 },
               }}
             >
@@ -120,29 +141,21 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               </ListItemIcon>
               <ListItemText
                 primary="Mis Cajeros"
-                primaryTypographyProps={{
-                  fontFamily: fonts.main,
-                  color: colors.text_white,
-                }}
+                primaryTypographyProps={{ fontFamily: fonts.main }}
               />
             </ListItemButton>
           </ListItem>
 
-          {/* Mis Tarifas */}
+          {/* Mis comisiones → abre modal */}
           <ListItem disablePadding>
             <ListItemButton
-              selected={selected === "misTarifas"}
-              onClick={() => setSelected("misTarifas")}
+              onClick={handleOpenCommissions}
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
                   color: colors.text_white,
-                  "& .MuiListItemIcon-root": {
-                    color: colors.text_white,
-                  },
-                  "& .MuiTypography-root": {
-                    color: colors.text_white,
-                  },
+                  "& .MuiListItemIcon-root": { color: colors.text_white },
+                  "& .MuiTypography-root": { color: colors.text_white },
                 },
               }}
             >
@@ -150,16 +163,12 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
                 <MonetizationOn sx={{ color: colors.text_white }} />
               </ListItemIcon>
               <ListItemText
-                primary="Mis Tarifas"
-                primaryTypographyProps={{
-                  fontFamily: fonts.main,
-                  color: colors.text_white,
-                }}
+                primary="Mis comisiones"
+                primaryTypographyProps={{ fontFamily: fonts.main }}
               />
             </ListItemButton>
           </ListItem>
 
-          {/* Mis Terceros */}
           <ListItem disablePadding>
             <ListItemButton
               selected={selected === "misTerceros"}
@@ -168,12 +177,8 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
                 "&.Mui-selected": {
                   backgroundColor: colors.secondary,
                   color: colors.text_white,
-                  "& .MuiListItemIcon-root": {
-                    color: colors.text_white,
-                  },
-                  "& .MuiTypography-root": {
-                    color: colors.text_white,
-                  },
+                  "& .MuiListItemIcon-root": { color: colors.text_white },
+                  "& .MuiTypography-root": { color: colors.text_white },
                 },
               }}
             >
@@ -182,17 +187,14 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
               </ListItemIcon>
               <ListItemText
                 primary="Mis Terceros"
-                primaryTypographyProps={{
-                  fontFamily: fonts.main,
-                  color: colors.text_white,
-                }}
+                primaryTypographyProps={{ fontFamily: fonts.main }}
               />
             </ListItemButton>
           </ListItem>
         </List>
       </Paper>
 
-      {/* Panel derecho de contenido */}
+      {/* Panel derecho */}
       <Box
         sx={{
           flex: 1,
@@ -218,7 +220,6 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
             correspondent={correspondent}
           />
         )}
-
         {selected === "misTerceros" && (
           <SnackCrudOther
             permissions={permissions}
@@ -226,6 +227,45 @@ const SnackBox: React.FC<Props> = ({ correspondent, permissions }) => {
           />
         )}
       </Box>
+
+      {/* MODAL: Mis comisiones */}
+      <Dialog
+        fullScreen
+        open={openCommissions}
+        onClose={handleCloseCommissions}
+        TransitionComponent={Transition}
+        PaperProps={{ sx: { backgroundColor: colors.background } }}
+      >
+        <AppBar sx={{ position: "sticky", backgroundColor: colors.primary }}>
+          <Toolbar>
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={handleCloseCommissions}
+              aria-label="cerrar"
+            >
+              <CloseIcon />
+            </IconButton>
+            <Typography
+              sx={{ ml: 2, flex: 1, fontFamily: fonts.heading }}
+              variant="h6"
+              component="div"
+            >
+              Mis comisiones
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          {/* 👉 Pasamos el ID del corresponsal para todas sus cajas */}
+          <SnackReportComission
+            correspondentId={resolvedCorrespondentId}
+            // También podrías pasar el objeto:
+            // correspondent={correspondent}
+            // date="2025-09-07"
+          />
+        </Box>
+      </Dialog>
     </Box>
   );
 };
