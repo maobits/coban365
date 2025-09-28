@@ -291,45 +291,82 @@ export const getSpecialReportBoxes = async (
   }
 };
 
+export type ThirdSpecialReportOpts = {
+  /** Fecha límite (<= date) YYYY-MM-DD */
+  date?: string;
+  /** Rango desde YYYY-MM-DD */
+  dateFrom?: string;
+  /** Rango hasta YYYY-MM-DD */
+  dateTo?: string;
+};
+
 /**
- * Servicio para obtener el balance general de todos los terceros de un corresponsal,
- * agrupados como si cada tercero fuera una caja.
- * Realiza una solicitud GET al endpoint `third_party_balance_sheet.php`.
+ * Servicio: Reporte especial por corresponsal + tercero
+ * GET -> /api/transactions/utils/third_special_report.php
+ *
+ * Ejemplos:
+ *  getThirdSpecialReport(23, 20)
+ *  getThirdSpecialReport(23, 20, "2025-09-27")
+ *  getThirdSpecialReport(23, 20, { date: "2025-09-27" })
+ *  getThirdSpecialReport(23, 20, { dateFrom: "2025-09-01", dateTo: "2025-09-27" })
+ */
+export type ThirdPartyReportOpts = {
+  /** Fecha límite (<= date) YYYY-MM-DD */
+  date?: string;
+  /** Rango desde YYYY-MM-DD */
+  dateFrom?: string;
+  /** Rango hasta YYYY-MM-DD */
+  dateTo?: string;
+};
+
+/**
+ * Servicio para obtener el reporte especial de un tercero de un corresponsal.
+ * Realiza una solicitud GET al endpoint `third_special_report.php`.
  *
  * @param {number} correspondentId - ID del corresponsal.
- * @param {string} [date] - (Opcional) Fecha en formato YYYY-MM-DD para filtrar las transacciones.
- * @returns {Promise<any>} Una promesa con los datos del balance por terceros.
+ * @param {number} thirdPartyId - ID del tercero.
+ * @param {ThirdPartyReportOpts|string} [opts] - Filtros opcionales (fecha exacta o rango).
+ * @returns {Promise<any>} Una promesa con los datos del reporte especial.
  */
 export const getThirdPartyBalanceSheet = async (
   correspondentId: number,
-  date?: string
+  thirdPartyId: number,
+  opts?: string | ThirdPartyReportOpts
 ): Promise<any> => {
   try {
-    let url = `${baseUrl}/api/transactions/utils/third_special_report.php?correspondent_id=${correspondentId}`;
+    const qp = new URLSearchParams();
+    qp.set("correspondent_id", String(correspondentId));
+    qp.set("third_party_id", String(thirdPartyId));
 
-    if (date) {
-      url += `&date=${date}`;
+    if (typeof opts === "string" && opts) {
+      qp.set("date", opts); // fecha simple (<= date)
+    } else if (opts && typeof opts === "object") {
+      const { date, dateFrom, dateTo } = opts;
+      if (dateFrom) qp.set("date_from", dateFrom);
+      if (dateTo) qp.set("date_to", dateTo);
+      if (!dateFrom && !dateTo && date) qp.set("date", date);
     }
+
+    const url = `${baseUrl}/api/transactions/utils/third_special_report.php?${qp.toString()}`;
+    console.log("➡️ GET ThirdPartyBalanceSheet URL:", url);
 
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
 
     if (!response.ok) {
-      throw new Error(`Error en la solicitud: ${response.statusText}`);
+      throw new Error(
+        `Error en la solicitud: ${response.status} ${response.statusText}`
+      );
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
     console.error("❌ Error al obtener el balance de terceros:", error);
     throw error;
   }
 };
-
 /** ===== Tipos sugeridos del payload ===== */
 export interface CashCountRow {
   denom: number;

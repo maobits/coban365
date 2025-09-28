@@ -1,5 +1,5 @@
 // src/snacks/ui/reports/SnackReportThird.tsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -17,9 +17,13 @@ import {
   Divider,
   Box,
   TextField,
+  Alert,
+  Grid,
+  Paper,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PrintIcon from "@mui/icons-material/Print";
+import SearchIcon from "@mui/icons-material/Search";
 import html2pdf from "html2pdf.js";
 import { useTheme } from "../../../../glamour/ThemeContext";
 import { getThirdPartyBalanceSheet } from "../../../../store/reports/Reports";
@@ -29,47 +33,89 @@ interface Props {
   open: boolean;
   onClose: () => void;
   correspondentId: number;
-  thirdCedula?: string; // ⬅️ NUEVO
+  thirdCedula?: string; // opcional
 }
+
 const SnackReportThird: React.FC<Props> = ({
   open,
   onClose,
   correspondentId,
-  thirdCedula, // ⬅️ NUEVO
+  thirdCedula,
 }) => {
   const { colors } = useTheme();
   const printRef = useRef<HTMLDivElement>(null);
+
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
   const [selectedDate, setSelectedDate] = useState<string>(
     todayLocalYYYYMMDD()
   );
 
-  // Estado para el modal de detalle.
+  // Modal de detalle
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedThird, setSelectedThird] = useState<any>(null);
 
-  // Estados para paginacion
+  // Paginación/Busqueda local en detalle
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Función para abrir el modal.
-  const handleOpenDetail = (third: any) => {
-    setSelectedThird(third);
-    setOpenDetail(true);
-  };
+  // Filtros de fecha (solo en el modal detalle)
+  const [rangeStart, setRangeStart] = useState<string>("");
+  const [rangeEnd, setRangeEnd] = useState<string>("");
+  const [appliedRange, setAppliedRange] = useState<{
+    from?: string;
+    to?: string;
+  }>({});
 
+  // Helpers
+  function todayLocalYYYYMMDD(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(Number.isFinite(amount) ? amount : 0);
+
+  // Polaridad estilos
+  const isNegative = (p: any) => Number(p) === 0; // tu regla actual
+  const negCellSx = { color: "error.main", fontWeight: 700 } as const; // rojo
+  const posCellSx = { color: "success.main", fontWeight: 700 } as const; // verde
+
+  // Carga principal
   const loadReport = async () => {
     try {
       setLoading(true);
-      const res = await getThirdPartyBalanceSheet(
-        correspondentId,
-        selectedDate
-      );
-      setReportData(res.report);
-    } catch (err) {
+      setErrorMsg("");
+
+      const res =
+        thirdCedula && thirdCedula.trim()
+          ? await getThirdPartyBalanceSheet(correspondentId, {
+              date: selectedDate,
+              idNumber: thirdCedula.trim(),
+            } as any) // mantenemos tu firma actual
+          : await getThirdPartyBalanceSheet(
+              correspondentId,
+              selectedDate as any
+            );
+
+      if (!res?.success || !res?.report) {
+        setReportData(null);
+        setErrorMsg(res?.message || "No fue posible cargar el reporte.");
+      } else {
+        setReportData(res.report);
+      }
+    } catch (err: any) {
       console.error("❌ Error al obtener reporte de terceros:", err);
+      setReportData(null);
+      setErrorMsg(err?.message || "Error al obtener el reporte.");
     } finally {
       setLoading(false);
     }
@@ -77,14 +123,8 @@ const SnackReportThird: React.FC<Props> = ({
 
   useEffect(() => {
     if (open) loadReport();
-  }, [open, selectedDate]);
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      minimumFractionDigits: 0,
-    }).format(amount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedDate, thirdCedula]);
 
   const handleExportPDF = () => {
     if (printRef.current) {
@@ -93,48 +133,82 @@ const SnackReportThird: React.FC<Props> = ({
         filename: `reporte_terceros_corresponsal_${correspondentId}.pdf`,
         image: { type: "jpeg", quality: 1 },
         html2canvas: { scale: 3 },
-        jsPDF: {
-          unit: "mm",
-          format: [100, 290],
-          orientation: "portrait",
-        },
+        jsPDF: { unit: "mm", format: [100, 290], orientation: "portrait" },
       };
       html2pdf().set(opt).from(printRef.current).save();
     }
   };
 
+  const handleOpenDetail = (third: any) => {
+    setSelectedThird(third);
+    setOpenDetail(true);
+    setSearchTerm("");
+    setCurrentPage(1);
+    setRangeStart("");
+    setRangeEnd("");
+    setAppliedRange({});
+  };
+
+  // ===== Movimientos filtrados por rango de fecha (local) =====
+  const dateWithin = (isoDate: string, from?: string, to?: string) => {
+    const d = isoDate.slice(0, 10); // YYYY-MM-DD
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  };
+
+  const rangeFilteredMovements = useMemo(() => {
+    const list = selectedThird?.movements || [];
+    if (!appliedRange.from && !appliedRange.to) return list;
+    return list.filter((m: any) =>
+      dateWithin(
+        String(m.created_at ?? "")
+          .replace(" ", "T")
+          .slice(0, 10),
+        appliedRange.from,
+        appliedRange.to
+      )
+    );
+  }, [selectedThird, appliedRange]);
+
+  // Filtro + paginación en el detalle
   const filteredMovements =
-    selectedThird?.movements?.filter((m: any) => {
+    useMemo(() => {
+      const list = rangeFilteredMovements || [];
       const txt = (searchTerm || "").toLowerCase();
-      return (
-        (m.transaction_type_name || "").toLowerCase().includes(txt) ||
-        (m.note || "").toLowerCase().includes(txt) ||
-        (m.type_of_movement || "").toLowerCase().includes(txt) // 👈 nuevo
-      );
-    }) || [];
+      if (!txt) return list;
+      return list.filter((m: any) => {
+        return (
+          (m.transaction_type_name || "").toLowerCase().includes(txt) ||
+          (m.note || "").toLowerCase().includes(txt) ||
+          (m.type_of_movement || "").toLowerCase().includes(txt) ||
+          (m.reference || "").toLowerCase().includes(txt)
+        );
+      });
+    }, [rangeFilteredMovements, searchTerm]) || [];
 
   const paginatedMovements = filteredMovements.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((filteredMovements.length || 0) / itemsPerPage)
+  );
 
-  // Estilos para polaridad negattiva.
-  // helpers
-  const isNegative = (p: any) => Number(p) === 0; // tu regla actual
-  const isPositive = (p: any) => Number(p) === 1; // positivo
-
-  // estilos
-  const negCellSx = { color: "error.main", fontWeight: 700 } as const; // rojo
-  const posCellSx = { color: "success.main", fontWeight: 700 } as const; // verde
-
-  // Helpers (deben ir antes de usarse)
-  function todayLocalYYYYMMDD(): string {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  }
+  // Saldo Actual (último total_balance_third de la lista ordenada por fecha asc)
+  const currentBalance = useMemo(() => {
+    const base = rangeFilteredMovements?.length
+      ? [...rangeFilteredMovements].sort(
+          (a: any, b: any) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+      : [];
+    const last = base[base.length - 1];
+    const val = last ? Number(last.total_balance_third || 0) : 0;
+    return val;
+  }, [rangeFilteredMovements]);
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
@@ -153,7 +227,7 @@ const SnackReportThird: React.FC<Props> = ({
         </IconButton>
       </DialogTitle>
 
-      {loading || !reportData ? (
+      {loading ? (
         <DialogContent
           sx={{
             p: 4,
@@ -164,6 +238,28 @@ const SnackReportThird: React.FC<Props> = ({
           }}
         >
           <CircularProgress />
+        </DialogContent>
+      ) : !reportData ? (
+        <DialogContent sx={{ p: 4, textAlign: "center" }}>
+          {errorMsg ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errorMsg}
+            </Alert>
+          ) : null}
+          <Typography color="text.secondary">
+            No fue posible cargar el reporte. Verifica la conexión o la fecha e
+            inténtalo nuevamente.
+          </Typography>
+
+          <Box mt={2}>
+            <TextField
+              type="date"
+              size="small"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              inputProps={{ max: todayLocalYYYYMMDD() }}
+            />
+          </Box>
         </DialogContent>
       ) : (
         <DialogContent
@@ -189,23 +285,21 @@ const SnackReportThird: React.FC<Props> = ({
                 size="small"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                inputProps={{
-                  max: todayLocalYYYYMMDD(),
-                }}
+                inputProps={{ max: todayLocalYYYYMMDD() }}
                 sx={{ mt: 1 }}
               />
             </Box>
 
             <Divider sx={{ my: 2 }} />
+
             {reportData.third_party_summary.map((t: any, idx: number) => (
-              <Box key={idx} mb={3}>
+              <Box key={t.id ?? idx} mb={3}>
                 <Typography fontWeight="bold" fontSize={14} mb={1}>
                   Tercero ID {t.id} - {t.name}
                 </Typography>
 
-                <Table size="small">
+                <Table size="small" aria-label="resumen-tercero">
                   <TableBody>
-                    {/* Saldo inicial */}
                     <TableRow>
                       <TableCell>Saldo inicial</TableCell>
                       <TableCell
@@ -219,7 +313,6 @@ const SnackReportThird: React.FC<Props> = ({
                       </TableCell>
                     </TableRow>
 
-                    {/* Cupo disponible */}
                     <TableRow>
                       <TableCell>Cupo disponible</TableCell>
                       <TableCell align="right">
@@ -227,7 +320,6 @@ const SnackReportThird: React.FC<Props> = ({
                       </TableCell>
                     </TableRow>
 
-                    {/* Movimientos agregados (colores por signo real) */}
                     <TableRow>
                       <TableCell>Préstamos a tercero</TableCell>
                       <TableCell
@@ -290,7 +382,6 @@ const SnackReportThird: React.FC<Props> = ({
                       </TableCell>
                     </TableRow>
 
-                    {/* Deudas (según regla: tercero = negativa siempre, corresponsal = positiva) */}
                     <TableRow>
                       <TableCell>Deuda de terceros</TableCell>
                       <TableCell
@@ -311,7 +402,6 @@ const SnackReportThird: React.FC<Props> = ({
                       </TableCell>
                     </TableRow>
 
-                    {/* Saldo neto al final */}
                     <TableRow>
                       <TableCell>Saldo neto</TableCell>
                       <TableCell
@@ -332,6 +422,7 @@ const SnackReportThird: React.FC<Props> = ({
                   variant="outlined"
                   onClick={() => handleOpenDetail(t)}
                   startIcon={<InfoIcon />}
+                  sx={{ mt: 1 }}
                 >
                   Ver detalle
                 </Button>
@@ -402,65 +493,163 @@ const SnackReportThird: React.FC<Props> = ({
         </Button>
       </DialogActions>
 
+      {/* Modal Detalle */}
       {openDetail && (
         <Dialog
           open={openDetail}
           onClose={() => setOpenDetail(false)}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth
         >
           <DialogTitle>Detalle del tercero</DialogTitle>
           <DialogContent>
             {selectedThird && (
               <>
-                <Typography fontWeight="bold" gutterBottom>
-                  {selectedThird.name} (ID: {selectedThird.id})
-                </Typography>
-                <Table size="small">
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>Cupo asignado</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(selectedThird.credit_limit)}
-                      </TableCell>
-                    </TableRow>
+                {/* Cabecera estilo imagen */}
+                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                  <Grid container alignItems="center" spacing={2}>
+                    {/* Bloque Cliente / Saldos */}
+                    <Grid item xs={12} md={6}>
+                      <Box>
+                        <Grid container spacing={1}>
+                          <Grid item xs={5}>
+                            <Typography color="text.secondary">
+                              Cliente
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={7}>
+                            <Typography fontWeight="bold">
+                              {selectedThird.name}
+                            </Typography>
+                          </Grid>
 
-                    {/* ⬇️ NUEVO: Saldo inicial debajo de cupo asignado */}
-                    <TableRow>
-                      <TableCell>Saldo inicial</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(selectedThird.balance) >= 0
-                              ? "green"
-                              : "red",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {formatCurrency(Number(selectedThird.balance))}
-                      </TableCell>
-                    </TableRow>
+                          <Grid item xs={5}>
+                            <Typography color="text.secondary">
+                              Saldo Inicial
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={7}>
+                            <Typography>
+                              {formatCurrency(
+                                Number(selectedThird.balance || 0)
+                              )}
+                            </Typography>
+                          </Grid>
 
-                    <TableRow>
-                      <TableCell>Saldo neto</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(selectedThird.net_balance) >= 0
-                              ? "green"
-                              : "red",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {formatCurrency(Number(selectedThird.net_balance))}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                          <Grid item xs={5}>
+                            <Typography color="text.secondary">
+                              Saldo Actua
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={7}>
+                            <Typography fontWeight="bold">
+                              {formatCurrency(currentBalance)}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    </Grid>
 
-                <Divider sx={{ my: 2 }} />
+                    {/* Bloque Estado de cuentas / Fechas */}
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ textAlign: { xs: "left", md: "center" } }}>
+                        <Typography fontWeight="bold" sx={{ mb: 1 }}>
+                          Estado de cuentas
+                        </Typography>
+
+                        <Grid
+                          container
+                          spacing={1.5}
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Grid item xs={12} sm={5}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="date"
+                              label="Desde"
+                              value={rangeStart}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setRangeStart(v);
+                                // si la fecha "hasta" quedó antes, la ajustamos
+                                if (rangeEnd && v && rangeEnd < v)
+                                  setRangeEnd(v);
+                              }}
+                              InputLabelProps={{ shrink: true }} // ← evita el placeholder raro
+                              inputProps={{
+                                max: rangeEnd || todayLocalYYYYMMDD(), // no permitir ir más allá del hasta
+                              }}
+                            />
+                          </Grid>
+
+                          <Grid item xs={12} sm={5}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="date"
+                              label="Hasta"
+                              value={rangeEnd}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setRangeEnd(v);
+                                // si la fecha "desde" quedó después, la ajustamos
+                                if (rangeStart && v && rangeStart > v)
+                                  setRangeStart(v);
+                              }}
+                              InputLabelProps={{ shrink: true }} // ← igual aquí
+                              inputProps={{
+                                min: rangeStart || undefined, // no permitir ir antes del desde
+                                max: todayLocalYYYYMMDD(),
+                              }}
+                            />
+                          </Grid>
+
+                          <Grid item xs={12} sm="auto">
+                            <Button
+                              variant="contained"
+                              startIcon={<SearchIcon />}
+                              sx={{
+                                bgcolor: "#f28c28",
+                                "&:hover": { bgcolor: "#dc7d21" },
+                                fontWeight: 700,
+                                px: 2.5,
+                                height: 40,
+                              }}
+                              onClick={() => {
+                                setAppliedRange({
+                                  from: rangeStart || undefined,
+                                  to: rangeEnd || undefined,
+                                });
+                                setCurrentPage(1);
+                              }}
+                            >
+                              Buscar
+                            </Button>
+                          </Grid>
+
+                          {/* Botón opcional para limpiar rango */}
+                          <Grid item xs={12} sm="auto">
+                            <Button
+                              variant="text"
+                              onClick={() => {
+                                setRangeStart("");
+                                setRangeEnd("");
+                                setAppliedRange({});
+                                setCurrentPage(1);
+                              }}
+                            >
+                              Limpiar
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                {/* Tabla de movimientos */}
                 <TextField
                   label="Filtrar movimientos"
                   size="small"
@@ -473,56 +662,106 @@ const SnackReportThird: React.FC<Props> = ({
                   }}
                 />
 
-                <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
-                  <Table size="small">
+                <Box sx={{ maxHeight: 360, overflowY: "auto" }}>
+                  <Table size="small" aria-label="tabla-detalle-movimientos">
                     <TableHead>
                       <TableRow>
                         <TableCell>Fecha</TableCell>
-                        <TableCell>Tipo</TableCell>
-                        <TableCell>Detalle</TableCell>
-
+                        <TableCell>Descripción</TableCell>
+                        <TableCell>Referencia 1</TableCell>
+                        <TableCell>Referencia 2</TableCell>
                         <TableCell align="right">Valor</TableCell>
+                        <TableCell align="right">Comisión Bancaria</TableCell>
+                        <TableCell align="right">Dispersión</TableCell>
+                        <TableCell align="right">Total</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {paginatedMovements.map((m: any, idx: number) => {
-                        const neg = isNegative(m.polarity);
-                        const pos = !neg && isPositive(m.polarity);
-                        const cellSx = neg
+                        const valueSx = isNegative(m.polarity)
                           ? negCellSx
-                          : pos
-                          ? posCellSx
-                          : undefined;
+                          : posCellSx;
+
+                        const bank = parseFloat(m.bank_commission || 0);
+                        const disp = parseFloat(m.dispersion || 0);
+                        const total = parseFloat(m.total_balance_third || 0);
 
                         return (
-                          <TableRow key={idx}>
+                          <TableRow key={`${m.id ?? idx}-${idx}`}>
                             <TableCell>
-                              {new Date(m.created_at).toLocaleString("es-CO", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                                hour12: true,
-                              })}
+                              {new Date(m.created_at).toLocaleDateString(
+                                "es-CO"
+                              )}
                             </TableCell>
-
-                            {/* Tipo */}
-                            <TableCell sx={cellSx}>
-                              {m.transaction_type_name}
+                            <TableCell sx={valueSx}>
+                              {m.transaction_type_name || "—"}
                             </TableCell>
-
-                            {/* Detalle */}
-                            <TableCell sx={cellSx}>
-                              {m.type_of_movement ?? "—"}
+                            <TableCell>{m.type_of_movement || "—"}</TableCell>
+                            <TableCell>
+                              {m.reference || m.note || "—"}
                             </TableCell>
-
-                            {/* Valor */}
-                            <TableCell align="right" sx={cellSx}>
-                              {formatCurrency(parseFloat(m.cost))}
+                            <TableCell align="right" sx={valueSx}>
+                              {formatCurrency(parseFloat(m.cost || 0))}
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                color: bank < 0 ? "error.main" : "inherit",
+                                fontWeight: bank < 0 ? 700 : 400,
+                              }}
+                            >
+                              {formatCurrency(bank)}
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                color: disp < 0 ? "error.main" : "inherit",
+                                fontWeight: disp < 0 ? 700 : 400,
+                              }}
+                            >
+                              {formatCurrency(disp)}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700 }}>
+                              {formatCurrency(total)}
                             </TableCell>
                           </TableRow>
                         );
                       })}
                     </TableBody>
                   </Table>
+                </Box>
+
+                {/* Paginación simple */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 1,
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    mt: 1,
+                  }}
+                >
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    Anterior
+                  </Button>
+                  <Typography variant="body2">
+                    Página {currentPage} de {totalPages}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                  >
+                    Siguiente
+                  </Button>
                 </Box>
               </>
             )}

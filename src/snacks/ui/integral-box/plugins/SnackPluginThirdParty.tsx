@@ -81,16 +81,18 @@ const methodByTransaction: Record<string, string[]> = {
   // PRESTAMO DE TERCERO
   "prestamo de tercero": [
     "Transferencia",
-    "Compensación a código",
-    "Consignación en Sucursal",
-    "Consignación CR",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
+    "Consignación CB",
     "Entrega en efectivo",
   ],
   "prestamo de terceros": [
     "Transferencia",
-    "Compensación a código",
-    "Consignación en Sucursal",
-    "Consignación CR",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
+    "Consignación CB",
     "Entrega en efectivo",
   ],
 
@@ -98,16 +100,14 @@ const methodByTransaction: Record<string, string[]> = {
   "pago a tercero": ["Movimiento solicitado", "Entrega en efectivo"],
 
   // PRESTAMO A TERCERO
-  "prestamo a tercero": [
-    "Orden de servicio (Movimiento)",
-    "Entrega en efectivo",
-  ],
+  "prestamo a tercero": ["Movimiento solicitado", "Entrega en efectivo"],
 
   // PAGO DE TERCERO
   "pago de tercero": [
     "Transferencia",
-    "Compensación a código",
-    "Consignación en Sucursal",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
     "Consignación CB",
     "Entrega en efectivo",
   ],
@@ -148,6 +148,14 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
   // Sesión inicial
   const session = getSession();
+
+  // 🆕 Campo de referencia (se envía como "reference")
+  const [reference, setReference] = useState<string>("");
+
+  // 🆕 Cálculos de costos
+  const [bankCommission, setBankCommission] = useState<number>(0); // costo (positivo para mostrar)
+  const [dispersion, setDispersion] = useState<number>(0); // costo (positivo para mostrar)
+  const [movementTotal, setMovementTotal] = useState<number>(0); // valor - costos
 
   // Estados del cajero (para poder actualizarlos luego)
   const [cashierId, setCashierId] = useState<number>(Number(session?.id) || 0);
@@ -262,6 +270,50 @@ const SnackPluginDeposits: React.FC<Props> = ({
     }
   };
 
+  // === Helpers de comisiones/dispersion ===
+  const DISPERSION_RATE = 0.001; // 1 x 1000
+
+  const ceilToThousand = (v: number) => {
+    if (!Number.isFinite(v) || v <= 0) return 0;
+    return Math.ceil(v / 1000) * 1000; // redondeo SIEMPRE hacia arriba al mil
+  };
+
+  const normalize = (s?: string) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  /**
+   * Comisión bancaria fija según el método de envío (tipo de movimiento).
+   * - Transferencia / Compensación => $0
+   * - Consignación en sucursal / cajero / CB / Entrega en efectivo => $17.000
+   * (Misma tabla que tu ejemplo; aplica a cualquier tercero)
+   */
+  const getBankCommissionByMethod = (method?: string): number => {
+    const m = normalize(method);
+    if (!m) return 0;
+
+    const cero = ["transferencia", "compensacion"];
+    if (cero.includes(m)) return 0;
+
+    const diecisiete = [
+      "consignacion en sucursal",
+      "consignacion cajero",
+      "consignacion cb",
+      "entrega en efectivo",
+    ];
+    if (diecisiete.includes(m)) return 17000;
+
+    // por defecto sin comisión
+    return 0;
+  };
+
+  /** Dispersión = ceil( monto * 0.001 ) al mil hacia arriba */
+  const calcDispersion = (amount: number) =>
+    ceilToThousand(amount * DISPERSION_RATE);
+
   useEffect(() => {
     // 1) Lee la sesión
     const { id, name } = getUserFromSession();
@@ -282,6 +334,21 @@ const SnackPluginDeposits: React.FC<Props> = ({
       }
     })();
   }, []);
+
+  // Recalcular comisión, dispersión y total del movimiento
+  useEffect(() => {
+    const raw = parseFloat((amount || "0").replace(/\D/g, "")) || 0;
+    const comm = getBankCommissionByMethod(selectedMethod); // positivo
+    const disp = calcDispersion(raw); // positivo
+    // En tus reportes los costos aparecen en rojo como negativos,
+    // pero para el usuario aquí mostramos los montos de costo (positivos).
+    // El "Total del movimiento" = Valor - (comisión + dispersión)
+    const total = raw - (comm + disp);
+
+    setBankCommission(comm);
+    setDispersion(disp);
+    setMovementTotal(total < 0 ? 0 : total);
+  }, [amount, selectedMethod]);
 
   const getUserFromSession = (): { id: number; name: string } => {
     const s = getSession();
@@ -669,6 +736,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
         third_party_note,
         cash_tag: cashTag,
         type_of_movement: selectedMethod,
+        // 🆕 referencia y costos calculados (el backend puede ignorarlos si no los usa)
+        reference, // NUEVO
+        bank_commission: -bankCommission, // como costo (negativo)
+        dispersion: -dispersion, // como costo (negativo)
+        total_commission: -(bankCommission + dispersion), // opcional
       };
 
       console.log("📤 Registrando transacción con tercero:", payload);
@@ -980,6 +1052,22 @@ const SnackPluginDeposits: React.FC<Props> = ({
                     </MenuItem>
                   ))}
                 </TextField>
+
+                {/* Referencia (después de Método de envío) */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Referencia
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="Ej: 1015235678 / Nota corta"
+                  InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
+                />
 
                 {/* Cantidad */}
                 <Typography
