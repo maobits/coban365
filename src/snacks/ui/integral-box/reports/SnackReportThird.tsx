@@ -85,9 +85,9 @@ const SnackReportThird: React.FC<Props> = ({
     }).format(Number.isFinite(amount) ? amount : 0);
 
   // Polaridad estilos
-  const isNegative = (p: any) => Number(p) === 0; // tu regla actual
-  const negCellSx = { color: "error.main", fontWeight: 700 } as const; // rojo
-  const posCellSx = { color: "success.main", fontWeight: 700 } as const; // verde
+  const isNegative = (p: any) => Number(p) === 0; // 0 = egreso (rojo), 1 = ingreso (verde)
+  const negCellSx = { color: "error.main", fontWeight: 700 } as const;
+  const posCellSx = { color: "success.main", fontWeight: 700 } as const;
 
   // Carga principal
   const loadReport = async () => {
@@ -100,7 +100,7 @@ const SnackReportThird: React.FC<Props> = ({
           ? await getThirdPartyBalanceSheet(correspondentId, {
               date: selectedDate,
               idNumber: thirdCedula.trim(),
-            } as any) // mantenemos tu firma actual
+            } as any)
           : await getThirdPartyBalanceSheet(
               correspondentId,
               selectedDate as any
@@ -151,7 +151,7 @@ const SnackReportThird: React.FC<Props> = ({
 
   // ===== Movimientos filtrados por rango de fecha (local) =====
   const dateWithin = (isoDate: string, from?: string, to?: string) => {
-    const d = isoDate.slice(0, 10); // YYYY-MM-DD
+    const d = isoDate.slice(0, 10);
     if (from && d < from) return false;
     if (to && d > to) return false;
     return true;
@@ -197,18 +197,40 @@ const SnackReportThird: React.FC<Props> = ({
     Math.ceil((filteredMovements.length || 0) / itemsPerPage)
   );
 
-  // Saldo Actual (último total_balance_third de la lista ordenada por fecha asc)
+  /**
+   * Saldo Actual:
+   * Siempre = saldo inicial + Σ(efecto de cada movimiento visible).
+   * Regla de signo: polarity 0 = egreso (resta), polarity 1 = ingreso (suma).
+   */
   const currentBalance = useMemo(() => {
-    const base = rangeFilteredMovements?.length
-      ? [...rangeFilteredMovements].sort(
-          (a: any, b: any) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        )
-      : [];
-    const last = base[base.length - 1];
-    const val = last ? Number(last.total_balance_third || 0) : 0;
-    return val;
-  }, [rangeFilteredMovements]);
+    if (!selectedThird) return 0;
+
+    const initial = Number(selectedThird.balance || 0);
+
+    // Con rango: lista filtrada; sin rango: todos los movimientos del tercero
+    const baseList =
+      appliedRange.from || appliedRange.to
+        ? rangeFilteredMovements || []
+        : selectedThird?.movements || [];
+
+    if (!baseList.length) return initial;
+
+    const sorted = [...baseList].sort(
+      (a: any, b: any) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    let running = initial;
+    for (const m of sorted) {
+      const cost = Number(m.cost || 0);
+      const bank = Number(m.bank_commission || 0); // negativo si costo
+      const disp = Number(m.dispersion || 0); // negativo si costo
+      // ✅ Ajuste: polarity 0 resta, polarity 1 suma
+      const signedValue = Number(m.polarity) === 0 ? -cost : +cost;
+      running += signedValue + bank + disp;
+    }
+    return running;
+  }, [selectedThird, rangeFilteredMovements, appliedRange]);
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
@@ -538,7 +560,7 @@ const SnackReportThird: React.FC<Props> = ({
 
                           <Grid item xs={5}>
                             <Typography color="text.secondary">
-                              Saldo Actua
+                              Saldo Actual
                             </Typography>
                           </Grid>
                           <Grid item xs={7}>
@@ -573,13 +595,12 @@ const SnackReportThird: React.FC<Props> = ({
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setRangeStart(v);
-                                // si la fecha "hasta" quedó antes, la ajustamos
                                 if (rangeEnd && v && rangeEnd < v)
                                   setRangeEnd(v);
                               }}
-                              InputLabelProps={{ shrink: true }} // ← evita el placeholder raro
+                              InputLabelProps={{ shrink: true }}
                               inputProps={{
-                                max: rangeEnd || todayLocalYYYYMMDD(), // no permitir ir más allá del hasta
+                                max: rangeEnd || todayLocalYYYYMMDD(),
                               }}
                             />
                           </Grid>
@@ -594,13 +615,12 @@ const SnackReportThird: React.FC<Props> = ({
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setRangeEnd(v);
-                                // si la fecha "desde" quedó después, la ajustamos
                                 if (rangeStart && v && rangeStart > v)
                                   setRangeStart(v);
                               }}
-                              InputLabelProps={{ shrink: true }} // ← igual aquí
+                              InputLabelProps={{ shrink: true }}
                               inputProps={{
-                                min: rangeStart || undefined, // no permitir ir antes del desde
+                                min: rangeStart || undefined,
                                 max: todayLocalYYYYMMDD(),
                               }}
                             />
@@ -629,7 +649,6 @@ const SnackReportThird: React.FC<Props> = ({
                             </Button>
                           </Grid>
 
-                          {/* Botón opcional para limpiar rango */}
                           <Grid item xs={12} sm="auto">
                             <Button
                               variant="text"
