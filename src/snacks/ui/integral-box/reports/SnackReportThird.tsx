@@ -232,6 +232,35 @@ const SnackReportThird: React.FC<Props> = ({
     return running;
   }, [selectedThird, rangeFilteredMovements, appliedRange]);
 
+  /* Total */
+  const totalThirdDebtWithFees = useMemo(() => {
+    const list = reportData?.third_party_summary || [];
+    return list.reduce((sum: number, t: any) => {
+      const thirdDebt = Number(t?.third_party_debt || 0);
+      // Tomamos la suma de comisiones por tercero (el campo que ya usas arriba)
+      const commissions = Number(
+        t?.sum_total_commission ?? t?.total_total_commission ?? 0
+      );
+      return sum + thirdDebt + commissions;
+    }, 0);
+  }, [reportData]);
+
+  /*  Total NETO */
+  const totalNetWithFees = useMemo(() => {
+    // deuda del corresponsal (usa el total del reporte o lo calcula si falta)
+    const correspDebt = Number(
+      reportData?.total_correspondent_debt ??
+        reportData?.third_party_summary?.reduce(
+          (acc: number, t: any) => acc + Number(t?.correspondent_debt || 0),
+          0
+        ) ??
+        0
+    );
+
+    // ya lo tienes del paso anterior
+    return correspDebt - totalThirdDebtWithFees;
+  }, [reportData, totalThirdDebtWithFees]);
+
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
       <DialogTitle
@@ -313,160 +342,167 @@ const SnackReportThird: React.FC<Props> = ({
             </Box>
 
             <Divider sx={{ my: 2 }} />
+            {reportData.third_party_summary.map((t: any, idx: number) => {
+              const commissions = Number(t.sum_total_commission || 0); // total comisiones (magnitud positiva)
+              const netAfter = Number(t.net_balance || 0) - commissions; // saldo neto - comisiones
 
-            {reportData.third_party_summary.map((t: any, idx: number) => (
-              <Box key={t.id ?? idx} mb={3}>
-                <Typography fontWeight="bold" fontSize={14} mb={1}>
-                  Tercero ID {t.id} - {t.name}
-                </Typography>
+              return (
+                <Box key={t.id ?? idx} mb={3}>
+                  <Typography fontWeight="bold" fontSize={14} mb={1}>
+                    Tercero ID {t.id} - {t.name}
+                  </Typography>
 
-                <Table size="small" aria-label="resumen-tercero">
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>Saldo inicial</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color: Number(t.balance) >= 0 ? "green" : "red",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {formatCurrency(Number(t.balance))}
-                      </TableCell>
-                    </TableRow>
+                  <Table size="small" aria-label="resumen-tercero">
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Saldo inicial</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: Number(t.balance) >= 0 ? "green" : "red",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {formatCurrency(Number(t.balance))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Cupo disponible</TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(Number(t.available_credit))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Cupo disponible</TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(Number(t.available_credit))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Préstamos a tercero</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(t.loan_to_third_party) < 0 ? "red" : "green",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatCurrency(Number(t.loan_to_third_party || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Préstamos a tercero</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color:
+                              Number(t.loan_to_third_party) < 0
+                                ? "red"
+                                : "green",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatCurrency(Number(t.loan_to_third_party || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Pagos de tercero</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(t.charge_to_third_party) >= 0
-                              ? "green"
-                              : "red",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatCurrency(Number(t.charge_to_third_party || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Pagos de tercero</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color:
+                              Number(t.charge_to_third_party) >= 0
+                                ? "green"
+                                : "red",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatCurrency(Number(t.charge_to_third_party || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Préstamos de tercero</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(t.loan_from_third_party) >= 0
-                              ? "green"
-                              : "red",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatCurrency(Number(t.loan_from_third_party || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Préstamos de tercero</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color:
+                              Number(t.loan_from_third_party) >= 0
+                                ? "green"
+                                : "red",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatCurrency(Number(t.loan_from_third_party || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Pagos a tercero</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color:
-                            Number(t.debt_to_third_party) >= 0
-                              ? "green"
-                              : "red",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatCurrency(Number(t.debt_to_third_party || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Pagos a tercero</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color:
+                              Number(t.debt_to_third_party) >= 0
+                                ? "green"
+                                : "red",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatCurrency(Number(t.debt_to_third_party || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Deuda de terceros</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{ color: "red", fontWeight: 700 }}
-                      >
-                        {formatCurrency(-Number(t.third_party_debt || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Deuda de terceros</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ color: "red", fontWeight: 700 }}
+                        >
+                          {formatCurrency(-Number(t.third_party_debt || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Deuda del corresponsal</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{ color: "green", fontWeight: 700 }}
-                      >
-                        {formatCurrency(Number(t.correspondent_debt || 0))}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell>Deuda del corresponsal</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ color: "green", fontWeight: 700 }}
+                        >
+                          {formatCurrency(Number(t.correspondent_debt || 0))}
+                        </TableCell>
+                      </TableRow>
 
-                    <TableRow>
-                      <TableCell>Saldo neto</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color: Number(t.net_balance) >= 0 ? "green" : "red",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {formatCurrency(Number(t.net_balance))}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                      {/* NUEVA fila: total comisiones (magnitud positiva) */}
+                      <TableRow>
+                        <TableCell>Total comisiones</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ color: "red", fontWeight: 700 }}
+                        >
+                          {formatCurrency(commissions)}
+                        </TableCell>
+                      </TableRow>
 
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => handleOpenDetail(t)}
-                  startIcon={<InfoIcon />}
-                  sx={{ mt: 1 }}
-                >
-                  Ver detalle
-                </Button>
+                      {/* Saldo neto = net_balance - total comisiones */}
+                      <TableRow>
+                        <TableCell>Saldo neto</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: netAfter >= 0 ? "green" : "red",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {formatCurrency(netAfter)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
 
-                <Divider sx={{ my: 2 }} />
-              </Box>
-            ))}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleOpenDetail(t)}
+                    startIcon={<InfoIcon />}
+                    sx={{ mt: 1 }}
+                  >
+                    Ver detalle
+                  </Button>
+
+                  <Divider sx={{ my: 2 }} />
+                </Box>
+              );
+            })}
 
             <Box mt={2} textAlign="right">
               <Typography fontSize={13}>
-                Deuda de terceros:{" "}
-                {formatCurrency(
-                  Number(
-                    reportData?.total_third_party_debt ??
-                      reportData?.third_party_summary?.reduce(
-                        (acc: number, t: any) =>
-                          acc + Number(t?.third_party_debt || 0),
-                        0
-                      ) ??
-                      0
-                  )
-                )}
+                Deuda de terceros: {formatCurrency(totalThirdDebtWithFees)}
               </Typography>
 
               <Typography fontSize={13}>
@@ -487,15 +523,9 @@ const SnackReportThird: React.FC<Props> = ({
               <Typography
                 fontSize={13}
                 fontWeight="bold"
-                sx={{
-                  color:
-                    Number(reportData?.total_net_balance || 0) < 0
-                      ? "red"
-                      : "green",
-                }}
+                sx={{ color: totalNetWithFees < 0 ? "red" : "green" }}
               >
-                Total neto:{" "}
-                {formatCurrency(Number(reportData?.total_net_balance || 0))}
+                Total neto: {formatCurrency(totalNetWithFees)}
               </Typography>
             </Box>
           </Box>

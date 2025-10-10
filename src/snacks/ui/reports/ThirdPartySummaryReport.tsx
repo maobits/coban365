@@ -96,7 +96,7 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
         p: 1.75,
         border: "1px solid #e9e9e9",
         position: "relative",
-        overflowX: "hidden", // 👈 evita scroll horizontal
+        overflowX: "hidden",
         "@media print": {
           boxShadow: "none",
           borderRadius: 0,
@@ -154,7 +154,6 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
       >
         <Stack spacing={0}>
           {summary.map((third: any, idx: number) => {
-            // Nombre robusto (toma el disponible)
             const displayName =
               third?.name ??
               third?.third?.name ??
@@ -162,21 +161,37 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
               third?.id_number ??
               "—";
 
+            // ► Comisiones totales que tenemos para sumar/restar
+            const commissions = Number(
+              third.sum_total_commission ?? third.total_total_commission ?? 0
+            );
+
+            // ► Neto después de comisiones (para Balance)
+            const netAfter = Number(third.net_balance || 0) - commissions;
+
+            // ► Disponible ajustado por comisiones:
+            //    Se recalcula como en el backend, pero usando netAfter.
+            const creditLimit = Number(third.credit_limit ?? third.credit ?? 0);
+            const availableAfter =
+              netAfter >= 0
+                ? creditLimit
+                : Math.max(0, creditLimit - Math.abs(netAfter));
+
             return (
               <Box
                 key={third.id ?? idx}
                 sx={{
                   py: 0.65,
-                  display: "flex", // 👈 flex evita desbordes
+                  display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: 1,
-                  flexWrap: "wrap", // 👈 salta de línea si no cabe
+                  flexWrap: "wrap",
                   borderBottom:
                     idx === summary.length - 1 ? "none" : "1px dashed #e1e1e1",
                 }}
               >
-                {/* Nombre (ocupa hasta 45% y corta con ellipsis) */}
+                {/* Nombre */}
                 <Typography
                   title={displayName}
                   sx={{
@@ -193,14 +208,14 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
                   {displayName}
                 </Typography>
 
-                {/* Balance */}
+                {/* Balance (neto - comisiones) */}
                 <Typography
                   component="span"
                   sx={{
                     flex: "0 1 auto",
                     fontSize: "0.85rem",
                     fontFamily:
-                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace',
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -209,27 +224,25 @@ const ThirdPartySummaryReport: React.FC<Props> = ({
                     style={{
                       fontWeight: 800,
                       fontSize: "0.95rem",
-                      color:
-                        Number(third.total_net_balance) >= 0 ? "green" : "red",
+                      color: netAfter >= 0 ? "green" : "red",
                     }}
                   >
-                    ${formatCOP(Number(third.net_balance) || 0)}
+                    ${formatCOP(netAfter || 0)}
                   </span>
                 </Typography>
 
-                {/* Disponible */}
+                {/* Disponible (recalculado con netAfter) */}
                 <Typography
                   component="span"
                   sx={{
                     flex: "0 1 auto",
                     fontSize: "0.85rem",
                     fontFamily:
-                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace',
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <strong>Disponible:</strong> $
-                  {formatCOP(Number(third.available_credit) || 0)}
+                  <strong>Disponible:</strong> ${formatCOP(availableAfter || 0)}
                 </Typography>
               </Box>
             );
