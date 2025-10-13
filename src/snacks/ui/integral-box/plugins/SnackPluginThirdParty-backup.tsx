@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Button,
@@ -29,6 +29,94 @@ import { listOthersByCorrespondent } from "../../../../store/other/CrudOther";
 import { getThirdPartyBalance } from "../../../../store/transaction/CrudTransactions"; // o la ruta correcta
 import SnackPluginBillCounter from "./SnackPluginBillCounter";
 import CloseIcon from "@mui/icons-material/Close";
+import { GetUserProfile } from "../../../../store/profile/GetUserProfile";
+
+type SessionUser = {
+  id?: number | string;
+  name?: string;
+  fullname?: string;
+  first_name?: string;
+  last_name?: string;
+} | null;
+
+const getSession = (): SessionUser => {
+  try {
+    const raw = localStorage.getItem("userSession");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const getCashierNameFromSession = (s: SessionUser): string => {
+  if (!s) return "—";
+  const name =
+    (s as any).fullname ||
+    (s as any).name ||
+    [(s as any).first_name, (s as any).last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  return name || "—";
+};
+
+const toUpperES = (s?: string) => (s ?? "—").toLocaleUpperCase("es-CO");
+
+// Metodos de envio.
+// 🔤 Normalizador robusto (usa el mismo para tus comparaciones de nombres)
+const normalizeText = (text: string) =>
+  (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Opciones de "Método de envío" por tipo de transacción.
+ * Las claves están normalizadas. Aceptamos variantes comunes.
+ */
+const methodByTransaction: Record<string, string[]> = {
+  // PRESTAMO DE TERCERO
+  "prestamo de tercero": [
+    "Transferencia",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
+    "Consignación CB",
+    "Entrega en efectivo",
+  ],
+  "prestamo de terceros": [
+    "Transferencia",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
+    "Consignación CB",
+    "Entrega en efectivo",
+  ],
+
+  // PAGO A TERCERO
+  "pago a tercero": ["Movimiento solicitado", "Entrega en efectivo"],
+
+  // PRESTAMO A TERCERO
+  "prestamo a tercero": ["Movimiento solicitado", "Entrega en efectivo"],
+
+  // PAGO DE TERCERO
+  "pago de tercero": [
+    "Transferencia",
+    "Compensación",
+    "Consignación en sucursal",
+    "Consignación cajero",
+    "Consignación CB",
+    "Entrega en efectivo",
+  ],
+};
+
+const getMethodOptionsForType = (typeName?: string): string[] => {
+  const key = normalizeText(typeName || "");
+  return methodByTransaction[key] || [];
+};
 
 interface Props {
   correspondent: {
@@ -56,6 +144,23 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<number | "">(
     ""
+  );
+
+  // Sesión inicial
+  const session = getSession();
+
+  // 🆕 Campo de referencia (se envía como "reference")
+  const [reference, setReference] = useState<string>("");
+
+  // 🆕 Cálculos de costos
+  const [bankCommission, setBankCommission] = useState<number>(0); // costo (positivo para mostrar)
+  const [dispersion, setDispersion] = useState<number>(0); // costo (positivo para mostrar)
+  const [movementTotal, setMovementTotal] = useState<number>(0); // valor - costos
+
+  // Estados del cajero (para poder actualizarlos luego)
+  const [cashierId, setCashierId] = useState<number>(Number(session?.id) || 0);
+  const [cashierName, setCashierName] = useState<string>(
+    getCashierNameFromSession(session) // usa fullname / first_name + last_name si no hay name
   );
 
   // Estados para el calculo de la caja.
@@ -121,6 +226,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const saldoCajaPercentage =
     creditLimit > 0 ? (saldoCaja / creditLimit) * 100 : 0;
 
+  // 🆕 Método de envío (type_of_movement)
+  const [methodOptions, setMethodOptions] = useState<string[]>([]);
+  const [selectedMethod, setSelectedMethod] = useState<string>("");
+
   {
     /* Función para cargar el valor en caja. */
   }
@@ -161,6 +270,93 @@ const SnackPluginDeposits: React.FC<Props> = ({
     }
   };
 
+  // === Helpers de comisiones/dispersion ===
+  const DISPERSION_RATE = 0.001; // 1 x 1000
+
+  const ceilToThousand = (v: number) => {
+    if (!Number.isFinite(v) || v <= 0) return 0;
+    return Math.ceil(v / 1000) * 1000; // redondeo SIEMPRE hacia arriba al mil
+  };
+
+  const normalize = (s?: string) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  /**
+   * Comisión bancaria fija según el método de envío (tipo de movimiento).
+   * - Transferencia / Compensación => $0
+   * - Consignación en sucursal / cajero / CB / Entrega en efectivo => $17.000
+   * (Misma tabla que tu ejemplo; aplica a cualquier tercero)
+   */
+  const getBankCommissionByMethod = (method?: string): number => {
+    const m = normalize(method);
+    if (!m) return 0;
+
+    const cero = ["transferencia", "compensacion"];
+    if (cero.includes(m)) return 0;
+
+    const diecisiete = [
+      "consignacion en sucursal",
+      "consignacion cajero",
+      "consignacion cb",
+      "entrega en efectivo",
+    ];
+    if (diecisiete.includes(m)) return 17000;
+
+    // por defecto sin comisión
+    return 0;
+  };
+
+  /** Dispersión = ceil( monto * 0.001 ) al mil hacia arriba */
+  const calcDispersion = (amount: number) =>
+    ceilToThousand(amount * DISPERSION_RATE);
+
+  useEffect(() => {
+    // 1) Lee la sesión
+    const { id, name } = getUserFromSession();
+    setCashierId(id);
+    setCashierName(name); // nombre preliminar por si la API tarda
+
+    // 2) Si hay id, consulta el perfil para traer fullname definitivo
+    (async () => {
+      if (!id) return;
+      try {
+        const res = await GetUserProfile(id);
+        if (res?.success && res?.user?.fullname) {
+          setCashierName(res.user.fullname);
+        }
+      } catch (e) {
+        console.warn("No se pudo leer perfil del usuario:", e);
+        // queda el nombre preliminar de sesión
+      }
+    })();
+  }, []);
+
+  // Recalcular comisión, dispersión y total del movimiento
+  useEffect(() => {
+    const raw = parseFloat((amount || "0").replace(/\D/g, "")) || 0;
+    const comm = getBankCommissionByMethod(selectedMethod); // positivo
+    const disp = calcDispersion(raw); // positivo
+    // En tus reportes los costos aparecen en rojo como negativos,
+    // pero para el usuario aquí mostramos los montos de costo (positivos).
+    // El "Total del movimiento" = Valor - (comisión + dispersión)
+    const total = raw - (comm + disp);
+
+    setBankCommission(comm);
+    setDispersion(disp);
+    setMovementTotal(total < 0 ? 0 : total);
+  }, [amount, selectedMethod]);
+
+  const getUserFromSession = (): { id: number; name: string } => {
+    const s = getSession();
+    const id = Number((s as any)?.id) || 0;
+    const name = getCashierNameFromSession(s);
+    return { id, name };
+  };
+
   const handleOpen = async () => {
     try {
       // 📦 Mostrar datos de la caja actual
@@ -170,7 +366,17 @@ const SnackPluginDeposits: React.FC<Props> = ({
         corresponsal: correspondent.name,
       });
 
-      // Cargar tipos de transacción desde el backend
+      // 🆕 Reset UI del formulario al abrir
+      setSelectedTransaction("");
+      setAmount("0");
+      setSelectedOther(null);
+      setThirdPartyBalance(null);
+
+      // 🆕 Reset "Método de envío"
+      setMethodOptions([]); // ← sin opciones hasta que elijan tipo
+      setSelectedMethod(""); // ← limpiar selección
+
+      // 1) Cargar tipos de transacción desde el backend
       const res = await getTransactionTypesByCorrespondent(
         correspondent.id,
         "third_parties"
@@ -178,27 +384,20 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
       if (res.success) {
         setTransactionTypes(res.data);
-        setSelectedTransaction("");
-        setAmount("0");
       } else {
         setTransactionTypes([]);
-        setSelectedTransaction("");
       }
 
-      // 1.5. Cargar lista de terceros
+      // 1.5) Cargar lista de terceros
       const othersRes = await listOthersByCorrespondent(correspondent.id);
       if (othersRes.success) {
         setOthersList(othersRes.data);
-        setSelectedOther(null);
       } else {
         setOthersList([]);
-        setSelectedOther(null);
       }
 
-      // 2. Cargar deuda bancaria completa del corresponsal
+      // 2) Cargar deuda bancaria completa del corresponsal
       const debtRes = await getDebtToBankByCorrespondent(correspondent.id);
-      const availableLimit =
-        (correspondent.credit_limit || 0) - (bankDebt || 0);
 
       if (debtRes.success) {
         const { income, withdrawals, net_cash, debt_to_bank } = debtRes.data;
@@ -213,14 +412,17 @@ const SnackPluginDeposits: React.FC<Props> = ({
         setBankDebt(0);
       }
 
-      // 3. Cargar resumen financiero específico de la caja
+      // 3) Cargar resumen financiero específico de la caja
       await loadCashSummary();
 
-      // 4. Abrir modal
+      // 4) Abrir modal
       setOpen(true);
     } catch (error) {
       console.error("❌ Error cargando datos iniciales del modal:", error);
       setTransactionTypes([]);
+      // 🆕 Asegurar reset mínimo en error
+      setMethodOptions([]);
+      setSelectedMethod("");
       setOpen(true);
     }
   };
@@ -514,6 +716,13 @@ const SnackPluginDeposits: React.FC<Props> = ({
         cashTag.toLocaleString("es-CO")
       );
 
+      // Validación: método de envío
+      if (!selectedMethod) {
+        setAlertMessage("⚠️ Debes seleccionar un método de envío.");
+        setAlertOpen(true);
+        return;
+      }
+
       // 7. Construir payload con ID real y nota especial
       const payload = {
         id_cashier: 1, // ← reemplazar por el ID real si aplica
@@ -526,6 +735,12 @@ const SnackPluginDeposits: React.FC<Props> = ({
         client_reference: selectedOther.id,
         third_party_note,
         cash_tag: cashTag,
+        type_of_movement: selectedMethod,
+        // 🆕 referencia y costos calculados (el backend puede ignorarlos si no los usa)
+        reference, // NUEVO
+        bank_commission: -bankCommission, // como costo (negativo)
+        dispersion: -dispersion, // como costo (negativo)
+        total_commission: -(bankCommission + dispersion), // opcional
       };
 
       console.log("📤 Registrando transacción con tercero:", payload);
@@ -618,6 +833,39 @@ const SnackPluginDeposits: React.FC<Props> = ({
     );
   }
 
+  // Línea superior del panel de la derecha (siempre arriba)
+  const saldoTop = (() => {
+    if (!thirdPartyBalance) return null;
+
+    const n = Math.abs(thirdPartyBalance.net_balance || 0);
+    const monto = `$${new Intl.NumberFormat("es-CO").format(n)}`;
+
+    if (thirdPartyBalance.correspondent_action === "cobra") {
+      // El tercero debe al corresponsal
+      return (
+        <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
+          📥 {nombreTercero} debe al corresponsal: {monto}
+        </Typography>
+      );
+    }
+
+    if (thirdPartyBalance.correspondent_action === "paga") {
+      // El corresponsal debe al tercero
+      return (
+        <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
+          💸 El corresponsal debe a {nombreTercero}: {monto}
+        </Typography>
+      );
+    }
+
+    // Sin saldo pendiente
+    return (
+      <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
+        ✔️ No hay saldos pendientes entre partes.
+      </Typography>
+    );
+  })();
+
   return (
     <>
       <Button
@@ -653,271 +901,334 @@ const SnackPluginDeposits: React.FC<Props> = ({
             fontFamily: fonts.heading,
             backgroundColor: colors.primary,
             color: colors.text_white,
-            fontSize: "1.1rem", // más pequeño
-            py: 1.2, // menos alto
-            display: "flex", // para alinear texto y botón
+            fontSize: "1.05rem",
+            py: 1.1,
+            display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            letterSpacing: 0.3,
           }}
         >
-          <Box>
-            Terceros en el corresponsal{" "}
-            <Box
-              component="span"
-              fontWeight="bold"
-              color={colors.text_white}
-              sx={{ fontSize: "1rem" }}
-            >
-              {correspondent.name}
+          <Box
+            sx={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            <Box component="span" sx={{ fontWeight: 700, mr: 1 }}>
+              TERCEROS -
             </Box>{" "}
-            -{" "}
-            <Box
-              component="span"
-              fontWeight="bold"
-              color={colors.text_white}
-              sx={{ fontSize: "1rem" }}
-            >
-              {cash.name}
+            <Box component="span">[{correspondent?.id ?? "—"}]</Box>{" "}
+            <Box component="span">[{toUpperES(correspondent?.name)}]</Box>{" "}
+            <Box component="span" sx={{ mx: 0.5 }}>
+              /
+            </Box>{" "}
+            <Box component="span">[{toUpperES(cash?.name)}]</Box>{" "}
+            <Box component="span">[{toUpperES(cashierName)}]</Box>{" "}
+            <Box component="span" sx={{ ml: 1 }}>
+              DETALLE
             </Box>
           </Box>
 
-          {/* Botón cerrar */}
-          <IconButton
-            onClick={handleClose} // tu función de cierre
-            sx={{ color: colors.text_white }}
-          >
+          <IconButton onClick={handleClose} sx={{ color: colors.text_white }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
+
         <DialogContent
           sx={{
-            backgroundColor: "#fff", // Fondo blanco general
+            backgroundColor: "#fff",
             color: colors.text,
             fontFamily: fonts.main,
-            py: 5,
+            py: 0.75, // compacto
+            my: 0.25,
           }}
         >
-          <Grid container spacing={5}>
-            {/* Tipo de transacción */}
+          <Grid container spacing={1.5} alignItems="stretch">
+            {/* IZQUIERDA: UNA COLUMNA CON TODOS LOS CAMPOS */}
             <Grid item xs={12} md={6}>
-              <Typography
-                fontWeight="bold"
-                gutterBottom
-                sx={{ fontSize: "1.2rem", mt: 2 }}
-              >
-                Tipo de Transacción
-              </Typography>
-              <TextField
-                fullWidth
-                select
-                value={selectedTransaction}
-                onChange={(e) =>
-                  setSelectedTransaction(parseInt(e.target.value))
-                }
-              >
-                <MenuItem value="">Seleccionar tipo de transacción</MenuItem>
-                {transactionTypes.map((type: any) => (
-                  <MenuItem key={type.id} value={type.id}>
-                    {type.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+              <Box sx={{ display: "grid", rowGap: 1 }}>
+                {/* Tipo de Transacción */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Tipo de Transacción
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  value={selectedTransaction}
+                  onChange={(e) => {
+                    const id = parseInt(e.target.value);
+                    setSelectedTransaction(id);
+                    const t = transactionTypes.find((x: any) => x.id === id);
+                    const opts = getMethodOptionsForType(t?.name);
+                    setMethodOptions(opts);
+                    setSelectedMethod(""); // reset
+                  }}
+                  InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
+                >
+                  <MenuItem value="">Seleccionar tipo de transacción</MenuItem>
+                  {transactionTypes.map((type: any) => (
+                    <MenuItem key={type.id} value={type.id}>
+                      {type.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-            {/* Terceros asociados */}
-            <Grid item xs={12} md={6}>
-              <Typography
-                fontWeight="bold"
-                gutterBottom
-                sx={{ fontSize: "1.2rem", mt: 2 }}
-              >
-                Seleccionar Tercero
-              </Typography>
-              <TextField
-                fullWidth
-                select
-                value={selectedOther?.id || ""}
-                onChange={async (e) => {
-                  const selected = othersList.find(
-                    (o) => o.id === parseInt(e.target.value)
-                  );
-                  setSelectedOther(selected);
-
-                  if (selected) {
-                    const balanceRes = await getThirdPartyBalance(
-                      correspondent.id,
-                      selected.id
+                {/* Seleccionar Tercero */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Seleccionar Tercero
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  value={selectedOther?.id || ""}
+                  onChange={async (e) => {
+                    const selected = othersList.find(
+                      (o) => o.id === parseInt(e.target.value)
                     );
+                    setSelectedOther(selected);
 
-                    // Mostrar el panel aunque success sea false si hay data válida
-                    if (balanceRes.data) {
-                      setThirdPartyBalance(balanceRes.data);
-
-                      // Mostrar advertencia si success es false pero data existe
-                      if (!balanceRes.success && balanceRes.message) {
-                        setAlertMessage(`⚠️ ${balanceRes.message}`);
-                        setAlertOpen(true);
+                    if (selected) {
+                      const balanceRes = await getThirdPartyBalance(
+                        correspondent.id,
+                        selected.id
+                      );
+                      if (balanceRes.data) {
+                        setThirdPartyBalance(balanceRes.data);
+                        if (!balanceRes.success && balanceRes.message) {
+                          setAlertMessage(`⚠️ ${balanceRes.message}`);
+                          setAlertOpen(true);
+                        }
+                      } else {
+                        setThirdPartyBalance(null);
                       }
                     } else {
                       setThirdPartyBalance(null);
                     }
-                  } else {
-                    setThirdPartyBalance(null);
-                  }
-                }}
-                sx={{ fontSize: "1.4rem" }}
-                InputProps={{
-                  sx: {
-                    fontSize: "1.4rem",
-                    height: 70,
-                  },
-                }}
-              >
-                <MenuItem value="">Seleccionar tercero</MenuItem>
-                {othersList.map((o: any) => (
-                  <MenuItem key={o.id} value={o.id}>
-                    {o.name} — {o.id_number}
+                  }}
+                  InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
+                >
+                  <MenuItem value="">Seleccionar tercero</MenuItem>
+                  {othersList.map((o: any) => (
+                    <MenuItem key={o.id} value={o.id}>
+                      {o.name} — {o.id_number}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                {/* Método de envío */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Método de envío
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  value={selectedMethod}
+                  onChange={(e) => setSelectedMethod(e.target.value)}
+                  disabled={methodOptions.length === 0}
+                  InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
+                >
+                  <MenuItem value="">
+                    {methodOptions.length
+                      ? "Seleccionar método"
+                      : "Seleccione un tipo de transacción"}
                   </MenuItem>
-                ))}
-              </TextField>
+                  {methodOptions.map((opt) => (
+                    <MenuItem key={opt} value={opt}>
+                      {opt}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                {/* Referencia (después de Método de envío) */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Referencia
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="Ej: 1015235678 / Nota corta"
+                  InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
+                />
+
+                {/* Cantidad */}
+                <Typography
+                  fontWeight="bold"
+                  sx={{ fontSize: "0.9rem", mt: 0.25 }}
+                >
+                  Cantidad
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  inputRef={amountRef}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+                  onChange={(e) => {
+                    let raw = e.target.value.replace(/\D/g, "");
+                    if (raw.length > 1 && raw.startsWith("0"))
+                      raw = raw.replace(/^0+/, "");
+                    setAmount(raw || "0");
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">COP</InputAdornment>
+                    ),
+                    sx: {
+                      height: 38,
+                      fontSize: "0.98rem",
+                      fontWeight: "bold",
+                      textAlign: "right",
+                    },
+                  }}
+                />
+              </Box>
             </Grid>
 
-            {/* Cantidad (izquierda) */}
-            <Grid item xs={12} md={6}>
-              <Typography
-                fontWeight="bold"
-                gutterBottom
-                sx={{ fontSize: "1.2rem", mt: 2 }}
-              >
-                Cantidad
-              </Typography>
-              <TextField
-                fullWidth
-                inputRef={amountRef}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
-                onChange={(e) => {
-                  let raw = e.target.value.replace(/\D/g, "");
-
-                  // Si comienza con '0' y tiene más de un dígito, quítalo
-                  if (raw.length > 1 && raw.startsWith("0")) {
-                    raw = raw.replace(/^0+/, "");
-                  }
-
-                  // Si el campo queda vacío, lo ponemos a "0"
-                  setAmount(raw || "0");
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">COP</InputAdornment>
-                  ),
-                  sx: {
-                    fontSize: "2rem",
-                    fontWeight: "bold",
-                    textAlign: "right",
-                    height: 70,
-                  },
-                }}
-              />
-            </Grid>
-
-            {/* Panel de balance (derecha) */}
+            {/* Panel de balance (derecha) — muestra una sola línea según el caso */}
             {selectedOther && thirdPartyBalance && (
-              <Grid item xs={12} md={6} mb={4}>
+              <Grid item xs={12} md={6} mb={2}>
                 <Paper
                   elevation={2}
                   sx={{
-                    px: 3,
-                    pt: 3,
-                    pb: 2,
-                    border: "1px solid",
-                    borderColor: colors.secondary,
-                    borderRadius: 2,
+                    width: "100%",
                     height: "100%",
+                    // ❌ quita el borde general
+                    border: "none",
+                    // ✅ deja solo el borde izquierdo
+                    borderLeft: `1px solid ${colors.secondary}`,
+                    borderRadius: 2,
+                    backgroundColor: "#fff",
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mr: { md: 1, xs: 0 },
                   }}
                 >
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color={colors.secondary}
-                    gutterBottom
-                  >
-                    ✅ Cupo disponible del Tercero:
-                  </Typography>
+                  <Box sx={{ width: "100%" }}>
+                    <Grid container rowSpacing={1.2} columnSpacing={2}>
+                      {/* --------- SOLO UNA LÍNEA ARRIBA SEGÚN action --------- */}
+                      {action === "cobra" && (
+                        <>
+                          <Grid item xs={8}>
+                            <Typography sx={{ fontSize: "0.95rem" }}>
+                              {nombreTercero} Debe al CB
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={4} textAlign="right">
+                            <Typography sx={{ fontSize: "0.95rem" }}>
+                              ${" "}
+                              {new Intl.NumberFormat("es-CO").format(
+                                Math.abs(netBalance)
+                              )}
+                            </Typography>
+                          </Grid>
+                        </>
+                      )}
 
-                  <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                    color={colors.secondary}
-                    mt={-1}
-                  >
-                    {`$${new Intl.NumberFormat("es-CO").format(
-                      availableCredit
-                    )}`}
-                    {!isFullCredit && (
-                      <Box component="span" fontSize="1rem" fontWeight="normal">
-                        {` de $${new Intl.NumberFormat("es-CO").format(
-                          totalCredit
-                        )}`}
-                      </Box>
-                    )}
-                  </Typography>
+                      {action === "paga" && (
+                        <>
+                          <Grid item xs={8}>
+                            <Typography sx={{ fontSize: "0.95rem" }}>
+                              CB Debe al {nombreTercero}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={4} textAlign="right">
+                            <Typography sx={{ fontSize: "0.95rem" }}>
+                              ${" "}
+                              {new Intl.NumberFormat("es-CO").format(
+                                Math.abs(netBalance)
+                              )}
+                            </Typography>
+                          </Grid>
+                        </>
+                      )}
 
-                  {/* Visualización del saldo pendiente con lógica de acción */}
-                  <Typography mt={1}>
-                    {thirdPartyBalance.correspondent_action === "sin_saldo" ? (
-                      <strong>✔️ No hay saldos pendientes entre partes.</strong>
-                    ) : thirdPartyBalance.correspondent_action === "cobra" ? (
-                      <>
-                        <strong>
-                          📥 {nombreTercero} debe al corresponsal:
-                        </strong>{" "}
-                        $
-                        {new Intl.NumberFormat("es-CO").format(
-                          Math.abs(thirdPartyBalance.net_balance)
-                        )}
-                      </>
-                    ) : thirdPartyBalance.correspondent_action === "paga" ? (
-                      <>
-                        <strong>
-                          💸 El corresponsal debe a {nombreTercero}:
-                        </strong>{" "}
-                        $
-                        {new Intl.NumberFormat("es-CO").format(
-                          Math.abs(thirdPartyBalance.net_balance)
-                        )}
-                      </>
-                    ) : null}
-                  </Typography>
+                      {(action === "sin_saldo" || !action) && (
+                        <Grid item xs={12}>
+                          <Typography sx={{ fontSize: "0.95rem" }}>
+                            ✔️ No hay saldos pendientes entre partes.
+                          </Typography>
+                        </Grid>
+                      )}
+                      {/* ------------------------------------------------------- */}
+
+                      {/* Cupo crédito */}
+                      <Grid item xs={8}>
+                        <Typography sx={{ fontSize: "0.95rem" }}>
+                          Cupo crédito
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={4} textAlign="right">
+                        <Typography sx={{ fontSize: "0.95rem" }}>
+                          $ {new Intl.NumberFormat("es-CO").format(totalCredit)}
+                        </Typography>
+                      </Grid>
+
+                      {/* Cupo disponible */}
+                      <Grid item xs={8}>
+                        <Typography sx={{ fontSize: "0.95rem" }}>
+                          Cupo disponible
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={4} textAlign="right">
+                        <Typography sx={{ fontSize: "0.95rem" }}>
+                          ${" "}
+                          {new Intl.NumberFormat("es-CO").format(
+                            availableCredit
+                          )}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
                 </Paper>
               </Grid>
             )}
 
-            {/* Panel financiero */}
+            {/* PANEL FINANCIERO (abajo a lo ancho) */}
             <Grid item xs={12}>
               <Paper
                 elevation={2}
                 sx={{
-                  p: 4,
+                  p: 1,
                   backgroundColor: colors.primary,
                   border: "2px solid",
                   borderColor: colors.secondary,
                   borderRadius: 2,
                 }}
               >
-                <Grid container spacing={3} justifyContent="center">
+                <Grid container spacing={1} justifyContent="center">
                   {/* Saldo en caja */}
                   <Grid item xs={12} md={3} textAlign="center">
                     <Typography
-                      variant="h6"
+                      sx={{ fontSize: "0.85rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
                       🪙 En caja
                     </Typography>
                     <Typography
-                      variant="h5"
+                      sx={{ fontSize: "1rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
@@ -926,89 +1237,37 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         initialConfig + incomes - withdrawals
                       )}
                     </Typography>
-
-                    {/* 
-        <LinearProgress
-          variant="determinate"
-          value={cashPercentage}
-          sx={{
-            mt: 1,
-            height: 8,
-            borderRadius: 5,
-            backgroundColor: "#ddd",
-            "& .MuiLinearProgress-bar": {
-              backgroundColor: colors.secondary,
-            },
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{
-            mt: 1,
-            display: "block",
-            color: colors.text_white,
-          }}
-        >
-          {cashPercentage.toFixed(1)}% de capacidad
-        </Typography>
-        */}
                   </Grid>
 
                   {/* Deuda al banco */}
                   <Grid item xs={12} md={3} textAlign="center">
                     <Typography
-                      variant="h6"
+                      sx={{ fontSize: "0.85rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
                       🏛️ Banco
                     </Typography>
                     <Typography
-                      variant="h5"
+                      sx={{ fontSize: "1rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
                       ${new Intl.NumberFormat("es-CO").format(bankDebt)}
                     </Typography>
-
-                    {/* 
-        <LinearProgress
-          variant="determinate"
-          value={debtPercentage}
-          sx={{
-            mt: 1,
-            height: 8,
-            borderRadius: 5,
-            backgroundColor: "#ddd",
-            "& .MuiLinearProgress-bar": {
-              backgroundColor: colors.secondary,
-            },
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{
-            mt: 1,
-            display: "block",
-            color: colors.text_white,
-          }}
-        >
-          {debtPercentage.toFixed(1)}% del cupo usado
-        </Typography>
-        */}
                   </Grid>
 
                   {/* Cupo disponible */}
                   <Grid item xs={12} md={3} textAlign="center">
                     <Typography
-                      variant="h6"
+                      sx={{ fontSize: "0.85rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
                       ✅ Cupo
                     </Typography>
                     <Typography
-                      variant="h5"
+                      sx={{ fontSize: "1rem" }}
                       fontWeight="bold"
                       color={colors.text_white}
                     >
@@ -1017,32 +1276,6 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         (correspondent.credit_limit || 0) - (bankDebt || 0)
                       )}
                     </Typography>
-
-                    {/* 
-        <LinearProgress
-          variant="determinate"
-          value={availablePercentage}
-          sx={{
-            mt: 1,
-            height: 8,
-            borderRadius: 5,
-            backgroundColor: "#ddd",
-            "& .MuiLinearProgress-bar": {
-              backgroundColor: colors.secondary,
-            },
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{
-            mt: 1,
-            display: "block",
-            color: colors.text_white,
-          }}
-        >
-          {availablePercentage.toFixed(1)}% del cupo disponible
-        </Typography>
-        */}
                   </Grid>
                 </Grid>
               </Paper>
