@@ -306,7 +306,7 @@ export const getThirdPartyBalance = async (
   thirdPartyId: number
 ): Promise<any> => {
   try {
-    const url = `${baseUrl}/api/transactions/utils/third_party_balance_sheet.php?correspondent_id=${correspondentId}&third_party_id=${thirdPartyId}`;
+    const url = `${baseUrl}/api/transactions/utils/third_party_balance_sheet_commisions.php?correspondent_id=${correspondentId}&third_party_id=${thirdPartyId}`;
     console.log("📡 Consultando movimientos con el tercero:", url);
 
     const response = await fetch(url);

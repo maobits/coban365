@@ -30,6 +30,11 @@ import { getThirdPartyBalance } from "../../../../store/transaction/CrudTransact
 import SnackPluginBillCounter from "./SnackPluginBillCounter";
 import CloseIcon from "@mui/icons-material/Close";
 import { GetUserProfile } from "../../../../store/profile/GetUserProfile";
+import {
+  addThirdPartyCommission,
+  getThirdPartyCommission,
+  subtractThirdPartyCommission, // 👈 agrega esto
+} from "../../../../store/other/thirdPartyCommissions";
 
 type SessionUser = {
   id?: number | string;
@@ -172,6 +177,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const cashCapacity = cash.capacity || 1; // evitamos división por cero
   const currentCash = initialConfig + incomes - withdrawals;
   const cashPercentage = (currentCash / cashCapacity) * 100;
+
+  // Comisión acumulada.
+  // NUEVO estado:
+  const [thirdPartyAccumulatedCommission, setThirdPartyAccumulatedCommission] =
+    useState<number>(0);
 
   // Estado para la deuda.
   const [bankDebt, setBankDebt] = useState(0);
@@ -429,6 +439,38 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
   const handleClose = () => setOpen(false);
   const handleRegister = async () => {
+    // 🆕 Snapshot en vivo: usamos SIEMPRE los estados actuales
+    const actionNow = thirdPartyBalance?.correspondent_action || "sin_saldo"; // "cobra" | "paga" | "sin_saldo"
+    const netNow = Number(thirdPartyBalance?.net_balance ?? 0); // saldo puro del backend (ya debe venir ajustado con la lógica PHP nueva)
+    const feesNowState = Math.max(
+      0,
+      Number(thirdPartyAccumulatedCommission ?? 0)
+    ); // comisión acumulada actual desde third_party_commissions
+
+    // Deuda base SIN comisión (capital pendiente según quién debe a quién)
+    const baseDebtToCB_now = actionNow === "cobra" ? Math.abs(netNow) : 0; // tercero -> CB
+    const basePayableByCB_now = actionNow === "paga" ? Math.abs(netNow) : 0; // CB -> tercero
+
+    // Deuda efectiva considerando comisión acumulada viva
+    const effectiveDebtToCB_now = baseDebtToCB_now + feesNowState;
+
+    // Si CB le debe al tercero, restamos comisión acumulada (no negativo)
+    const effectivePayableByCB_now = Math.max(
+      0,
+      basePayableByCB_now - feesNowState
+    );
+
+    // Lo que realmente queda pendiente entre las partes que se muestra en UI
+    const pendingForPanelNow =
+      actionNow === "cobra"
+        ? effectiveDebtToCB_now // tercero debe al CB
+        : actionNow === "paga"
+        ? effectivePayableByCB_now // CB debe al tercero
+        : 0;
+
+    // Formateador rápido COP
+    const fmtCOP = (v: number) => new Intl.NumberFormat("es-CO").format(v);
+
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -463,7 +505,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
-      // 4. Validación: cupo disponible actualizado
+      // 4. Validación: cupo global del corresponsal actualizado
       const latestDebtRes = await getDebtToBankByCorrespondent(
         correspondent.id
       );
@@ -476,14 +518,14 @@ const SnackPluginDeposits: React.FC<Props> = ({
       const cupoDisponible = creditLimit - latestDebt;
 
       setBankDebt(latestDebt);
-      await loadCashSummary();
+      await loadCashSummary(); // refresca caja (initialConfig, incomes, withdrawals)
 
-      // 6. Buscar el tipo seleccionado para obtener el nombre
+      // 5. Obtener tipo de transacción seleccionado
       const selectedType = transactionTypes.find(
         (t: any) => t.id === selectedTransaction
       );
 
-      // Mapeo predefinido
+      // Mapeo predefinido normalizado
       const transactionNoteMap: Record<string, string> = {
         "pago a tercero": "debt_to_third_party",
         "pago de tercero": "charge_to_third_party",
@@ -491,45 +533,75 @@ const SnackPluginDeposits: React.FC<Props> = ({
         "prestamo de terceros": "loan_from_third_party",
       };
 
-      // Función robusta de normalización
       const normalizeText = (text: string) =>
         text
           .toLowerCase()
-          .normalize("NFD") // separa caracteres diacríticos
-          .replace(/[\u0300-\u036f]/g, "") // elimina tildes
-          .replace(/[^\w\s]/gi, "") // elimina caracteres especiales
-          .replace(/\s+/g, " ") // unifica espacios múltiples
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\w\s]/gi, "")
+          .replace(/\s+/g, " ")
           .trim();
 
-      // Normalizar nombre del tipo
       const normalizedName = normalizeText(selectedType?.name || "");
-      console.log("🔍 Nombre normalizado:", normalizedName);
-
-      // Obtener nota especial
       const third_party_note = transactionNoteMap[normalizedName] || "unknown";
       const isLoanFromThirdParty = third_party_note === "loan_from_third_party";
 
-      // 5. Obtener tarifa (utility)
+      // 6. Obtener la tarifa (utility)
       const rateRes = await listRatesByCorrespondent(correspondent.id);
       const utility =
         rateRes?.data?.find(
           (r: any) => r.transaction_type_id === selectedTransaction
         )?.price || 0;
 
-      console.log("🧾 Tipo seleccionado:", selectedType?.name);
-
-      // 🔄 ACTUALIZAR balance antes de registrar
+      // 7. Refrescar balance y comisión ANTES de validar límites específicos,
+      //    para no usar algo desactualizado
       const refreshedBalance = await getThirdPartyBalance(
         correspondent.id,
         selectedOther.id
       );
-      if (refreshedBalance.success) {
+
+      if (refreshedBalance.success && refreshedBalance.data) {
         setThirdPartyBalance(refreshedBalance.data);
       } else {
-        setThirdPartyBalance(null); // fallback por si falla
+        setThirdPartyBalance(null);
       }
 
-      // Validar que se reconoció correctamente
+      // Snapshot fresco para validaciones duras
+      const actionLive =
+        refreshedBalance?.data?.correspondent_action || actionNow;
+      const netLive = Number(refreshedBalance?.data?.net_balance ?? netNow);
+
+      // Volvemos a tomar la comisión acumulada (tabla third_party_commissions)
+      // porque puede cambiar mientras el modal está abierto
+      const commissionLiveRes = await getThirdPartyCommission({
+        thirdId: selectedOther.id,
+        correspondentId: correspondent.id,
+        timeoutMs: 15000,
+      });
+
+      const feesLive = Math.max(
+        0,
+        Number(
+          commissionLiveRes?.data?.total_commission ??
+            (commissionLiveRes as any)?.total_commission ??
+            feesNowState
+        )
+      );
+
+      // Recalcular deuda efectiva ya con los valores LIVE
+      const baseDebtToCB_live = actionLive === "cobra" ? Math.abs(netLive) : 0;
+      const basePayableByCB_live =
+        actionLive === "paga" ? Math.abs(netLive) : 0;
+
+      const effectiveDebtToCB_live = baseDebtToCB_live + feesLive;
+      const effectivePayableByCB_live = Math.max(
+        0,
+        basePayableByCB_live - feesLive
+      );
+
+      // --- VALIDACIONES DE NEGOCIO ---
+
+      // 7.1 Tipo desconocido
       if (third_party_note === "unknown") {
         setAlertMessage(
           "⚠️ No se pudo determinar la nota especial para este tipo de transacción."
@@ -538,98 +610,137 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
-      // Si es un pago al tercero, validar deuda existente y saldo suficiente en caja
+      // 7.2 "Pago a tercero" => CB le paga al tercero
       if (third_party_note === "debt_to_third_party") {
-        if (netBalance >= 0) {
+        // Debe ser caso donde el CB le debe al tercero
+        if (actionLive !== "paga" || netLive >= 0 === false) {
+          if (netLive >= 0) {
+            setAlertMessage(
+              "⚠️ El corresponsal no tiene deuda pendiente con este tercero."
+            );
+            setAlertOpen(true);
+            return;
+          }
+        }
+
+        if (effectivePayableByCB_live <= 0) {
           setAlertMessage(
-            `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
+            "⚠️ La deuda efectiva del corresponsal con este tercero ya está cubierta o es cero."
           );
           setAlertOpen(true);
           return;
         }
 
-        if (valorIngresado > Math.abs(netBalance)) {
+        if (valorIngresado > effectivePayableByCB_live) {
           setAlertMessage(
-            `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
+            `⚠️ El monto ingresado ($${fmtCOP(
               valorIngresado
-            )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(Math.abs(netBalance))}).`
+            )}) excede la deuda del corresponsal con este tercero ($${fmtCOP(
+              effectivePayableByCB_live
+            )}).`
           );
           setAlertOpen(true);
           return;
         }
 
-        const saldoCaja = initialConfig + incomes - withdrawals;
-
-        if (valorIngresado > saldoCaja) {
+        const saldoCajaNow = initialConfig + incomes - withdrawals;
+        if (valorIngresado > saldoCajaNow) {
           setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
+            `⚠️ El monto $${fmtCOP(
               valorIngresado
-            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(saldoCaja)}).`
+            )} excede el saldo disponible en caja ($${fmtCOP(saldoCajaNow)}).`
           );
           setAlertOpen(true);
           return;
         }
       }
 
-      // Si es un pago entre el tercero y el corresponsal, validar saldos cruzados
-      if (
-        third_party_note === "charge_to_third_party" ||
-        third_party_note === "debt_to_third_party"
-      ) {
-        const netBalance = thirdPartyBalance?.net_balance ?? 0;
+      // 7.3 "Pago de tercero" => el tercero nos paga
+      if (third_party_note === "charge_to_third_party") {
+        // Para poder pagar:
+        // - o el tercero debe algo de capital (actionLive === "cobra" y netLive > 0 y effectiveDebtToCB_live > 0)
+        // - o tiene comisiones pendientes (feesLive > 0)
+        const puedePagar =
+          (actionLive === "cobra" &&
+            netLive > 0 &&
+            effectiveDebtToCB_live > 0) ||
+          feesLive > 0;
 
-        // Si el tercero debe al corresponsal, netBalance debe ser > 0
-        if (third_party_note === "charge_to_third_party") {
-          if (netBalance <= 0) {
-            setAlertMessage(
-              `⚠️ El tercero no tiene deuda pendiente con el corresponsal.`
-            );
-            setAlertOpen(true);
-            return;
-          }
-
-          if (valorIngresado > netBalance) {
-            setAlertMessage(
-              `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
-                valorIngresado
-              )}) excede lo que este tercero debe al corresponsal ($${new Intl.NumberFormat(
-                "es-CO"
-              ).format(netBalance)}).`
-            );
-            setAlertOpen(true);
-            return;
-          }
+        if (!puedePagar) {
+          setAlertMessage(
+            "⚠️ El tercero no tiene deuda ni comisiones pendientes con el corresponsal."
+          );
+          setAlertOpen(true);
+          return;
         }
 
-        // Si el corresponsal debe al tercero, netBalance debe ser < 0
-        if (third_party_note === "debt_to_third_party") {
-          if (netBalance >= 0) {
-            setAlertMessage(
-              `⚠️ El corresponsal no tiene deuda pendiente con este tercero.`
-            );
-            setAlertOpen(true);
-            return;
-          }
+        if (effectiveDebtToCB_live <= 0) {
+          setAlertMessage(
+            "⚠️ La deuda efectiva del tercero con el corresponsal ya está cubierta o es cero."
+          );
+          setAlertOpen(true);
+          return;
+        }
 
-          if (valorIngresado > Math.abs(netBalance)) {
-            setAlertMessage(
-              `⚠️ El monto ingresado ($${new Intl.NumberFormat("es-CO").format(
-                valorIngresado
-              )}) excede la deuda del corresponsal con este tercero ($${new Intl.NumberFormat(
-                "es-CO"
-              ).format(Math.abs(netBalance))}).`
-            );
-            setAlertOpen(true);
-            return;
-          }
+        if (valorIngresado > effectiveDebtToCB_live) {
+          setAlertMessage(
+            `⚠️ El monto ingresado ($${fmtCOP(
+              valorIngresado
+            )}) excede la deuda total del tercero ($${fmtCOP(
+              effectiveDebtToCB_live
+            )}).`
+          );
+          setAlertOpen(true);
+          return;
         }
       }
 
-      // ✅ Validación para premium: que la caja no exceda su capacidad
+      // 7.4 "Préstamo al tercero" => corresponsal le presta al tercero
+      if (third_party_note === "loan_to_third_party") {
+        // cupo del tercero ajustado = availableCreditAdjusted (state)
+        const availableCredit = availableCreditAdjusted;
+
+        if (selectedOther?.state !== 1) {
+          setAlertMessage(
+            "⚠️ Este tercero no está habilitado para recibir préstamos."
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        if (availableCredit <= 0) {
+          setAlertMessage(
+            "⚠️ El tercero no tiene cupo disponible en este momento."
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        if (valorIngresado > availableCredit) {
+          setAlertMessage(
+            `⚠️ El monto $${fmtCOP(
+              valorIngresado
+            )} excede el cupo disponible del tercero ($${fmtCOP(
+              availableCredit
+            )}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+
+        const saldoCajaNow = initialConfig + incomes - withdrawals;
+        if (valorIngresado > saldoCajaNow) {
+          setAlertMessage(
+            `⚠️ El monto $${fmtCOP(
+              valorIngresado
+            )} excede el saldo disponible en caja ($${fmtCOP(saldoCajaNow)}).`
+          );
+          setAlertOpen(true);
+          return;
+        }
+      }
+
+      // 7.5 premium: caja no puede pasarse de capacidad cuando entra dinero
       if (
         correspondent.premium === 1 &&
         (third_party_note === "charge_to_third_party" ||
@@ -640,52 +751,11 @@ const SnackPluginDeposits: React.FC<Props> = ({
 
         if (saldoConNuevoValor > cashCapacity) {
           setAlertMessage(
-            `⚠️ La caja tiene un límite de ${new Intl.NumberFormat(
-              "es-CO"
-            ).format(
+            `⚠️ La caja tiene un límite de ${fmtCOP(
               cashCapacity
-            )}. Esta transacción de $${new Intl.NumberFormat("es-CO").format(
+            )}. Esta transacción de $${fmtCOP(
               valorIngresado
             )} supera ese límite.`
-          );
-          setAlertOpen(true);
-          return;
-        }
-      }
-
-      // Si es un préstamo al tercero, validar cupo disponible y saldo en caja
-      if (third_party_note === "loan_to_third_party") {
-        const availableCredit = thirdPartyBalance?.available_credit || 0;
-
-        if (selectedOther?.state !== 1) {
-          setAlertMessage(
-            "⚠️ Este tercero no está habilitado para recibir préstamos."
-          );
-          setAlertOpen(true);
-          return;
-        }
-
-        if (valorIngresado > availableCredit) {
-          setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )} excede el cupo disponible del tercero ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(availableCredit)}).`
-          );
-          setAlertOpen(true);
-          return;
-        }
-
-        const saldoCaja = initialConfig + incomes - withdrawals;
-
-        if (valorIngresado > saldoCaja) {
-          setAlertMessage(
-            `⚠️ El monto $${new Intl.NumberFormat("es-CO").format(
-              valorIngresado
-            )} excede el saldo disponible en caja ($${new Intl.NumberFormat(
-              "es-CO"
-            ).format(saldoCaja)}).`
           );
           setAlertOpen(true);
           return;
@@ -709,12 +779,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
         ? saldoActual + valorIngresado
         : restaCaja
         ? saldoActual - valorIngresado
-        : saldoActual; // fallback si no se reconoce el tipo
-
-      console.log(
-        "💾 cash_tag (saldo resultante post-tercero):",
-        cashTag.toLocaleString("es-CO")
-      );
+        : saldoActual;
 
       // Validación: método de envío
       if (!selectedMethod) {
@@ -723,9 +788,9 @@ const SnackPluginDeposits: React.FC<Props> = ({
         return;
       }
 
-      // 7. Construir payload con ID real y nota especial
+      // 8. Construir payload para createThirdPartyTransaction
       const payload = {
-        id_cashier: 1, // ← reemplazar por el ID real si aplica
+        id_cashier: 1, // TODO: usa cashierId real si ya lo tienes
         id_cash: cash.id,
         id_correspondent: correspondent.id,
         transaction_type_id: selectedTransaction,
@@ -736,25 +801,58 @@ const SnackPluginDeposits: React.FC<Props> = ({
         third_party_note,
         cash_tag: cashTag,
         type_of_movement: selectedMethod,
-        // 🆕 referencia y costos calculados (el backend puede ignorarlos si no los usa)
-        reference, // NUEVO
-        bank_commission: -bankCommission, // como costo (negativo)
-        dispersion: -dispersion, // como costo (negativo)
-        total_commission: -(bankCommission + dispersion), // opcional
+        reference,
+        bank_commission: -bankCommission, // se guardan negativas en BD
+        dispersion: -dispersion,
+        total_commission: -(bankCommission + dispersion),
       };
 
-      console.log("📤 Registrando transacción con tercero:", payload);
+      // 🧮 ¿cuánto de este pago baja comisión acumulada?
+      const calcCommissionPaymentPortion = () => {
+        if (third_party_note !== "charge_to_third_party") return 0;
 
-      const res = await createThirdPartyTransaction(payload);
+        // capital pendiente = baseDebtToCB_live
+        // comisión pendiente = feesLive
+        if (valorIngresado <= baseDebtToCB_live) return 0; // no tocó comisión
 
-      // 8. Validar respuesta
+        const extraSobreCapital = valorIngresado - baseDebtToCB_live;
+        return Math.min(extraSobreCapital, feesLive);
+      };
+
+      const commissionToSend = calcCommissionPaymentPortion();
+
+      const res = await createThirdPartyTransaction({
+        ...payload,
+        accumulated_commission: commissionToSend, // solo la parte que baja comisión acumulada
+      });
+
+      // 9. Post-registro
       if (res.success) {
+        try {
+          // 9.1 si fue pago del tercero, actualiza tabla de comisión acumulada
+          if (
+            third_party_note === "charge_to_third_party" &&
+            commissionToSend
+          ) {
+            await subtractThirdPartyCommission({
+              thirdId: selectedOther.id,
+              correspondentId: correspondent.id,
+              amount: commissionToSend,
+            });
+          }
+        } catch (calcErr) {
+          console.error(
+            "❌ Error interno calculando/descontando comisión:",
+            calcErr
+          );
+        }
+
         setSuccessOpen(true);
 
-        // 🔄 Actualizar resumen financiero de la caja
+        // 9.2 Refrescar caja
         await loadCashSummary();
 
-        // 🔄 Actualizar deuda al banco
+        // 9.3 Refrescar deuda al banco
         const updatedDebtRes = await getDebtToBankByCorrespondent(
           correspondent.id
         );
@@ -762,7 +860,23 @@ const SnackPluginDeposits: React.FC<Props> = ({
           setBankDebt(updatedDebtRes.data.debt_to_bank || 0);
         }
 
-        // 🔄 Actualizar balance del tercero
+        // 9.4 Refrescar comisión acumulada DESPUÉS de restar
+        const commissionAfterRes = await getThirdPartyCommission({
+          thirdId: selectedOther.id,
+          correspondentId: correspondent.id,
+          timeoutMs: 15000,
+        });
+        const commissionAfter = Math.max(
+          0,
+          Number(
+            commissionAfterRes?.data?.total_commission ??
+              (commissionAfterRes as any)?.total_commission ??
+              0
+          )
+        );
+        setThirdPartyAccumulatedCommission(commissionAfter);
+
+        // 9.5 Refrescar balance del tercero (PHP debe devolverte el net_balance ya limpio)
         const updatedBalanceRes = await getThirdPartyBalance(
           correspondent.id,
           selectedOther.id
@@ -771,11 +885,10 @@ const SnackPluginDeposits: React.FC<Props> = ({
           setThirdPartyBalance(updatedBalanceRes.data);
         }
 
-        // 🧹 Limpiar formulario
+        // 9.6 Limpiar formulario
         setAmount("0");
         setSelectedTransaction("");
 
-        // ✅ Callback externo (si existe)
         if (onTransactionComplete) onTransactionComplete();
       } else {
         setAlertMessage("❌ Error al registrar la transacción.");
@@ -798,37 +911,71 @@ const SnackPluginDeposits: React.FC<Props> = ({
   console.log("📊 netBalance recibido:", netBalance);
   console.log("🎯 Acción del corresponsal (backend):", action);
 
+  // NUEVO DEFINITIVO: comisiones acumuladas del tercero en BD
+  // (vienen de third_party_commissions.total_commission)
+  const thirdPartyFees = Math.max(
+    0,
+    Number(thirdPartyAccumulatedCommission ?? 0)
+  );
+
+  // NUEVO: base de deuda del tercero hacia el CB (solo si action === 'cobra')
+  const baseDebtToCB = action === "cobra" ? Math.abs(netBalance) : 0;
+
+  // NUEVO: deuda efectiva = deuda base + comisiones
+  const effectiveDebtToCB = baseDebtToCB + thirdPartyFees;
+
+  // comisiones acumuladas del tercero (magnitud positiva)
+
+  // b) cuando el CB debe al tercero (paga) => saldo - comisiones (no negativo)
+  const basePayableByCB = action === "paga" ? Math.abs(netBalance) : 0;
+  const effectivePayableByCB = Math.max(0, basePayableByCB - thirdPartyFees);
+
+  // Lo que realmente queda pendiente para mostrar en UI,
+  // incorporando comisiones acumuladas (thirdPartyFees)
+  const pendingForPanel =
+    action === "cobra"
+      ? effectiveDebtToCB
+      : action === "paga"
+      ? effectivePayableByCB
+      : thirdPartyFees;
+
+  // Acción “visual”: si hay pendiente, mostramos "paga" o "cobra".
+  // Si solo quedan comisiones pero action venía "sin_saldo", lo tratamos como "cobra".
+  const visualAction =
+    pendingForPanel > 0 ? (action === "paga" ? "paga" : "cobra") : "sin_saldo";
+
+  // Formateador cómodo
+  const fmtCOP = (v: number) => new Intl.NumberFormat("es-CO").format(v);
+
+  // Cupo original que viene del backend
+  const availableCreditRaw = Number(thirdPartyBalance?.available_credit ?? 0);
+
+  // Cupo disponible ajustado: se descuenta la comisión acumulada
+  const availableCreditAdjusted = Math.max(
+    0,
+    availableCreditRaw - thirdPartyFees
+  );
+
   let saldoResumen = null;
 
-  if (action === "sin_saldo" || netBalance === 0) {
-    console.log("✅ No hay saldos pendientes entre partes.");
+  if (pendingForPanel <= 0) {
     saldoResumen = (
       <Typography mt={1}>
         <strong>✔️ No hay saldos pendientes entre partes.</strong>
       </Typography>
     );
   } else if (action === "cobra") {
-    const label = `📥 ${nombreTercero} debe al corresponsal:`;
-    const valorFormateado = new Intl.NumberFormat("es-CO").format(
-      Math.abs(netBalance)
-    );
-    console.log("🧾 Resultado visual:", label, "$" + valorFormateado);
-
     saldoResumen = (
       <Typography mt={1}>
-        <strong>{label}</strong> ${valorFormateado}
+        <strong>📥 {nombreTercero} debe al corresponsal:</strong> $
+        {fmtCOP(pendingForPanel)}
       </Typography>
     );
   } else if (action === "paga") {
-    const label = `💸 El corresponsal debe a ${nombreTercero}:`;
-    const valorFormateado = new Intl.NumberFormat("es-CO").format(
-      Math.abs(netBalance)
-    );
-    console.log("🧾 Resultado visual:", label, "$" + valorFormateado);
-
     saldoResumen = (
       <Typography mt={1}>
-        <strong>{label}</strong> ${valorFormateado}
+        <strong>💸 El corresponsal debe a {nombreTercero}:</strong> $
+        {fmtCOP(pendingForPanel)}
       </Typography>
     );
   }
@@ -837,31 +984,25 @@ const SnackPluginDeposits: React.FC<Props> = ({
   const saldoTop = (() => {
     if (!thirdPartyBalance) return null;
 
-    const n = Math.abs(thirdPartyBalance.net_balance || 0);
-    const monto = `$${new Intl.NumberFormat("es-CO").format(n)}`;
-
-    if (thirdPartyBalance.correspondent_action === "cobra") {
-      // El tercero debe al corresponsal
+    if (pendingForPanel <= 0) {
       return (
         <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
-          📥 {nombreTercero} debe al corresponsal: {monto}
+          ✔️ No hay saldos pendientes entre partes.
         </Typography>
       );
     }
 
-    if (thirdPartyBalance.correspondent_action === "paga") {
-      // El corresponsal debe al tercero
+    if (visualAction === "paga") {
       return (
         <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
-          💸 El corresponsal debe a {nombreTercero}: {monto}
+          💸 El corresponsal debe a {nombreTercero}: ${fmtCOP(pendingForPanel)}
         </Typography>
       );
     }
 
-    // Sin saldo pendiente
     return (
       <Typography fontWeight="bold" sx={{ fontSize: "1rem", mb: 1 }}>
-        ✔️ No hay saldos pendientes entre partes.
+        📥 {nombreTercero} debe al corresponsal: ${fmtCOP(pendingForPanel)}
       </Typography>
     );
   })();
@@ -992,18 +1133,53 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   size="small"
                   value={selectedOther?.id || ""}
                   onChange={async (e) => {
-                    const selected = othersList.find(
-                      (o) => o.id === parseInt(e.target.value)
-                    );
-                    setSelectedOther(selected);
+                    // 1. Parsear ID seleccionado desde el <MenuItem>
+                    const rawId = e.target.value; // viene como string
+                    const parsedId = Number(rawId); // lo volvemos número
 
-                    if (selected) {
+                    // 2. Buscar el objeto del tercero con ese ID
+                    const found =
+                      othersList.find((o: any) => Number(o.id) === parsedId) ||
+                      null;
+
+                    // 3. Actualizar el estado de selección primero
+                    setSelectedOther(found);
+
+                    // 4. Si no hay tercero válido => limpiar y salir SIN llamar APIs
+                    if (!parsedId || parsedId <= 0 || !found) {
+                      console.warn("⚠️ Tercero inválido o no encontrado", {
+                        rawId,
+                        parsedId,
+                        found,
+                      });
+
+                      setThirdPartyBalance(null);
+                      setThirdPartyAccumulatedCommission(0);
+                      return;
+                    }
+
+                    const thirdId = parsedId;
+                    const correspondentId = Number(correspondent.id || 0);
+
+                    console.log(
+                      "🟣 Cargando datos para tercero/corresponsal:",
+                      {
+                        thirdId,
+                        correspondentId,
+                        foundName: found.name,
+                      }
+                    );
+
+                    // 5. Obtener balance actual del tercero con el corresponsal
+                    try {
                       const balanceRes = await getThirdPartyBalance(
-                        correspondent.id,
-                        selected.id
+                        correspondentId,
+                        thirdId
                       );
-                      if (balanceRes.data) {
+
+                      if (balanceRes?.data) {
                         setThirdPartyBalance(balanceRes.data);
+
                         if (!balanceRes.success && balanceRes.message) {
                           setAlertMessage(`⚠️ ${balanceRes.message}`);
                           setAlertOpen(true);
@@ -1011,8 +1187,35 @@ const SnackPluginDeposits: React.FC<Props> = ({
                       } else {
                         setThirdPartyBalance(null);
                       }
-                    } else {
+                    } catch (err) {
+                      console.error("❌ Error getThirdPartyBalance:", err);
                       setThirdPartyBalance(null);
+                    }
+
+                    // 6. Obtener comisión ACUMULADA desde tabla third_party_commissions
+                    try {
+                      const commissionRes = await getThirdPartyCommission({
+                        thirdId,
+                        correspondentId,
+                        timeoutMs: 15000,
+                      });
+
+                      // asumimos respuesta tipo:
+                      // { success: true, data: { total_commission: "1000.00", ... } }
+                      // o directamente { total_commission: "1000.00", ... }
+
+                      const totalFromDB =
+                        (commissionRes?.data &&
+                          Number(commissionRes.data.total_commission ?? 0)) ||
+                        Number((commissionRes as any)?.total_commission ?? 0) ||
+                        0;
+
+                      console.log("💵 Comisión acumulada BD:", totalFromDB);
+
+                      setThirdPartyAccumulatedCommission(totalFromDB);
+                    } catch (err) {
+                      console.error("❌ Error getThirdPartyCommission:", err);
+                      setThirdPartyAccumulatedCommission(0);
                     }
                   }}
                   InputProps={{ sx: { height: 36, fontSize: "0.9rem" } }}
@@ -1104,7 +1307,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
               </Box>
             </Grid>
 
-            {/* Panel de balance (derecha) — muestra una sola línea según el caso */}
+            {/* Panel de balance (derecha) — estado entre corresponsal y tercero */}
             {selectedOther && thirdPartyBalance && (
               <Grid item xs={12} md={6} mb={2}>
                 <Paper
@@ -1112,9 +1315,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
                   sx={{
                     width: "100%",
                     height: "100%",
-                    // ❌ quita el borde general
                     border: "none",
-                    // ✅ deja solo el borde izquierdo
                     borderLeft: `1px solid ${colors.secondary}`,
                     borderRadius: 2,
                     backgroundColor: "#fff",
@@ -1127,53 +1328,31 @@ const SnackPluginDeposits: React.FC<Props> = ({
                 >
                   <Box sx={{ width: "100%" }}>
                     <Grid container rowSpacing={1.2} columnSpacing={2}>
-                      {/* --------- SOLO UNA LÍNEA ARRIBA SEGÚN action --------- */}
-                      {action === "cobra" && (
-                        <>
-                          <Grid item xs={8}>
-                            <Typography sx={{ fontSize: "0.95rem" }}>
-                              {nombreTercero} Debe al CB
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={4} textAlign="right">
-                            <Typography sx={{ fontSize: "0.95rem" }}>
-                              ${" "}
-                              {new Intl.NumberFormat("es-CO").format(
-                                Math.abs(netBalance)
-                              )}
-                            </Typography>
-                          </Grid>
-                        </>
-                      )}
+                      {/* ====== FILA 1: Relación corresponsal <-> tercero ====== */}
+                      <Grid item xs={8}>
+                        <Typography
+                          sx={{ fontSize: "0.95rem", fontWeight: 500 }}
+                        >
+                          {pendingForPanel > 0
+                            ? visualAction === "paga"
+                              ? `CB Debe a ${nombreTercero}`
+                              : `${nombreTercero} Debe al CB`
+                            : "✔️ Sin saldos"}
+                        </Typography>
+                      </Grid>
 
-                      {action === "paga" && (
-                        <>
-                          <Grid item xs={8}>
-                            <Typography sx={{ fontSize: "0.95rem" }}>
-                              CB Debe al {nombreTercero}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={4} textAlign="right">
-                            <Typography sx={{ fontSize: "0.95rem" }}>
-                              ${" "}
-                              {new Intl.NumberFormat("es-CO").format(
-                                Math.abs(netBalance)
-                              )}
-                            </Typography>
-                          </Grid>
-                        </>
-                      )}
+                      <Grid item xs={4} textAlign="right">
+                        <Typography
+                          sx={{ fontSize: "0.95rem", fontWeight: 500 }}
+                        >
+                          $
+                          {new Intl.NumberFormat("es-CO").format(
+                            pendingForPanel > 0 ? pendingForPanel : 0
+                          )}
+                        </Typography>
+                      </Grid>
 
-                      {(action === "sin_saldo" || !action) && (
-                        <Grid item xs={12}>
-                          <Typography sx={{ fontSize: "0.95rem" }}>
-                            ✔️ No hay saldos pendientes entre partes.
-                          </Typography>
-                        </Grid>
-                      )}
-                      {/* ------------------------------------------------------- */}
-
-                      {/* Cupo crédito */}
+                      {/* ====== FILA 2: Cupo crédito total ====== */}
                       <Grid item xs={8}>
                         <Typography sx={{ fontSize: "0.95rem" }}>
                           Cupo crédito
@@ -1185,7 +1364,8 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         </Typography>
                       </Grid>
 
-                      {/* Cupo disponible */}
+                      {/* ====== FILA 3: Cupo disponible ajustado ======
+               (cupo descontando comisiones acumuladas) */}
                       <Grid item xs={8}>
                         <Typography sx={{ fontSize: "0.95rem" }}>
                           Cupo disponible
@@ -1195,7 +1375,7 @@ const SnackPluginDeposits: React.FC<Props> = ({
                         <Typography sx={{ fontSize: "0.95rem" }}>
                           ${" "}
                           {new Intl.NumberFormat("es-CO").format(
-                            availableCredit
+                            availableCreditAdjusted
                           )}
                         </Typography>
                       </Grid>
