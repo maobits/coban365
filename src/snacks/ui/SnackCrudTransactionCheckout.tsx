@@ -84,6 +84,9 @@ import {
   getCashWithdrawals,
 } from "../../store/transaction/CrudTransactions";
 
+// Reporte comisión de terceros.
+import SnackReportThirdCommision from "./reports/SnackReportThirdCommision";
+
 // Icono para terceros
 import GroupIcon from "@mui/icons-material/Group";
 
@@ -949,7 +952,7 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                             />
                           </IconButton>
 
-                          {/* 👉 Nuevo: botón Terceros (a la derecha del de Cuadre) */}
+                          {/* Botón: terceros (tirilla por tercero) */}
                           <IconButton
                             onClick={() => setShowThirdModal(true)}
                             sx={{
@@ -971,6 +974,13 @@ const SnackCrudTransactionCheckout: React.FC<Props> = ({ permissions }) => {
                               }}
                             />
                           </IconButton>
+
+                          {/* 🔹 Nuevo: icono de reporte de comisiones, a la derecha del de terceros */}
+                          <Box ml={1}>
+                            <SnackReportThirdCommision
+                              correspondentId={selectedCorrespondent.id}
+                            />
+                          </Box>
                         </>
                       )}
                     </Box>

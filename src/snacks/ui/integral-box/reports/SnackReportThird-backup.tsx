@@ -89,41 +89,6 @@ const SnackReportThird: React.FC<Props> = ({
   const negCellSx = { color: "error.main", fontWeight: 700 } as const;
   const posCellSx = { color: "success.main", fontWeight: 700 } as const;
 
-  // 🔹 Calcular saldo actual de un tercero (MISMA REGLA QUE EN DETALLE)
-  const computeCurrentBalanceForThird = (third: any): number => {
-    if (!third) return 0;
-
-    const initial = Number(third.balance || 0);
-    const list = Array.isArray(third.movements) ? third.movements : [];
-
-    if (!list.length) return initial;
-
-    const sorted = [...list].sort(
-      (a: any, b: any) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-
-    let running = initial;
-    for (const m of sorted) {
-      const cost = Number(m.cost || 0);
-      const bank = Number(m.bank_commission || 0); // negativo si costo
-      const disp = Number(m.dispersion || 0); // negativo si costo
-      // polarity 0 = egreso (resta), 1 = ingreso (suma)
-      const signedValue = Number(m.polarity) === 0 ? -cost : +cost;
-      running += signedValue + bank + disp;
-    }
-
-    // Log opcional de depuración
-    console.log(
-      "[SnackReportThird] Saldo neto calculado para tercero",
-      third.id,
-      "=>",
-      running
-    );
-
-    return running;
-  };
-
   // Carga principal
   const loadReport = async () => {
     try {
@@ -233,7 +198,7 @@ const SnackReportThird: React.FC<Props> = ({
   );
 
   /**
-   * Saldo Actual (detalle):
+   * Saldo Actual:
    * Siempre = saldo inicial + Σ(efecto de cada movimiento visible).
    * Regla de signo: polarity 0 = egreso (resta), polarity 1 = ingreso (suma).
    */
@@ -260,17 +225,19 @@ const SnackReportThird: React.FC<Props> = ({
       const cost = Number(m.cost || 0);
       const bank = Number(m.bank_commission || 0); // negativo si costo
       const disp = Number(m.dispersion || 0); // negativo si costo
+      // ✅ Ajuste: polarity 0 resta, polarity 1 suma
       const signedValue = Number(m.polarity) === 0 ? -cost : +cost;
       running += signedValue + bank + disp;
     }
     return running;
   }, [selectedThird, rangeFilteredMovements, appliedRange]);
 
-  /* Total deuda de terceros + comisiones */
+  /* Total */
   const totalThirdDebtWithFees = useMemo(() => {
     const list = reportData?.third_party_summary || [];
     return list.reduce((sum: number, t: any) => {
       const thirdDebt = Number(t?.third_party_debt || 0);
+      // Tomamos la suma de comisiones por tercero (el campo que ya usas arriba)
       const commissions = Number(
         t?.sum_total_commission ?? t?.total_total_commission ?? 0
       );
@@ -278,8 +245,9 @@ const SnackReportThird: React.FC<Props> = ({
     }, 0);
   }, [reportData]);
 
-  /*  Total NETO (global) */
+  /*  Total NETO */
   const totalNetWithFees = useMemo(() => {
+    // deuda del corresponsal (usa el total del reporte o lo calcula si falta)
     const correspDebt = Number(
       reportData?.total_correspondent_debt ??
         reportData?.third_party_summary?.reduce(
@@ -289,6 +257,7 @@ const SnackReportThird: React.FC<Props> = ({
         0
     );
 
+    // ya lo tienes del paso anterior
     return correspDebt - totalThirdDebtWithFees;
   }, [reportData, totalThirdDebtWithFees]);
 
@@ -375,7 +344,7 @@ const SnackReportThird: React.FC<Props> = ({
             <Divider sx={{ my: 2 }} />
             {reportData.third_party_summary.map((t: any, idx: number) => {
               const commissions = Number(t.sum_total_commission || 0); // total comisiones (magnitud positiva)
-              const saldoNeto = computeCurrentBalanceForThird(t); // 👈 ahora usamos el mismo cálculo que en el detalle
+              const netAfter = Number(t.net_balance || 0) - commissions; // saldo neto - comisiones
 
               return (
                 <Box key={t.id ?? idx} mb={3}>
@@ -489,7 +458,7 @@ const SnackReportThird: React.FC<Props> = ({
                         </TableCell>
                       </TableRow>
 
-                      {/* Total comisiones (magnitud positiva) */}
+                      {/* NUEVA fila: total comisiones (magnitud positiva) */}
                       <TableRow>
                         <TableCell>Total comisiones</TableCell>
                         <TableCell
@@ -500,17 +469,17 @@ const SnackReportThird: React.FC<Props> = ({
                         </TableCell>
                       </TableRow>
 
-                      {/* Saldo neto basado en movimientos (debe coincidir con Detalle del tercero) */}
+                      {/* Saldo neto = net_balance - total comisiones */}
                       <TableRow>
                         <TableCell>Saldo neto</TableCell>
                         <TableCell
                           align="right"
                           sx={{
-                            color: saldoNeto >= 0 ? "green" : "red",
+                            color: netAfter >= 0 ? "green" : "red",
                             fontWeight: "bold",
                           }}
                         >
-                          {formatCurrency(saldoNeto)}
+                          {formatCurrency(netAfter)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
