@@ -74,6 +74,21 @@ function validateAmount(amount: number, { canBeZero = false } = {}) {
   }
 }
 
+// arriba, junto a otros imports (no necesita nuevas libs)
+const normalizeText = (s: string) =>
+  (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// estado para total de comisiones acumuladas del corresponsal
+const [accumulatedCommissions, setAccumulatedCommissions] = useState<
+  number | null
+>(null);
+
 /* =========================================================================
  * LOG UTILITY
  * ========================================================================= */
