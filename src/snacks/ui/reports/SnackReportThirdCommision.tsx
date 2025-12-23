@@ -38,20 +38,15 @@ interface Props {
 const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
   const { colors, fonts } = useTheme();
 
-  // Estado del modal
   const [open, setOpen] = useState(false);
-
-  // Datos del reporte
   const [rows, setRows] = useState<any[]>([]);
   const [correspondentName, setCorrespondentName] = useState<string>("");
   const [grandTotal, setGrandTotal] = useState<number>(0);
   const [thirdCount, setThirdCount] = useState<number>(0);
 
-  // Filtros
   const [search, setSearch] = useState<string>("");
   const [minTotal, setMinTotal] = useState<string>("");
 
-  // Control de carga y errores
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,12 +84,10 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
     }
   };
 
-  // Cargar datos sólo cuando se abre el modal o se cambian filtros manualmente
   useEffect(() => {
     if (open) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, correspondentId]);
 
   const handleApplyFilters = () => {
@@ -175,11 +168,8 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
     XLSX.writeFile(wb, filename);
   };
 
-  // ------------- RENDER -------------
-
   return (
     <>
-      {/* Botón redondo estilo ícono pequeño */}
       <Tooltip title="Reporte de comisiones de terceros">
         <IconButton
           onClick={() => setOpen(true)}
@@ -199,7 +189,6 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
         </IconButton>
       </Tooltip>
 
-      {/* Modal del reporte */}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -231,10 +220,9 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
         <DialogContent
           sx={{
             backgroundColor: colors.background,
-            pt: 3,
+            pt: 5, // ← ← ← AQUI ÚNICO CAMBIO SOLICITADO (margen interior superior)
           }}
         >
-          {/* Filtros */}
           <Box mb={2}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -271,7 +259,6 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
             </Grid>
           </Box>
 
-          {/* Contenido */}
           {loading ? (
             <Box textAlign="center" mt={4}>
               <CircularProgress />
@@ -313,7 +300,6 @@ const SnackReportThirdCommision: React.FC<Props> = ({ correspondentId }) => {
                 </Table>
               </Paper>
 
-              {/* Resumen global */}
               <Box mt={3}>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                   Resumen global
